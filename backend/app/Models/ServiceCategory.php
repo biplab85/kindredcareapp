@@ -13,6 +13,7 @@ class ServiceCategory extends Model
         'icon',
         'tier_required',
         'default_tasks',
+        'example_tasks',
         'is_active',
         'sort_order',
     ];
@@ -24,6 +25,7 @@ class ServiceCategory extends Model
     {
         return [
             'default_tasks' => 'array',
+            'example_tasks' => 'array',
             'is_active' => 'boolean',
         ];
     }

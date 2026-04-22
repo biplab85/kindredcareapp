@@ -17,9 +17,9 @@ A gig marketplace connecting Canadian seniors with verified caregivers. Think Ub
 - **Email:** Brevo or Resend (log driver in dev)
 
 ## Local Development Environment
-- **PHP:** Laravel Herd (manages PHP 8.4 + Nginx automatically)
+- **PHP:** `php artisan serve` (built-in PHP dev server). Run from `backend/` via `php artisan serve` — starts on port 8000.
 - **MySQL:** DBngin — database `kindredcare_v2`, root user, no password
-- **Backend URL:** `http://kindredcare-v2.test` (Herd link)
+- **Backend URL:** `http://localhost:8000` (artisan serve)
 - **Frontend URL:** `http://localhost:3000` (Next.js dev server)
 - **No Docker.** Everything runs natively on macOS.
 - **No Redis.** File-based cache, database queue driver.
@@ -82,7 +82,7 @@ Logo at `frontend/public/logo.png`. Three brand colors derived from it:
 - Design system preview: `http://localhost:3000/design-system`
 
 ## API Architecture
-- Backend API base: `http://kindredcare-v2.test/api/`
+- Backend API base: `http://localhost:8000/api/`
 - Frontend Axios client: `frontend/src/lib/api.ts` (withCredentials for Sanctum)
 - CORS: `backend/config/cors.php` allows `localhost:3000`
 - Sanctum stateful domains include `localhost:3000`

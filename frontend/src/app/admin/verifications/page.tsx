@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { AdminLayout } from "@/components/layouts/admin-layout";
+import { DashboardShell } from "@/components/layouts";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -40,9 +40,11 @@ const TABS = [
 export default function AdminVerificationsPage() {
   return (
     <AuthGuard roles={["admin"]}>
-      <AdminLayout>
-        <VerificationsContent />
-      </AdminLayout>
+      <DashboardShell pageTitle="Verifications">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <VerificationsContent />
+        </div>
+      </DashboardShell>
     </AuthGuard>
   );
 }

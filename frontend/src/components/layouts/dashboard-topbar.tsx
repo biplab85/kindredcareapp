@@ -1,0 +1,147 @@
+"use client";
+
+import Link from "next/link";
+import { Bell, LogOut, Menu, Settings, type LucideIcon, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LargeTextToggle } from "@/components/ui/large-text-toggle";
+import { useAuthStore } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+
+/* ─────────────────────────────────────────────────────────────
+ * DashboardTopbar — 64px bar sitting to the right of the sidebar.
+ * Left: hamburger (mobile only) + page title slot.
+ * Right: large-text toggle, notification bell (placeholder),
+ * and the user dropdown (avatar + first name + role menu).
+ * ───────────────────────────────────────────────────────────── */
+
+interface DashboardTopbarProps {
+  /** Content for the left slot — typically a short page title string or a breadcrumb node. */
+  pageTitle?: React.ReactNode;
+  /** Opens the mobile drawer. Hidden on md+. */
+  onOpenDrawer: () => void;
+  /** Optional count for the notification bell badge. */
+  notificationCount?: number;
+}
+
+export function DashboardTopbar({
+  pageTitle,
+  onOpenDrawer,
+  notificationCount = 0,
+}: DashboardTopbarProps) {
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "/login";
+  };
+
+  const initials = initialsOf(user?.name);
+  const firstName = user?.name?.split(" ")[0] ?? "Account";
+
+  return (
+    <header
+      className={cn(
+        "sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border/60 bg-background/85 px-4 backdrop-blur-xl sm:px-6",
+      )}
+    >
+      {/* Mobile hamburger */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden"
+        onClick={onOpenDrawer}
+        aria-label="Open navigation"
+      >
+        <Menu className="size-5" strokeWidth={1.75} />
+      </Button>
+
+      {/* Page title slot */}
+      <div className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
+        {pageTitle}
+      </div>
+
+      {/* Right cluster */}
+      <div className="flex shrink-0 items-center gap-1">
+        <LargeTextToggle />
+
+        <Link
+          href="/bookings"
+          className="relative inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="Notifications"
+        >
+          <Bell className="size-[18px]" strokeWidth={1.75} />
+          {notificationCount > 0 && (
+            <span
+              aria-hidden
+              className="absolute top-1.5 right-1.5 grid size-4 min-w-[1rem] place-items-center rounded-full bg-accent px-1 font-mono text-[9px] font-bold text-accent-foreground"
+            >
+              {notificationCount > 9 ? "9+" : notificationCount}
+            </span>
+          )}
+        </Link>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                className="ml-1 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card py-1 pr-3 pl-1 text-sm transition-colors hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                aria-label="Account menu"
+              >
+                <span className="grid size-7 place-items-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-primary">
+                  {initials}
+                </span>
+                <span className="hidden max-w-[120px] truncate font-medium lg:inline">
+                  {firstName}
+                </span>
+              </button>
+            }
+          />
+          <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-56">
+            <DropdownMenuLabel className="flex flex-col gap-0.5">
+              <span className="font-semibold">{user?.name}</span>
+              <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                {user?.role}
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem render={<Link href="/settings" />}>
+              <Settings className="size-4" strokeWidth={1.75} />
+              Settings
+            </DropdownMenuItem>
+            {user?.role === "caregiver" && (
+              <DropdownMenuItem render={<Link href="/verification" />}>
+                <User className="size-4" strokeWidth={1.75} />
+                Verification
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+              <LogOut className="size-4" strokeWidth={1.75} />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
+}
+
+function initialsOf(name: string | undefined): string {
+  if (!name) return "·";
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((n) => n.charAt(0).toUpperCase())
+    .join("");
+}
+
+// Keep the unused-import warning happy if LucideIcon is referenced elsewhere in future.
+export type { LucideIcon };

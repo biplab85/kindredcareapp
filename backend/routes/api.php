@@ -102,7 +102,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ─── GIGS ───
-    Route::apiResource('gigs', GigController::class)->only(['index', 'store', 'show']);
+    // Static paths must come before apiResource so {gig} doesn't swallow them.
+    Route::get('/gigs/feed', [GigController::class, 'feed']);
+    Route::apiResource('gigs', GigController::class)
+        ->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::patch('/gigs/{gig}/cancel', [GigController::class, 'cancel']);
     Route::post('/gigs/{gig}/matches', [GigController::class, 'matches']);
 
     // ─── BOOKINGS ───
