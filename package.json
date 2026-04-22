@@ -1,0 +1,16 @@
+{
+  "name": "kindredcare",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  },
+  "lint-staged": {
+    "backend/**/*.php": "cd backend && ./vendor/bin/pint",
+    "frontend/**/*.{ts,tsx}": "cd frontend && npx eslint --fix",
+    "frontend/**/*.{ts,tsx,json,css}": "cd frontend && npx prettier --write"
+  }
+}

@@ -395,7 +395,7 @@ For KindredCare operations team:
 - **Forms**: React Hook Form + Zod
 
 ### Backend
-- **Framework**: Laravel 13 (PHP 8.3)
+- **Framework**: Laravel 12 (PHP 8.3)
 - **API style**: RESTful API (Laravel API Resources + Form Requests) + Laravel Reverb for real-time messaging/notifications
 - **Authentication**: Laravel Sanctum (API tokens for mobile web + SPA authentication)
 - **Queues**: Laravel Queue (Redis driver) for async jobs — verification webhooks, payouts, emails, SMS
@@ -776,7 +776,7 @@ Net runway after MVP launch: positive, assuming IRAP approval.
 
 These require stakeholder decisions before or during build:
 
-1. ~~**Tech stack final choice**~~: **DECIDED** — Laravel 13 (PHP 8.3) + MySQL 8.0+ + Next.js 16 frontend
+1. ~~**Tech stack final choice**~~: **DECIDED** — Laravel 12 (PHP 8.3) + MySQL 8.0+ + Next.js 16 frontend
 2. **Hosting region**: AWS ca-central-1 (Toronto) vs Montreal — tied to Quebec expansion timeline
 3. ~~**ShuftiPro vs Veriff**~~: **DECIDED** — Veriff as primary IDV provider ($0.80-$1.89/check, 95% pass rate, free sandbox). ShuftiPro as backup if needed.
 4. **Caregiver insurance**: Required as part of onboarding, OR optional with discount? Recommend requiring basic CGL ($2M) as mandatory — need to finalize group rate with Zensurance or Duuo
