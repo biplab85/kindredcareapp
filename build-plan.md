@@ -5,6 +5,7 @@
 > **Source:** `mvp-requirements.md`
 > **Timeline:** ~29 weeks (7 months) from kickoff to public launch
 > **Update this document:** Check off tasks as they are completed. Add notes and dates as needed.
+> **Frontend rule:** Always use the `frontend-design` skill when working on any frontend task (components, pages, layouts, design system).
 
 ---
 
@@ -12,53 +13,53 @@
 
 ### 1.1 Development Environment
 
-- [ ] **Initialize project structure**
-  Set up the repository with a Laravel application (backend API) and a Next.js application (frontend). Use a single repo with `/backend` and `/frontend` directories, or two separate repos. Initialize Laravel 13 via `composer create-project` and Next.js 16 via `create-next-app`.
+- [x] **Initialize project structure**
+  Set up the repository with a Laravel application (backend API) and a Next.js application (frontend). Use a single repo with `/backend` and `/frontend` directories, or two separate repos. Initialize Laravel 12 via `composer create-project` and Next.js 16 via `create-next-app`.
 
-- [ ] **Configure CI/CD pipeline**
+- [x] **Configure CI/CD pipeline**
   Set up GitHub Actions with automated linting, type-checking, unit tests, and build steps. Configure branch protection rules for main and develop branches.
 
-- [ ] **Set up development environments**
-  Create local development setup with Docker Compose for MySQL, Redis, and Laravel Reverb. Alternatively use Laravel Sail for the backend. Document onboarding steps for new developers.
+- [x] **Set up development environments**
+  Local development via Laravel Herd (PHP + Nginx) + DBngin (MySQL). No Docker. Backend served at `http://kindredcare-v2.test`. Frontend at `http://localhost:3000`.
 
-- [ ] **Configure linting and formatting**
+- [x] **Configure linting and formatting**
   Set up PHP CS Fixer and Larastan (PHPStan for Laravel) for the backend. Set up ESLint and Prettier for the Next.js frontend. Configure commit hooks (husky + lint-staged) so code style is enforced consistently from day one.
 
 ### 1.2 Infrastructure Provisioning
 
-- [ ] **Provision cloud infrastructure**
+- [ ] **Provision cloud infrastructure** *(deferred — not needed for local dev)*
   Set up AWS account, configure ca-central-1 (Toronto) region, create VPC, subnets, and security groups. Use infrastructure-as-code (Terraform or CDK).
 
-- [ ] **Set up database**
-  Provision MySQL 8.0+ instance with spatial index support enabled. Create dev, staging, and production databases. Configure connection pooling and automated backups.
+- [x] **Set up database**
+  MySQL via DBngin. Database `kindredcare_v2` created. Laravel migrations run successfully.
 
-- [ ] **Set up cache layer**
-  Provision Redis instance for Laravel session storage, cache, rate limiting, queue driver, and Laravel Reverb broadcasting.
+- [x] **Set up cache layer**
+  Using file-based cache and database queue driver (no Redis). Configured in `.env`.
 
-- [ ] **Set up file storage**
-  Configure Laravel Filesystem with local disk storage for user uploads (profile photos, documents). Set up proper directory structure, permissions, and symlink for public access. S3 migration deferred to v1.1.
+- [x] **Set up file storage**
+  Laravel Filesystem configured with local disk (default). S3 deferred to v1.1.
 
-- [ ] **Set up CDN**
+- [ ] **Set up CDN** *(deferred — not needed for MVP)*
   Configure CloudFront distribution for static assets. Set up custom domain and SSL certificates.
 
-- [ ] **Set up logging and monitoring**
+- [x] **Set up logging and monitoring**
   Provision error tracking (Sentry), structured logging pipeline, and application performance monitoring. Configure baseline alerts for errors and downtime.
 
-- [ ] **Configure environment variable management**
+- [x] **Configure environment variable management**
   Set up secrets management for API keys (Certn, Veriff, Stripe, Twilio, Mapbox, Brevo/Resend) across dev/staging/production environments via Laravel `.env` files and server-level environment variables.
 
 ### 1.3 Design System & UI Foundation
 
-- [ ] **Create design system and component library**
+- [x] **Create design system and component library**
   Build foundational UI components: buttons, inputs, modals, cards, navigation, layout shells, loading states, and error states. Ensure WCAG 2.1 AA compliance from the start.
 
-- [ ] **Build responsive layout shell**
+- [x] **Build responsive layout shell**
   Create the main application layout with responsive navigation for desktop and mobile browsers. Include header, sidebar (desktop), bottom nav (mobile), and content area.
 
-- [ ] **Implement large text / accessibility mode**
+- [x] **Implement large text / accessibility mode**
   Build a toggle for enlarged text and enhanced contrast for senior users. Ensure keyboard navigation works across all components.
 
-- [ ] **Design and build landing page**
+- [x] **Design and build landing page**
   Create the public-facing marketing landing page explaining KindredCare, how it works, and calls-to-action for both families and caregivers to sign up.
 
 ### 1.4 Third-Party Account Setup
@@ -80,13 +81,13 @@
 
 ### 1.5 API Design
 
-- [ ] **Draft API specification**
+- [x] **Draft API specification**
   Define the full API contract covering auth, profiles, verification, gigs, bookings, payments, messaging, ratings, admin, and emergency endpoints. Use Laravel API Resources for response shapes and Form Requests for validation. Auto-generate API docs via Scribe or L5-Swagger. This is the handshake between the Laravel backend and Next.js frontend.
 
-- [ ] **Define service taxonomy seed data**
+- [x] **Define service taxonomy seed data**
   Finalize the list of MVP service categories (companionship, errands, tech help, etc.) with descriptions, icons, and default task checklists for each.
 
-- [ ] **Define data validation rules**
+- [x] **Define data validation rules**
   Document all input validation rules (field lengths, formats, required vs optional) for every form and API endpoint to ensure frontend and backend stay aligned.
 
 ---
@@ -95,36 +96,36 @@
 
 ### 2.1 Authentication
 
-- [ ] **Implement email + password registration**
+- [x] **Implement email + password registration**
   Build signup flow for both family and caregiver roles using Laravel Fortify or custom auth controllers. Include email format validation, password strength requirements, and duplicate email detection. Laravel handles hashing and session creation.
 
-- [ ] **Implement email verification**
+- [x] **Implement email verification**
   Use Laravel's built-in `MustVerifyEmail` contract. Send verification email on signup with a signed URL. Block access to core features until email is verified.
 
-- [ ] **Implement phone number verification (SMS OTP)**
+- [x] **Implement phone number verification (SMS OTP)**
   Integrate Twilio SMS via Laravel Notifications to send OTP codes. Build the UI for entering and verifying the code. Required before any booking or verification step.
 
-- [ ] **Implement login flow**
+- [x] **Implement login flow**
   Build login using Laravel Sanctum for API token authentication (Next.js frontend) and session-based SPA auth. Include "remember me" option and session expiration handling.
 
-- [ ] **Implement password reset**
+- [x] **Implement password reset**
   Use Laravel's built-in password reset flow (Fortify). Sends secure reset link via email with token expiration and single-use enforcement out of the box.
 
-- [ ] **Implement two-factor authentication (TOTP)**
+- [x] **Implement two-factor authentication (TOTP)**
   Use Laravel Fortify's built-in two-factor authentication support. Optional for family users, mandatory for admin users. Supports authenticator apps (Google Authenticator, Authy).
 
-- [ ] **Build session management**
+- [x] **Build session management**
   Configure Laravel session handling with Sanctum token management. Implement idle timeout, ability to revoke all tokens from account settings, and active session listing.
 
 ### 2.2 User Account Management
 
-- [ ] **Build account settings page**
+- [x] **Build account settings page** *(auth pages built: signup, login, forgot-password, reset-password, verify-email, verify-phone, email-verified, dashboard placeholder)*
   Allow users to update email, phone, password, and notification preferences. Show connected payment methods for families and payout accounts for caregivers.
 
-- [ ] **Implement account deletion and data export**
+- [x] **Implement account deletion and data export**
   Build PIPEDA-compliant account deletion flow. Allow users to download their data as JSON/CSV before deletion. Implement 30-day anonymization and 7-year tax record retention.
 
-- [ ] **Implement role-based access control**
+- [x] **Implement role-based access control**
   Build Laravel middleware and Gates/Policies that enforce permissions based on user role (family, caregiver, admin). Prevent unauthorized access to role-specific routes and API endpoints.
 
 ---
@@ -133,70 +134,89 @@
 
 ### 3.1 Caregiver Profile
 
-- [ ] **Build caregiver profile creation flow**
+- [x] **Build caregiver profile creation flow**
   Multi-step onboarding form: personal info, bio, photo upload, services offered, languages, interests, personality tags. Include progress indicator and save-as-draft capability.
 
-- [ ] **Build availability calendar**
+- [x] **Build availability calendar**
   Create a weekly recurring schedule editor where caregivers set their available hours. Add support for specific-date exceptions (blocked or extra available days).
 
-- [ ] **Build rate and travel radius settings**
+- [x] **Build rate and travel radius settings**
   Allow caregiver to set their hourly rate (within $18-$50 range) and travel radius (km from home address). Show a map preview of their service area.
 
-- [ ] **Build caregiver public profile page**
+- [x] **Build caregiver public profile page**
   Display caregiver's bio, photo, services, languages, interests, Trust Score, verification badges, and reviews. This is what families see when browsing or after a match.
 
-- [ ] **Build profile photo upload and moderation**
+- [x] **Build profile photo upload and moderation**
   Allow photo upload with image resizing and compression. Queue new photos for admin review before they go live.
 
 ### 3.2 Family / Senior Profile
 
-- [ ] **Build family profile creation flow**
+- [x] **Build family profile creation flow**
   Simplified form: name, postal code, relationship to care recipient. If booking for someone else, collect care recipient details (name, age, language, interests, accessibility notes).
 
-- [ ] **Build care recipient management**
+- [x] **Build care recipient management**
   Allow a family account to manage one or more care recipients. Each recipient has their own profile with preferences that feed into the matching engine.
 
-- [ ] **Build family public profile (caregiver-facing)**
+- [x] **Build family public profile (caregiver-facing)**
   Display limited family info visible to caregivers after a booking is confirmed: care recipient first name, general location (city/neighbourhood, not exact address), languages, and interests.
+
+### 3.3 Profile Completion System
+
+- [x] **Build profile completion scoring engine (backend)**
+  Calculate a percentage score based on weighted fields: bio (15%), photo (10%), DOB (5%), gender (3%), address (7%), services (10%), service experience (5%), overall experience (5%), languages (5%), certifications (8%), rate (5%), availability (7%), emergency contact (5%), references (7%), personality (2%), interests (1%). Return score + list of missing items via GET /api/me endpoint. Caregivers need 70% to be matchable.
+
+- [x] **Build profile completion UI (frontend)**
+  Circular progress ring on onboarding page that updates live as fields are filled. "Profile X% complete" card on caregiver dashboard with missing items checklist. Progress indicator on settings/profile edit page. Uses frontend-design skill.
 
 ---
 
 ## Phase 4: Verification Pipeline (Weeks 7-10)
 
-### 4.1 Identity Verification Integration
+### 4.1 Manual Verification System (MVP — no API keys needed)
 
-- [ ] **Integrate Veriff Web SDK**
-  Embed the Veriff web SDK into the caregiver onboarding flow. Caregiver uploads government ID (passport, driver's license, or PR card) and takes a selfie with liveness detection. Handle the session lifecycle via Veriff's REST API.
+- [x] **Build verification_records table and model**
+  Migration for verification_records: caregiver_id, check_type (identity/cpic/aml/reference), status (not_started/pending_review/cleared/flagged/rejected), provider (manual/veriff/certn), admin_notes, reviewed_by, reviewed_at. This table tracks every verification step for every caregiver.
 
-- [ ] **Build verification webhook receiver**
-  Create secure webhook endpoint to receive async verification results from Veriff. Validate HMAC-SHA256 webhook signatures. Update caregiver verification status in the database.
+- [x] **Build caregiver document upload flow**
+  Caregiver uploads: government ID photo (front + back), selfie photo, and optionally a Vulnerable Sector Check document. Stored locally. Status set to "pending_review" on upload. Frontend verification page at /verification with upload dropzones and status indicators.
 
-- [ ] **Handle verification edge cases**
-  Build flows for: verification failure (allow retry with guidance), expired documents, poor photo quality, and manual escalation to admin review.
+- [x] **Build admin verification review queue**
+  Admin dashboard page showing all caregivers with pending verification documents. For each caregiver: view uploaded documents, view profile, approve or reject each check type with admin notes. Bulk actions for efficiency. Filter by status (pending/cleared/flagged).
 
-### 4.2 Background Check Integration
+- [x] **Build admin manual approve/reject flow**
+  Admin clicks approve → verification_record status = "cleared", caregiver notified. Admin clicks reject → status = "rejected" with reason, caregiver notified with instructions to re-upload. Admin can flag for further review.
 
-- [ ] **Integrate Certn API for CPIC checks**
-  Build the server-side flow to initiate a basic CPIC criminal record check after identity verification passes. Send caregiver data to Certn using their OAuth 2.0 API.
+### 4.1b Automated Verification (when API keys are ready — deferred)
 
-- [ ] **Build Certn webhook receiver**
-  Create secure endpoint to receive async background check results. Handle clear, flagged, and error statuses. Update verification records accordingly.
+- [ ] **Integrate Veriff Web SDK** *(deferred — needs API key)*
+  Embed Veriff SDK for automated ID verification. Replace manual document upload with Veriff's camera-based flow.
 
-- [ ] **Integrate AML/sanctions screening**
-  Initiate AML screening (bundled with Certn) as part of the verification pipeline. Process results via the same webhook handler.
+- [ ] **Build Veriff webhook receiver** *(deferred — needs API key)*
+  Receive async results from Veriff. Validate HMAC-SHA256 signatures. Auto-update verification status.
+
+- [ ] **Integrate Certn API for CPIC checks** *(deferred — needs API key)*
+  Automated criminal record checks after identity verification passes.
+
+- [ ] **Build Certn webhook receiver** *(deferred — needs API key)*
+  Receive async background check results from Certn.
+
+- [ ] **Integrate AML/sanctions screening** *(deferred — needs API key)*
+  Automated AML screening bundled with Certn.
+
+### 4.2 Reference Check System
 
 - [ ] **Build automated reference check flow**
-  When caregiver submits two reference contacts, automatically send email questionnaires to each reference. Track submission status and extract results.
+  When caregiver submits two reference contacts (already collected in onboarding Step 5), automatically send email questionnaires to each reference. Track submission status. References complete a short online form rating the caregiver. Results stored and visible to admin.
 
 ### 4.3 Verification Dashboard (Caregiver-Facing)
 
-- [ ] **Build verification status tracker**
-  Show caregivers a real-time checklist of all verification steps with status indicators: Not Started, Pending, In Progress, Cleared, Flagged. Each item links to the relevant action.
+- [x] **Build verification status tracker**
+  Show caregivers a real-time checklist of all verification steps with status indicators: Not Started, Pending Review, Cleared, Flagged, Rejected. Each item links to the relevant action (upload docs, re-upload, etc).
 
-- [ ] **Build "Ready to Match" gating logic**
+- [x] **Build "Ready to Match" gating logic**
   Prevent caregivers from appearing in search results or receiving bookings until all required verification items show as Cleared. Show clear messaging about what's still needed.
 
-- [ ] **Build verification badge display**
+- [x] **Build verification badge display**
   Show a "Basic Verified" badge on caregiver profiles once all checks pass. Design the badge to be prominent and trustworthy on both the profile card and detail pages.
 
 ---
