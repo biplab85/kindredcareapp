@@ -18,7 +18,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { FamilyLayout } from "@/components/layouts/family-layout";
+import { DashboardShell } from "@/components/layouts";
 import api from "@/lib/api";
 
 interface Recipient {
@@ -50,9 +50,11 @@ const LANGUAGES = [
 export default function CareRecipientsPage() {
   return (
     <AuthGuard roles={["family"]}>
-      <FamilyLayout>
-        <CareRecipientsContent />
-      </FamilyLayout>
+      <DashboardShell pageTitle="Care recipients">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+          <CareRecipientsContent />
+        </div>
+      </DashboardShell>
     </AuthGuard>
   );
 }

@@ -36,6 +36,7 @@ import { StepIndicator } from "@/components/ui/step-indicator";
 import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import api from "@/lib/api";
+import type { ServiceCategory } from "@/lib/service-categories";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -106,12 +107,6 @@ const steps = [
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-interface ServiceCategory {
-  id: number;
-  name: string;
-  icon: string;
-  description: string;
-}
 interface DayAvailability {
   available: boolean;
   start: string;
@@ -188,8 +183,8 @@ function OnboardingForm() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     api
-      .get("/api/service-categories")
-      .then((res) => setCategories(res.data))
+      .get<{ data: ServiceCategory[] }>("/api/service-categories")
+      .then((res) => setCategories(res.data.data))
       .catch(() => toast.error("Failed to load services."));
   }, []);
 

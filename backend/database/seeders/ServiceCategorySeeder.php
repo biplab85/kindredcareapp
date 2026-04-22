@@ -17,6 +17,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'Heart',
                 'tier_required' => 'basic',
                 'sort_order' => 1,
+                'example_tasks' => [
+                    'Chat over tea or coffee',
+                    'Read a book or newspaper aloud',
+                    'Play a card or board game',
+                    'Visit a park, cafe, or local event',
+                ],
                 'default_tasks' => [
                     'Arrived on time',
                     'Engaged in conversation',
@@ -31,6 +37,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'Smartphone',
                 'tier_required' => 'basic',
                 'sort_order' => 2,
+                'example_tasks' => [
+                    'Set up a tablet or smartphone',
+                    'Help with video calls to family',
+                    'Install and show how to use an app',
+                    'Troubleshoot Wi-Fi or email issues',
+                ],
                 'default_tasks' => [
                     'Device setup or troubleshooting',
                     'Taught new skill or feature',
@@ -45,6 +57,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'ShoppingBag',
                 'tier_required' => 'basic',
                 'sort_order' => 3,
+                'example_tasks' => [
+                    'Pick up groceries from a list',
+                    'Collect prescriptions from the pharmacy',
+                    'Drop off mail or packages',
+                    'Run quick errands around town',
+                ],
                 'default_tasks' => [
                     'Picked up requested items',
                     'Delivered to home',
@@ -59,6 +77,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'Footprints',
                 'tier_required' => 'basic',
                 'sort_order' => 4,
+                'example_tasks' => [
+                    'Accompany on a neighbourhood walk',
+                    'Steady a walker or arm for balance',
+                    'Go together to a nearby park',
+                    'Encourage light, comfortable exercise',
+                ],
                 'default_tasks' => [
                     'Walked together safely',
                     'Monitored pace and comfort',
@@ -73,6 +97,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'Flower2',
                 'tier_required' => 'basic',
                 'sort_order' => 5,
+                'example_tasks' => [
+                    'Water plants and garden beds',
+                    'Pull weeds and tidy borders',
+                    'Plant flowers, herbs, or vegetables',
+                    'Sweep paths and clean up clippings',
+                ],
                 'default_tasks' => [
                     'Watered plants',
                     'Weeded garden beds',
@@ -87,6 +117,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'ChefHat',
                 'tier_required' => 'basic',
                 'sort_order' => 6,
+                'example_tasks' => [
+                    'Cook a warm lunch or dinner',
+                    'Prep a few meals for the week',
+                    'Follow dietary needs (diabetic, low-salt, cultural)',
+                    'Tidy the kitchen after cooking',
+                ],
                 'default_tasks' => [
                     'Prepared meal as requested',
                     'Followed dietary requirements',
@@ -101,6 +137,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'Car',
                 'tier_required' => 'basic',
                 'sort_order' => 7,
+                'example_tasks' => [
+                    'Drive to a medical appointment',
+                    'Accompany on a social visit',
+                    'Transport to a shopping trip',
+                    'Help in and out of the vehicle',
+                ],
                 'default_tasks' => [
                     'Picked up client on time',
                     'Drove safely to destination',
@@ -115,6 +157,12 @@ class ServiceCategorySeeder extends Seeder
                 'icon' => 'SprayCan',
                 'tier_required' => 'basic',
                 'sort_order' => 8,
+                'example_tasks' => [
+                    'Tidy common living areas',
+                    'Run a load of laundry',
+                    'Wash dishes and wipe counters',
+                    'Organize mail or closets',
+                ],
                 'default_tasks' => [
                     'Cleaned surfaces and floors',
                     'Did laundry',

@@ -47,18 +47,52 @@ function ResetPasswordForm() {
     defaultValues: { email: emailParam },
   });
 
+  const [linkInvalid, setLinkInvalid] = useState(false);
+
   const onSubmit = async (data: ResetForm) => {
     setIsSubmitting(true);
     try {
       await api.post("/api/auth/reset-password", { ...data, token });
       toast.success("Password has been reset!");
       router.push("/login");
-    } catch {
-      toast.error("Unable to reset password. The link may have expired.");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 400) {
+        // Laravel's password broker returns 400 when the token no longer matches —
+        // either it expired (60 min) or a newer "Send reset link" request replaced it.
+        setLinkInvalid(true);
+      } else {
+        toast.error("Couldn't reset your password right now. Try again in a moment.");
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (linkInvalid) {
+    return (
+      <AuthLayout
+        title="This link is no longer valid"
+        subtitle="Reset links expire after an hour — or get replaced by a newer one."
+      >
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          If you requested the link more than once, only the most recent email works. Request a
+          fresh link to continue.
+        </p>
+        <div className="mt-6 space-y-2">
+          <Link href="/forgot-password">
+            <Button className="h-12 w-full text-base">Request a new link</Button>
+          </Link>
+          <Link href="/login">
+            <Button variant="outline" className="h-12 w-full text-base">
+              <ArrowLeft className="mr-2 size-4" />
+              Back to login
+            </Button>
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title="Set new password" subtitle="Choose a strong password for your account.">

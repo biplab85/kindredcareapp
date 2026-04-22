@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { AdminLayout } from "@/components/layouts/admin-layout";
+import { DashboardShell } from "@/components/layouts";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -59,9 +59,11 @@ const statusColors: Record<string, string> = {
 export default function AdminVerificationDetailPage() {
   return (
     <AuthGuard roles={["admin"]}>
-      <AdminLayout>
-        <DetailContent />
-      </AdminLayout>
+      <DashboardShell pageTitle="Verification detail">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+          <DetailContent />
+        </div>
+      </DashboardShell>
     </AuthGuard>
   );
 }

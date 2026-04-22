@@ -37,7 +37,7 @@ This version uses `@base-ui/react`, NOT `@radix-ui`. Key differences:
 ## API Integration
 - Axios instance at `src/lib/api.ts` — use this for ALL API calls
 - `withCredentials: true` + `withXSRFToken: true` for Laravel Sanctum cookie auth
-- Base URL from `NEXT_PUBLIC_API_URL` env var (default: `http://kindredcare-v2.test`)
+- Base URL from `NEXT_PUBLIC_API_URL` env var (default: `http://localhost:8000`)
 - CSRF cookie: `GET /sanctum/csrf-cookie` before auth requests
 
 ## Quality Checklist
@@ -52,4 +52,4 @@ Before any task is done:
 ## Environment
 - Dev server: `npm run dev` → `http://localhost:3000`
 - Env file: `.env.local` (gitignored)
-- Backend API: `http://kindredcare-v2.test`
+- Backend API: `http://localhost:8000` (run `php artisan serve` in `backend/`)

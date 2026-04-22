@@ -1,0 +1,266 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import {
+  BadgeCheck,
+  CalendarDays,
+  ChevronsLeft,
+  ChevronsRight,
+  type LucideIcon,
+  LayoutDashboard,
+  PlusCircle,
+  Search,
+  Settings,
+  UsersRound,
+  X,
+} from "lucide-react";
+import { useAuthStore } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+
+/* ─────────────────────────────────────────────────────────────
+ * DashboardSidebar — the left rail used across every signed-in
+ * page. Light neutral surface per the existing --sidebar tokens.
+ * Collapsible on desktop (icon-only 68px), full drawer on mobile.
+ * ───────────────────────────────────────────────────────────── */
+
+export interface DashboardNavBadges {
+  bookings?: number;
+  verification?: number;
+}
+
+interface SidebarItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Key that matches DashboardNavBadges — used for the pending-action dot. */
+  badge?: keyof DashboardNavBadges;
+}
+
+interface SidebarSection {
+  heading: string;
+  items: SidebarItem[];
+}
+
+const CAREGIVER_SECTIONS: SidebarSection[] = [
+  {
+    heading: "Work",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/jobs", label: "Open gigs", icon: Search },
+      { href: "/bookings", label: "Bookings", icon: CalendarDays, badge: "bookings" },
+      { href: "/caregiver/schedule", label: "Schedule", icon: CalendarDays },
+    ],
+  },
+  {
+    heading: "Account",
+    items: [
+      { href: "/verification", label: "Verification", icon: BadgeCheck, badge: "verification" },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
+];
+
+const FAMILY_SECTIONS: SidebarSection[] = [
+  {
+    heading: "Work",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/gigs", label: "My gigs", icon: Search },
+      { href: "/gigs/new", label: "Post a gig", icon: PlusCircle },
+      { href: "/bookings", label: "Bookings", icon: CalendarDays, badge: "bookings" },
+      { href: "/care-recipients", label: "Recipients", icon: UsersRound },
+    ],
+  },
+  {
+    heading: "Account",
+    items: [{ href: "/settings", label: "Settings", icon: Settings }],
+  },
+];
+
+const ADMIN_SECTIONS: SidebarSection[] = [
+  {
+    heading: "Work",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/verifications", label: "Verifications", icon: BadgeCheck },
+    ],
+  },
+  {
+    heading: "Account",
+    items: [{ href: "/settings", label: "Settings", icon: Settings }],
+  },
+];
+
+function sectionsFor(role: "family" | "caregiver" | "admin" | undefined): SidebarSection[] {
+  if (role === "caregiver") return CAREGIVER_SECTIONS;
+  if (role === "family") return FAMILY_SECTIONS;
+  if (role === "admin") return ADMIN_SECTIONS;
+  return [];
+}
+
+interface DashboardSidebarProps {
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  /** On mobile, used to close the drawer after tapping a link or the X icon. */
+  onDrawerClose?: () => void;
+  /** Pending-action counts for the nav badge dots. */
+  badges?: DashboardNavBadges;
+  /** True when rendered inside the mobile drawer; hides the desktop collapse toggle and shows a close X instead. */
+  isMobileDrawer?: boolean;
+}
+
+export function DashboardSidebar({
+  collapsed,
+  onToggleCollapsed,
+  onDrawerClose,
+  badges,
+  isMobileDrawer = false,
+}: DashboardSidebarProps) {
+  const { user } = useAuthStore();
+  const pathname = usePathname();
+  const sections = sectionsFor(user?.role);
+
+  // Mobile drawer always shows full-width content; only the desktop sidebar respects `collapsed`.
+  const labelsVisible = isMobileDrawer || !collapsed;
+
+  return (
+    <aside
+      className={cn(
+        "flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
+        "transition-[width] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        isMobileDrawer ? "w-[260px]" : collapsed ? "w-[68px]" : "w-[248px]",
+      )}
+      aria-label="Primary navigation"
+    >
+      {/* Logo + collapse toggle — height matches top bar for a seamless seam */}
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center border-b border-sidebar-border px-3",
+          labelsVisible ? "justify-between" : "justify-center",
+        )}
+      >
+        <Link
+          href="/dashboard"
+          onClick={onDrawerClose}
+          className="flex items-center gap-2"
+          aria-label="KindredCare home"
+        >
+          {labelsVisible ? (
+            <Image
+              src="/logo.png"
+              alt="KindredCare Global"
+              width={180}
+              height={40}
+              priority
+              className="h-9 w-auto"
+            />
+          ) : (
+            <span className="grid size-9 place-items-center rounded-lg bg-sidebar-primary/10 font-mono text-sm font-semibold tracking-[0.08em] text-sidebar-primary">
+              KC
+            </span>
+          )}
+        </Link>
+        {isMobileDrawer ? (
+          <button
+            type="button"
+            onClick={onDrawerClose}
+            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            aria-label="Close navigation"
+          >
+            <X className="size-4" strokeWidth={1.75} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className={cn(
+              "hidden size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:grid",
+              !labelsVisible && "ml-0",
+            )}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <ChevronsRight className="size-4" strokeWidth={1.75} />
+            ) : (
+              <ChevronsLeft className="size-4" strokeWidth={1.75} />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Scrollable nav area */}
+      <nav
+        className={cn("flex-1 overflow-y-auto", labelsVisible ? "px-3 py-4" : "px-2 py-4")}
+        aria-label="Main navigation"
+      >
+        <ul className="space-y-6">
+          {sections.map((section) => (
+            <li key={section.heading}>
+              {labelsVisible && (
+                <p className="mb-2 px-2 text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+                  {section.heading}
+                </p>
+              )}
+              <ul className="space-y-0.5">
+                {section.items.map((item) => {
+                  const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                  const Icon = item.icon;
+                  const badgeCount = item.badge ? (badges?.[item.badge] ?? 0) : 0;
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={onDrawerClose}
+                        aria-current={active ? "page" : undefined}
+                        title={labelsVisible ? undefined : item.label}
+                        className={cn(
+                          "group relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-colors",
+                          labelsVisible ? "px-3 py-2" : "justify-center px-0 py-2.5",
+                          active
+                            ? "bg-sidebar-accent text-sidebar-foreground"
+                            : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                        )}
+                      >
+                        {active && (
+                          <span
+                            aria-hidden
+                            className="absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-sidebar-primary"
+                          />
+                        )}
+                        <span className="relative shrink-0">
+                          <Icon
+                            className={cn("size-[18px]", active ? "text-sidebar-primary" : "")}
+                            strokeWidth={1.75}
+                          />
+                          {badgeCount > 0 && !labelsVisible && (
+                            <span
+                              aria-hidden
+                              className="absolute -top-0.5 -right-1 size-2 rounded-full bg-accent ring-2 ring-sidebar"
+                            />
+                          )}
+                        </span>
+                        {labelsVisible && (
+                          <>
+                            <span className="flex-1 truncate">{item.label}</span>
+                            {badgeCount > 0 && (
+                              <span
+                                aria-label={`${badgeCount} pending`}
+                                className="inline-flex size-[7px] shrink-0 rounded-full bg-accent"
+                              />
+                            )}
+                          </>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  );
+}

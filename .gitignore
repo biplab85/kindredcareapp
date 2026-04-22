@@ -30,3 +30,8 @@ frontend/.env*.local
 
 # Claude
 .claude/plans/
+
+# Dev artefacts
+.playwright-mcp/
+phase*.png
+*.screenshot.png

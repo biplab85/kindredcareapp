@@ -36,8 +36,17 @@ export default function ForgotPasswordPage() {
     try {
       await api.post("/api/auth/forgot-password", data);
       setSent(true);
-    } catch {
-      toast.error("Unable to send reset link. Please check your email.");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 429) {
+        // Laravel throttles resend to once per minute — explain so users
+        // don't re-click and accidentally invalidate the first email's link.
+        toast.error(
+          "You just requested a link. Wait a minute, then check your email — the most recent message is the one that works.",
+        );
+      } else {
+        toast.error("Unable to send reset link. Please check your email.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -53,6 +62,10 @@ export default function ForgotPasswordPage() {
           <p className="text-center text-sm text-muted-foreground">
             Click the link in the email to reset your password. If you don&apos;t see it, check your
             spam folder.
+          </p>
+          <p className="mt-4 rounded-lg bg-muted/60 px-3 py-2 text-center text-xs leading-relaxed text-muted-foreground">
+            If you request another link, only the newest email will work — older links stop being
+            valid as soon as a newer one is sent.
           </p>
         </div>
         <Link href="/login">

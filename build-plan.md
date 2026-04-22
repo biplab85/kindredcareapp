@@ -20,7 +20,7 @@
   Set up GitHub Actions with automated linting, type-checking, unit tests, and build steps. Configure branch protection rules for main and develop branches.
 
 - [x] **Set up development environments**
-  Local development via Laravel Herd (PHP + Nginx) + DBngin (MySQL). No Docker. Backend served at `http://kindredcare-v2.test`. Frontend at `http://localhost:3000`.
+  Local development via `php artisan serve` (built-in PHP dev server) + DBngin (MySQL). No Docker. Backend served at `http://localhost:8000`. Frontend at `http://localhost:3000`.
 
 - [x] **Configure linting and formatting**
   Set up PHP CS Fixer and Larastan (PHPStan for Laravel) for the backend. Set up ESLint and Prettier for the Next.js frontend. Configure commit hooks (husky + lint-staged) so code style is enforced consistently from day one.
@@ -225,92 +225,96 @@
 
 ### 5.1 Service Taxonomy
 
-- [ ] **Build service category management**
-  Create the data layer for service categories with names, descriptions, icons, tier requirements, and default task checklists. Seed with the MVP taxonomy (companionship, errands, tech help, etc.).
+- [x] **Build service category management**
+  Data layer built: `service_categories` table (name, slug, description, icon, tier_required, default_tasks, example_tasks, is_active, sort_order), `ServiceCategory` model, `ServiceCategorySeeder` with all 8 MVP categories, `ServiceCategoryResource` for API, `GET /api/service-categories` returns active and sorted. Feature tests cover seeder + endpoint shape + active/sort filtering.
 
-- [ ] **Build service category browsing UI**
-  Allow families to browse and select from available service categories when posting a gig. Include category descriptions and example tasks.
+- [x] **Build service category browsing UI**
+  Family-facing `/services` page built with editorial-warmth aesthetic: oversized italicized headline, asymmetric card grid (featured first card spans 2 cols on lg), per-category accent colours (primary/accent/success), example tasks rendered as a typographic list, "Post a gig" CTA on each card linking to `/gigs/new?category={slug}`. Includes loading skeleton, error state, trust strip, and final CTA. Responsive, keyboard-navigable, WCAG AA. Header nav updated to point to `/services`.
 
 ### 5.2 Gig Posting (Family Side)
 
-- [ ] **Build gig creation form**
-  Multi-step form: select service category, describe the need (free text + optional photo), set location, set schedule (one-time or recurring), set preferences (gender, language, experience tags), set budget.
+- [x] **Build gig creation form**
+  `/gigs/new` 7-step form with community-bulletin aesthetic (§ step markers, asymmetric two-column with live newspaper preview on desktop, tape-corner review card). Steps: service → description + optional photo → location → schedule → preferences → budget → review. Family-role gated via AuthGuard. Posts to `POST /api/gigs`, redirects to `/gigs/{id}` on success. Zod-equivalent client validation mirrors backend. Backend implements all REST verbs: `Gig` model (family_profile_id, care_recipient_id, service_category_id, description, location, schedule, recurring pattern, preferences JSON, photo_path, status enum), `GigResource`, `StoreGigRequest` + `UpdateGigRequest` (min 1h duration enforced via Carbon diff with absolute), `GigController` store/index/show/update/destroy/cancel. Feature tests: 19 passing covering auth, validation, ownership, state transitions, photo lifecycle.
 
-- [ ] **Build location input with geocoding**
-  Integrate Mapbox or Google Maps for address autocomplete. Geocode the address to lat/long for storage and matching. Show a map preview of the gig location.
+- [x] **Build location input with geocoding** *(MVP subset — Mapbox deferred to v1.1)*
+  Durham Region neighbourhood picker (Oshawa, Whitby, Ajax, Pickering, Clarington) with hardcoded centre lat/long per community + free-text street address. Ships without Mapbox token provisioning. Upgrade to address autocomplete + static-map preview is a drop-in later.
 
-- [ ] **Build scheduling interface**
-  Support one-time bookings (date + start time + duration) and recurring schedules (day-of-week pattern, start/end dates). Validate against reasonable constraints (no past dates, minimum 1-hour duration).
+- [x] **Build scheduling interface**
+  One-time vs recurring toggle. One-time: date + time + duration (1/2/3/4/6/8h chips). Recurring: day-of-week chips + optional end date. Validates past-time and end-after-start on advance, not on render (React 19 purity). Min 1h enforced both client and server.
 
-- [ ] **Build gig listing page (family dashboard)**
-  Show all gigs posted by the family with status indicators: open, matched, booked, completed, cancelled. Allow editing of open gigs and cancellation of unbooked gigs.
+- [x] **Build gig listing page (family dashboard)**
+  `/gigs` family-only dashboard with status filter tabs (all/open/matched/booked/completed/cancelled), upcoming vs past grouping by status, status badges, quick actions (view/edit/cancel/delete) gated by current status. `/gigs/{id}` detail page with editorial layout, sticky meta sidebar, "matching engine coming soon" placeholder. Deletes gig photo on destroy. Nav integration (top header link for signed-in family users) deferred to a broader nav refactor.
 
 ### 5.3 Gig Discovery (Caregiver Side)
 
-- [ ] **Build gig feed for caregivers**
-  Show available open gigs that match the caregiver's services, location, and availability. Allow filtering and sorting by date, distance, rate, and service type.
+- [x] **Build gig feed for caregivers**
+  `/jobs` noticeboard page (caregiver-only) backed by `GET /api/gigs/feed`. Feed returns open future gigs in the caregiver's offered services (via `caregiver_service` pivot), sortable by `soonest` (default) or `nearest` (PHP Haversine against caregiver home). Service filter chips narrow further. Uses `CaregiverGigResource` that redacts the exact address to a "Near {Durham Region community}" label. Empty-state copy distinguishes "no notices anywhere" vs "filter excludes all". 8 feature tests (auth, filter, sort, redaction, past-gig exclusion, unknown-service rejection).
 
-- [ ] **Build gig detail view (caregiver-facing)**
-  Display full gig details: service category, description, location (neighbourhood-level, not exact address until booked), schedule, rate, and family preferences.
+- [x] **Build gig detail view (caregiver-facing)**
+  `/jobs/[id]` detail page consuming the same caregiver-facing resource from `GET /api/gigs/{id}` when the viewer is a caregiver who offers that service. Shows schedule, neighbourhood (not street), preferences, rate cap, and a privacy note about address disclosure on booking. "Apply" CTA is a disabled placeholder until Phase 6 matching lands. 3 feature tests for caregiver-view authorization (matching service → allowed; wrong service or cancelled → 403).
 
 ---
 
 ## Phase 6: Matching Engine (Weeks 10-12)
 
-- [ ] **Implement hard filter logic**
-  Build the first pass of the matching engine that eliminates non-qualifying caregivers: verification status, service category match, availability overlap, geographic radius, rate range, gender, and language.
+- [x] **Implement hard filter logic**
+  `MatchingEngine::passesHardFilters()` eliminates candidates on: full verification (all 4 VerificationRecords cleared), service-category pivot membership, travel radius via Haversine, rate cap (`preferences.rate_max`), gender against `users.gender`, language against `caregiver_profile.languages`, and weekly availability calendar. Candidate pool is narrowed at the SQL level (`whereHas('services')`) so PHP only iterates the qualifying set.
 
-- [ ] **Implement geographic distance scoring**
-  Use MySQL `ST_Distance_Sphere()` with SPATIAL INDEX to calculate distances between caregiver home and gig location. Convert distance to a 0-100 score (closer = higher). Weight at 30%.
+- [x] **Implement geographic distance scoring**
+  Weight 30%. PHP Haversine (reused from `CaregiverGigResource::haversineKm`) with a linear falloff: `max(0, 100 - 100 * km/radius)`. MVP has plenty of headroom before `ST_Distance_Sphere()` is required; the existing `(latitude, longitude)` composite index covers the narrowing query. Upgrade to spatial SQL is a drop-in if pool size grows.
 
-- [ ] **Implement Trust Score scoring**
-  Pull each caregiver's computed Trust Score and normalize to a 0-100 scale. Weight at 30%.
+- [x] **Implement Trust Score scoring**
+  Weight 30%. Computed on the fly by `TrustScoreCalculator` — no `trust_score` column. Composite weights from mvp-requirements §4.6: verification 40%, reviews 30% (neutral 100 until Phase 11), reliability 20% (neutral 100 until Phase 8), tenure 10% (capped at 365 days). Swap-in strategy documented in the service so Phase 11 callers don't change.
 
-- [ ] **Implement interest and language overlap scoring**
-  Calculate tag-match percentage between caregiver profile (interests, languages) and gig/family profile preferences. Weight at 20%.
+- [x] **Implement interest and language overlap scoring**
+  Weight 20%. 70/30 split between language signal (pref-match scores 100, multi-language 60, empty 50 neutral) and care-recipient interest overlap (tag intersection over recipient count).
 
-- [ ] **Implement availability fit scoring**
-  Score how well the gig fits into the caregiver's existing schedule (avoids overtime gaps, complements other bookings). Weight at 10%.
+- [x] **Implement availability fit scoring**
+  Weight 10%. Neutral 80 when availability is set, 60 when empty, pending real booking-adjacency signal once Phase 7/8 ship. The hard filter above still enforces the weekly calendar; this score is intentionally quality-of-fit, not binary.
 
-- [ ] **Implement rate alignment scoring**
-  Score how close the caregiver's hourly rate is to the family's budget. Exact match = 100, further apart = lower score. Weight at 10%.
+- [x] **Implement rate alignment scoring**
+  Weight 10%. At-or-under-budget earns 90–100 (small value-nudge for under-budget), over-budget already eliminated by the hard filter, missing cap yields a neutral 80.
 
-- [ ] **Build composite scoring and ranking**
-  Combine all weighted scores into a single match percentage. Return top 10 ranked caregivers with their match scores.
+- [x] **Build composite scoring and ranking**
+  `MatchingEngine::matchesFor()` applies the 30/30/20/10/10 weights, takes top 10 by descending score, and returns `{ matches, pool_size, qualifying }`. Endpoint: `POST /api/gigs/{id}/matches` (family-owner gated, open-status gated), serialized via `CaregiverMatchResource` with every component exposed for transparency.
 
-- [ ] **Build match results UI**
-  Display ranked caregiver matches to the family with match percentage, key profile highlights (distance, Trust Score, relevant experience), and actions: View Profile, Book, Skip.
+- [x] **Build match results UI**
+  `src/app/gigs/[id]/matches/page.tsx` — editorial shortlist: mono § rank, photo + green verification pip, name, italic bio blockquote, signals (distance · experience · languages · trust), tiered match-% pill (90+ success-green, 70–89 primary-blue, <70 neutral), rate in tabular mono, three actions (View profile link, Book disabled with "soon" until Phase 7, Skip). Loading/empty/error states. Parent gig detail now routes families into this view when the gig is in matched mode.
 
-- [ ] **Build "open gig" posting option**
-  Allow families to post a gig as open for any qualifying caregiver to claim (instead of selecting from matches). Qualifying caregivers see it in their gig feed.
+- [x] **Build "open gig" posting option**
+  New `gigs.posting_mode` enum (`matched` default, `open`). Families pick inside the Review step on `/gigs/new` — "Shortlist (curated)" vs "Open call (broadcast)". The caregiver feed filters on `posting_mode = open` so matched-mode gigs never leak to the public noticeboard; direct-URL access to a matched-mode gig is also denied for caregivers (Phase 7 invitation flow will open a per-caregiver path).
+
+**Phase 6 QA:** backend 53 tests passing, `composer analyse` clean; frontend lint/typecheck/build all green.
 
 ---
 
 ## Phase 7: Booking Flow (Weeks 11-13)
 
-- [ ] **Build booking creation flow**
-  When family selects a caregiver from matches, show booking summary: service, date/time, duration, caregiver rate, platform fee (7.5%), total cost. Confirm and create booking.
+- [x] **Build booking creation flow**
+  `/gigs/[id]/book/[caregiverUserId]` — ticket-stub receipt aesthetic: perforated dashed rule, mono tabular pricing, stable "Booking slip #GGGG-CCCC" id, Haversine-aware caregiver card with match score pill. Posts to `POST /api/bookings` with the full ranked queue (stashed via `sessionStorage` on the matches page so cascade has a snapshot), redirects to `/bookings/{id}` on success. `StoreBookingRequest` authorises family role + validates the ranked queue shape; controller defers to `BookingService::createFromMatch`.
 
-- [ ] **Implement payment authorization on booking**
-  On booking confirmation, authorize (hold) the full amount on the family's payment method via Stripe. Do not capture until service is delivered.
+- [x] **Implement payment authorization on booking** *(stub channel — real Stripe deferred to Phase 9)*
+  `bookings.payment_status` enum: `not_required` → `authorized_stub` (on accept) → `captured_stub` / `released_stub` / `refunded_stub` on cancel/refund. Cents-everywhere schema (`hourly_rate_cents`, `subtotal_cents`, `platform_fee_cents = subtotal * 750/10000`, `caregiver_payout_cents`) so Phase 9 swaps only the adapter. `stripe_payment_intent_id` column is already on the table, nullable.
 
-- [ ] **Build caregiver booking notification and response**
-  Notify caregiver of new booking request via email, SMS, and in-app notification. Build accept/decline interface with a countdown timer (4 hours for scheduled, 15 minutes for on-demand).
+- [x] **Build caregiver booking notification and response**
+  Five Laravel Notification classes — `BookingOffered` (caregiver), `BookingConfirmed` / `BookingDeclined` / `BookingExpired` / `BookingCancelled` (counterparty) — all `database + mail` channels. Mail uses the existing log driver per CLAUDE.md; Twilio SMS is a no-op until Phase 12. Response window: 4 hours scheduled / 15 minutes on-demand (start within 2 hours). Inline accept/decline on `/bookings` row + full reason form on the detail page, with a live countdown pill (30 s tick, overdue styling).
 
-- [ ] **Implement automatic fallback on decline**
-  If a caregiver declines, automatically offer the booking to the next-ranked caregiver from the original match results. Continue down the list until accepted or exhausted.
+- [x] **Implement automatic fallback on decline**
+  `bookings.fallback_queue` json column snapshots the remaining ranked user_ids at offer-creation time. On decline/expire, `BookingService::cascadeToNext` pops the next id, spawns a fresh `pending_caregiver` row at `match_rank + 1`, notifies the family with a cascading-decline email, and moves on. If the queue empties the gig returns to `open` and the family gets a `BookingExpired` notification instead.
 
-- [ ] **Build booking confirmation flow**
-  On acceptance, confirm the booking for both parties. Send confirmation emails and SMS with booking details: date, time, address, caregiver/family name, service description.
+- [x] **Build booking confirmation flow**
+  On caregiver accept: status → `confirmed`, gig → `booked`, payment → `authorized_stub`, full address revealed to the caregiver (until then they only see the neighbourhood line per the Phase 5 promise), and both parties get mail + database entries. Timeline block on the detail page renders the sequence with `ping`-animated active dot and a `success`-tinted connector for completed steps.
 
-- [ ] **Build booking management dashboard**
-  Allow both families and caregivers to view upcoming, active, and past bookings. Support cancellation with policy enforcement (24-hour notice for free cancellation).
+- [x] **Build booking management dashboard**
+  `/bookings` is role-aware under one URL. Tab bar: Upcoming / Active / Past, each mapped to a backend status shortcut (`upcoming` = pending+confirmed, `active` = in_progress, `past` = terminal). Row card surfaces per-role info — family sees caregiver name + rank badge + total, caregiver sees service category + neighbourhood + their payout. Inline accept/decline for pending offers. Detail view `/bookings/[id]` splits into receipt block + party block + sticky timeline/actions sidebar.
 
-- [ ] **Build booking cancellation flow**
-  Handle cancellation by either party. Enforce cancellation policy: family cancellation <24h = no refund; caregiver cancellation <24h = reputation penalty. Release payment authorization on cancellation.
+- [x] **Build booking cancellation flow**
+  Both parties can cancel a pending-or-confirmed booking from the detail page's action block. Copy dynamically explains whether the 24-hour free-cancel window applies — `payment_status` becomes `captured_stub` (fee retained) when a family cancels inside 24 h, otherwise `released_stub`. Reason is optional (255 char textarea), and the gig snaps back to `open` so the family can re-match.
 
-- [ ] **Build calendar view for caregivers**
-  Show confirmed bookings on a calendar view integrated with the availability calendar. Auto-block availability for confirmed booking time slots.
+- [x] **Build calendar view for caregivers**
+  `/caregiver/schedule` — appointment-book week grid, 7 columns, today highlighted with a primary tint. Confirmed visits render as "inked" success-tone cards (solid bg + ring), pending offers as "pencilled" accent-dashed outlines, terminal states struck-through in muted. Week nav shifts by 7 days; "Jump to this week" resets. Legend footer explains the ink/pencil/record states. Pulls both `upcoming` and `past` bookings so navigation backward still shows history.
+
+**Phase 7 QA:** backend 72 tests / 337 assertions passing (19 new Booking feature tests: auth, create, double-booking rejection, past-gig rejection, accept, decline cascade, scheduler expiry, family + caregiver cancel paths, free-cancel window, late-cancel fee retention, address reveal gating). `composer analyse` clean; frontend lint / typecheck / build all green. Scheduler registered: `bookings:expire-offers` runs every minute via `Schedule::command(...)->withoutOverlapping()`.
 
 ---
 
