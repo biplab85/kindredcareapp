@@ -22,6 +22,12 @@ class ResetPasswordController extends Controller
                     'remember_token' => Str::random(60),
                 ])->save();
 
+                // Phase 15.B — revoke every existing token on password reset
+                // so a leaked token from before the reset can't survive into
+                // the new credential. Sanctum's `tokens()` covers all
+                // PersonalAccessToken rows for this user.
+                $user->tokens()->delete();
+
                 event(new PasswordReset($user));
             }
         );

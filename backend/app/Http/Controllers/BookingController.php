@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Booking\CancelBookingRequest;
+use App\Http\Requests\Booking\CheckInBookingRequest;
+use App\Http\Requests\Booking\CheckOutBookingRequest;
 use App\Http\Requests\Booking\DeclineBookingRequest;
+use App\Http\Requests\Booking\OpenDisputeRequest;
 use App\Http\Requests\Booking\StoreBookingRequest;
+use App\Http\Requests\Booking\UpdateBookingTasksRequest;
+use App\Http\Resources\BookingDisputeResource;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Gig;
@@ -93,7 +98,12 @@ class BookingController extends Controller
             return response()->json(['message' => 'Not authorized.'], 403);
         }
 
-        $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile', 'familyProfile.user']);
+        $booking->loadMissing([
+            'gig.serviceCategory',
+            'caregiver.caregiverProfile',
+            'familyProfile.user',
+            'panicAlerts',
+        ]);
 
         return new BookingResource($booking);
     }
@@ -129,6 +139,88 @@ class BookingController extends Controller
         }
 
         $booking = $this->service->cancel($booking, $user, $request->input('reason'));
+        $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);
+
+        return new BookingResource($booking);
+    }
+
+    public function checkIn(CheckInBookingRequest $request, Booking $booking): BookingResource
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $booking = $this->service->checkIn(
+            booking: $booking,
+            actor: $user,
+            lat: (float) $request->input('latitude'),
+            lng: (float) $request->input('longitude'),
+        );
+
+        $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);
+
+        return new BookingResource($booking);
+    }
+
+    public function checkOut(CheckOutBookingRequest $request, Booking $booking): BookingResource
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        /** @var array<int, string> $tasks */
+        $tasks = (array) $request->input('tasks_completed', []);
+
+        $booking = $this->service->checkOut(
+            booking: $booking,
+            actor: $user,
+            lat: (float) $request->input('latitude'),
+            lng: (float) $request->input('longitude'),
+            tasks: $tasks,
+            notes: $request->input('caregiver_notes'),
+        );
+
+        $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);
+
+        return new BookingResource($booking);
+    }
+
+    public function openDispute(OpenDisputeRequest $request, Booking $booking): BookingDisputeResource|JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if (! $this->canViewBooking($booking, $user)) {
+            return response()->json(['message' => 'Not authorized.'], 403);
+        }
+
+        /** @var array<int, string> $evidence */
+        $evidence = (array) $request->input('evidence_paths', []);
+
+        $dispute = $this->service->openDispute(
+            booking: $booking,
+            reporter: $user,
+            reasonCode: $request->string('reason_code')->toString(),
+            description: $request->string('description')->toString(),
+            evidencePaths: $evidence,
+        );
+
+        return new BookingDisputeResource($dispute);
+    }
+
+    public function updateTasks(UpdateBookingTasksRequest $request, Booking $booking): BookingResource
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        /** @var array<int, string> $tasks */
+        $tasks = (array) $request->input('tasks_completed', []);
+
+        $booking = $this->service->logTasks(
+            booking: $booking,
+            actor: $user,
+            tasks: $tasks,
+            notes: $request->input('caregiver_notes'),
+        );
+
         $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);
 
         return new BookingResource($booking);

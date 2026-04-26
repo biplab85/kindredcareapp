@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, LogOut, Menu, Settings, type LucideIcon, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LargeTextToggle } from "@/components/ui/large-text-toggle";
 import { useAuthStore } from "@/lib/auth";
+import { listNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────
@@ -34,9 +36,40 @@ interface DashboardTopbarProps {
 export function DashboardTopbar({
   pageTitle,
   onOpenDrawer,
-  notificationCount = 0,
+  notificationCount: notificationCountProp = 0,
 }: DashboardTopbarProps) {
   const { user, logout } = useAuthStore();
+  const [unread, setUnread] = useState<number>(notificationCountProp);
+
+  // Self-fetching unread count. Poll every 60s; pause when tab hidden so
+  // we don't burn cycles in the background. The prop is the initial value
+  // so the badge isn't blank during the first roundtrip.
+  useEffect(() => {
+    let alive = true;
+
+    const fetchOnce = async () => {
+      try {
+        const resp = await listNotifications();
+        if (!alive) return;
+        setUnread(resp.meta.unread);
+      } catch {
+        // Silent — bell badge is non-critical, page-load shouldn't fail.
+      }
+    };
+
+    void fetchOnce();
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      void fetchOnce();
+    }, 60_000);
+
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const notificationCount = unread;
 
   const handleLogout = async () => {
     await logout();
@@ -73,7 +106,7 @@ export function DashboardTopbar({
         <LargeTextToggle />
 
         <Link
-          href="/bookings"
+          href="/notifications"
           className="relative inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Notifications"
         >

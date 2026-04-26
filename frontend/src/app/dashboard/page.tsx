@@ -8,7 +8,6 @@ import {
   BadgeCheck,
   CalendarClock,
   ChevronRight,
-  Circle,
   DollarSign,
   Heart,
   Loader2,
@@ -25,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
+import { type Analytics, getAdminAnalytics } from "@/lib/admin-analytics";
 import {
   type Booking,
   formatCents,
@@ -892,272 +892,527 @@ function activityTone(status: Booking["status"]): { well: string; text: string }
 
 /* ─────────────────────────────────────────────────────────────
  * ADMIN DASHBOARD — live analytics + quick triage callouts.
- * Phase 14 will layer heatmaps + trends on top.
+ * Editorial paper-wash aesthetic matching the rest of /admin/*.
  * ───────────────────────────────────────────────────────────── */
 
-interface AdminAnalytics {
-  users: { family: number; caregiver: number; admin: number };
-  verifications: { pending_review: number; flagged: number };
-  bookings: { pending_offers: number; active: number; completed_all_time: number };
-  revenue_this_month: { visits: number; gmv_cents: number; commission_cents: number };
-  as_of: string;
+function AdminDashboardPlaceholder() {
+  return <AdminDashboard />;
 }
 
-function AdminDashboardPlaceholder() {
-  const [data, setData] = useState<AdminAnalytics | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function AdminDashboard() {
+  const [data, setData] = useState<Analytics | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const res = await api.get<{ data: AdminAnalytics }>("/api/admin/analytics");
-        if (alive) setData(res.data.data);
-      } catch (err) {
-        console.error("[dashboard] admin analytics fetch failed", err);
-        if (alive) setError("Couldn't load analytics. Refresh to try again.");
+        const next = await getAdminAnalytics();
+        if (!alive) return;
+        setData(next);
+        setState("ready");
+      } catch {
+        if (!alive) return;
+        setState("error");
       }
     })();
-
     return () => {
       alive = false;
     };
   }, []);
 
-  const totalUsers = data ? data.users.family + data.users.caregiver + data.users.admin : 0;
   const verificationsTotal = data
     ? data.verifications.pending_review + data.verifications.flagged
     : 0;
 
   return (
     <DashboardShell pageTitle="Admin" navBadges={{ verification: verificationsTotal }}>
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <DashboardTitle
-          title="Platform overview"
-          meta={
-            data
-              ? `Snapshot as of ${new Date(data.as_of).toLocaleString("en-CA", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}`
-              : "Live counts and next actions."
-          }
+      <div className="relative">
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
+          }}
         />
 
-        {error ? (
-          <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/[0.06] p-5 text-sm text-destructive">
-            {error}
-          </div>
-        ) : !data ? (
-          <LoadingRows />
-        ) : (
-          <>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <DashboardMetric
-                label="Active users"
-                value={totalUsers}
-                hint={`${data.users.caregiver} caregivers · ${data.users.family} families`}
-                icon={UsersRound}
-                tone="primary"
-              />
-              <DashboardMetric
-                label="Verifications waiting"
-                value={verificationsTotal}
-                hint={
-                  data.verifications.flagged > 0
-                    ? `${data.verifications.flagged} flagged for review`
-                    : "All clear — no flags open"
-                }
-                icon={BadgeCheck}
-                tone={verificationsTotal > 0 ? "accent" : "success"}
-                href={verificationsTotal > 0 ? "/admin/verifications" : undefined}
-              />
-              <DashboardMetric
-                label="Live bookings"
-                value={data.bookings.active + data.bookings.pending_offers}
-                hint={`${data.bookings.pending_offers} awaiting a caregiver · ${data.bookings.active} confirmed`}
-                icon={CalendarClock}
-                tone="primary"
-              />
-              <DashboardMetric
-                label="Commission this month"
-                value={formatCents(data.revenue_this_month.commission_cents)}
-                hint={
-                  data.revenue_this_month.visits > 0
-                    ? `${data.revenue_this_month.visits} visit${data.revenue_this_month.visits === 1 ? "" : "s"} · ${formatCents(data.revenue_this_month.gmv_cents)} GMV`
-                    : "No completed visits yet this month"
-                }
-                icon={Wallet}
-                tone="success"
-              />
-            </div>
+        <div className="mx-auto max-w-5xl px-4 pt-8 pb-24 sm:px-6 lg:px-8">
+          <AdminHeader asOf={data?.as_of ?? null} />
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-              <SectionBlock
-                heading="Verification triage"
-                sub={
-                  verificationsTotal > 0
-                    ? `${data.verifications.pending_review} pending review · ${data.verifications.flagged} flagged`
-                    : "Nothing in the queue right now."
-                }
-                action={
-                  <Link href="/admin/verifications">
-                    <Button variant="outline" size="sm">
-                      Open queue
-                      <ArrowRight className="size-3.5" />
-                    </Button>
-                  </Link>
-                }
-              >
-                <ul className="grid gap-3 sm:grid-cols-2">
-                  <QueueStat
-                    label="Pending review"
-                    count={data.verifications.pending_review}
-                    tone="accent"
-                    hint="Caregiver submitted docs — admin action required."
-                  />
-                  <QueueStat
-                    label="Flagged"
-                    count={data.verifications.flagged}
-                    tone="warning"
-                    hint="Auto-flagged for suspected issue. Manual call needed."
-                  />
-                </ul>
-              </SectionBlock>
-
-              <SectionBlock heading="Platform makeup" sub="Accounts by role.">
-                <ul className="space-y-3 text-sm">
-                  <RoleRow
-                    label="Caregivers"
-                    count={data.users.caregiver}
-                    total={totalUsers}
-                    tone="primary"
-                  />
-                  <RoleRow
-                    label="Families"
-                    count={data.users.family}
-                    total={totalUsers}
-                    tone="accent"
-                  />
-                  <RoleRow
-                    label="Admins"
-                    count={data.users.admin}
-                    total={totalUsers}
-                    tone="success"
-                  />
-                </ul>
-              </SectionBlock>
-            </div>
-
-            <QuickRoutes
-              routes={[
-                {
-                  href: "/admin/verifications",
-                  label: "Verification queue",
-                  hint: "Review caregiver document submissions and clear / reject.",
-                },
-                {
-                  href: "/admin/verifications?status=flagged",
-                  label: "Flagged accounts",
-                  hint: "Auto-flagged items waiting on manual judgment.",
-                },
-                {
-                  href: "/settings",
-                  label: "Your settings",
-                  hint: "Session and data controls for this admin account.",
-                },
-              ]}
-            />
-
-            <p className="mt-8 flex items-center gap-2 text-xs text-muted-foreground">
-              <Circle className="size-2 fill-muted-foreground/40 text-muted-foreground/40" />
-              Booking browser, dispute resolution, audit log, and geographic heatmap arrive in Phase
-              14.
+          {state === "loading" && <AdminLoading />}
+          {state === "error" && (
+            <p className="mt-8 rounded-2xl border border-accent/30 bg-accent/[0.04] p-5 text-sm text-accent">
+              Couldn&apos;t load analytics. Refresh to try again.
             </p>
-          </>
-        )}
+          )}
+          {state === "ready" && data && (
+            <div className="mt-8 space-y-10">
+              <AdminStatGrid data={data} />
+
+              <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+                <QualityPulse data={data} />
+                <PlatformMakeup data={data} />
+              </div>
+
+              <VerificationTriage data={data} />
+
+              <AdminQuickLinks />
+            </div>
+          )}
+        </div>
       </div>
     </DashboardShell>
   );
 }
 
-function QueueStat({
-  label,
-  count,
-  tone,
-  hint,
-}: {
-  label: string;
-  count: number;
-  tone: "primary" | "accent" | "success" | "warning";
-  hint: string;
-}) {
-  const styles: Record<typeof tone, { well: string; text: string; ring: string }> = {
-    primary: { well: "bg-primary/10", text: "text-primary", ring: "ring-primary/30" },
-    accent: { well: "bg-accent/10", text: "text-accent", ring: "ring-accent/30" },
-    success: { well: "bg-success/10", text: "text-success", ring: "ring-success/30" },
-    warning: { well: "bg-muted", text: "text-foreground/70", ring: "ring-foreground/15" },
-  };
-  const s = styles[tone];
+function AdminHeader({ asOf }: { asOf: string | null }) {
   return (
-    <li
-      className={cn("rounded-xl border border-border/60 bg-card p-4", count === 0 && "opacity-70")}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-          {label}
-        </p>
-        <span
-          className={cn(
-            "inline-flex min-w-[28px] justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ring-1",
-            s.well,
-            s.text,
-            s.ring,
-          )}
-        >
-          {count}
-        </span>
+    <header>
+      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-8 bg-foreground/30" />
+        Dashboard
+        <span className="text-foreground/30">— § 19</span>
       </div>
-      <p className="mt-2 text-sm leading-snug text-muted-foreground">{hint}</p>
-    </li>
+
+      <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-5xl">
+        <span className="font-normal italic text-primary">The pulse,</span> at a glance.
+      </h1>
+
+      <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        Live counts across the platform, ranked by what an admin most often opens. Numbers refresh
+        every page load — the stamp below is the moment this snapshot was taken.
+      </p>
+
+      {asOf && (
+        <p className="mt-4 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
+          As of{" "}
+          {new Date(asOf).toLocaleString("en-CA", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </p>
+      )}
+    </header>
   );
 }
 
-function RoleRow({
+function AdminStatGrid({ data }: { data: Analytics }) {
+  const totalUsers = data.users.family + data.users.caregiver + data.users.admin;
+  const verificationsTotal = data.verifications.pending_review + data.verifications.flagged;
+  const liveBookings = data.bookings.active + data.bookings.pending_offers;
+
+  return (
+    <section aria-label="Headline metrics">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <AdminStat
+          label="Active users"
+          value={String(totalUsers)}
+          hint={`${data.users.caregiver} caregivers · ${data.users.family} families`}
+          icon={<UsersRound className="size-3.5" strokeWidth={2} />}
+        />
+        <AdminStat
+          label="Verifications"
+          value={String(verificationsTotal)}
+          hint={
+            data.verifications.flagged > 0 ? `${data.verifications.flagged} flagged` : "All clear"
+          }
+          icon={<BadgeCheck className="size-3.5" strokeWidth={2} />}
+          tone={verificationsTotal > 0 ? "alarm" : "good"}
+        />
+        <AdminStat
+          label="Live bookings"
+          value={String(liveBookings)}
+          hint={`${data.bookings.pending_offers} pending · ${data.bookings.active} confirmed`}
+          icon={<CalendarClock className="size-3.5" strokeWidth={2} />}
+        />
+        <AdminStat
+          label="Commission MTD"
+          value={formatCents(data.revenue_this_month.commission_cents)}
+          hint={
+            data.revenue_this_month.visits > 0
+              ? `${data.revenue_this_month.visits} visit${data.revenue_this_month.visits === 1 ? "" : "s"} · ${formatCents(data.revenue_this_month.gmv_cents)} GMV`
+              : "No completed visits yet"
+          }
+          icon={<Wallet className="size-3.5" strokeWidth={2} />}
+          emphasized
+        />
+      </div>
+    </section>
+  );
+}
+
+function AdminStat({
+  label,
+  value,
+  hint,
+  icon,
+  emphasized,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: React.ReactNode;
+  emphasized?: boolean;
+  tone?: "alarm" | "good";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4 sm:p-5",
+        emphasized && "border-primary/40 bg-primary/[0.04] ring-1 ring-primary/15",
+        !emphasized && tone === "alarm" && "border-accent/40 bg-accent/[0.04]",
+        !emphasized && tone === "good" && "border-success/40 bg-success/[0.04]",
+        !emphasized && !tone && "border-border/60 bg-card",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "grid size-6 place-items-center rounded-md",
+            emphasized && "bg-primary/15 text-primary",
+            !emphasized && tone === "alarm" && "bg-accent/15 text-accent",
+            !emphasized && tone === "good" && "bg-success/15 text-success",
+            !emphasized && !tone && "bg-muted/60 text-muted-foreground",
+          )}
+        >
+          {icon}
+        </span>
+        <p
+          className={cn(
+            "font-mono text-[10px] tracking-[0.22em] uppercase",
+            emphasized && "text-primary",
+            !emphasized && tone === "alarm" && "text-accent",
+            !emphasized && tone === "good" && "text-success",
+            !emphasized && !tone && "text-muted-foreground",
+          )}
+        >
+          {label}
+        </p>
+      </div>
+      <p className="mt-3 font-mono text-2xl leading-none font-semibold tabular-nums sm:text-3xl">
+        {value}
+      </p>
+      <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function QualityPulse({ data }: { data: Analytics }) {
+  const ts = data.trust_score;
+  const tsTotal = ts.total;
+  const ranked = tsTotal - ts.new;
+  const peakBucket = Math.max(1, ...ts.buckets.map((b) => b.count));
+  const avgRating = data.ratings.average_stars;
+
+  return (
+    <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <Sparkles className="size-3.5" strokeWidth={2} />
+        Quality pulse
+        <span className="text-foreground/30">— § 20</span>
+      </div>
+
+      {/* Average rating row */}
+      <div className="flex items-end justify-between gap-6">
+        <div>
+          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            Average rating
+          </p>
+          {avgRating !== null ? (
+            <div className="mt-1 flex items-baseline gap-3">
+              <p className="font-mono text-4xl font-semibold tabular-nums sm:text-5xl">
+                {avgRating.toFixed(2)}
+              </p>
+              <p className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
+                {data.ratings.count} review{data.ratings.count === 1 ? "" : "s"}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground italic">No public reviews yet.</p>
+          )}
+        </div>
+
+        <div className="text-right">
+          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            Trust avg
+          </p>
+          {ts.average !== null ? (
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">{ts.average}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground italic">—</p>
+          )}
+          <p className="mt-1 font-mono text-[10px] text-muted-foreground tabular-nums">
+            {ranked} ranked · {ts.new} new
+          </p>
+        </div>
+      </div>
+
+      {/* Trust Score histogram */}
+      <div className="mt-6 border-t border-dashed border-border/60 pt-4">
+        <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          Trust Score distribution
+        </p>
+
+        {ranked === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground italic">
+            All caregivers are still on their first three reviews.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {ts.buckets.map((b) => (
+              <li key={b.label}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-mono text-[10px] tracking-[0.18em] text-foreground/70 uppercase">
+                    {b.label}
+                  </span>
+                  <span className="font-mono text-[11px] tabular-nums text-foreground/60">
+                    {b.count}
+                  </span>
+                </div>
+                <div aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      b.min >= 81 && "bg-success",
+                      b.min >= 61 && b.min < 81 && "bg-primary",
+                      b.min >= 41 && b.min < 61 && "bg-foreground/40",
+                      b.min < 41 && "bg-accent/70",
+                    )}
+                    style={{ width: `${(b.count / peakBucket) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PlatformMakeup({ data }: { data: Analytics }) {
+  const total = data.users.family + data.users.caregiver + data.users.admin;
+
+  return (
+    <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <UsersRound className="size-3.5" strokeWidth={2} />
+        Platform makeup
+        <span className="text-foreground/30">— § 21</span>
+      </div>
+
+      <ul className="space-y-3">
+        <RoleBar
+          label="Caregivers"
+          count={data.users.caregiver}
+          total={total}
+          barClass="bg-success"
+        />
+        <RoleBar label="Families" count={data.users.family} total={total} barClass="bg-primary" />
+        <RoleBar
+          label="Admins"
+          count={data.users.admin}
+          total={total}
+          barClass="bg-foreground/60"
+        />
+      </ul>
+
+      <div className="mt-5 border-t border-dashed border-border/60 pt-4">
+        <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          Bookings, all-time
+        </p>
+        <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">
+          {data.bookings.completed_all_time}
+        </p>
+        <p className="font-mono text-[10px] text-muted-foreground tabular-nums">completed visits</p>
+      </div>
+    </section>
+  );
+}
+
+function RoleBar({
   label,
   count,
   total,
-  tone,
+  barClass,
 }: {
   label: string;
   count: number;
   total: number;
-  tone: "primary" | "accent" | "success";
+  barClass: string;
 }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  const bar: Record<typeof tone, string> = {
-    primary: "bg-primary",
-    accent: "bg-accent",
-    success: "bg-success",
-  };
   return (
     <li>
-      <div className="flex items-baseline justify-between">
-        <span className="text-foreground">{label}</span>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-sm">{label}</span>
         <span className="font-mono text-sm tabular-nums">
-          <span className="font-semibold text-foreground">{count}</span>
-          <span className="ml-1 text-[11px] text-muted-foreground">({pct}%)</span>
+          <span className="font-semibold">{count}</span>
+          <span className="ml-1 text-[10px] text-muted-foreground">{pct}%</span>
         </span>
       </div>
-      <div aria-hidden className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn("h-full rounded-full transition-[width] duration-500", bar[tone])}
-          style={{ width: `${pct}%` }}
-        />
+      <div aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full", barClass)} style={{ width: `${pct}%` }} />
       </div>
     </li>
+  );
+}
+
+function VerificationTriage({ data }: { data: Analytics }) {
+  const total = data.verifications.pending_review + data.verifications.flagged;
+
+  return (
+    <section
+      className={cn(
+        "rounded-2xl border p-5 sm:p-6",
+        total === 0 ? "border-success/40 bg-success/[0.04]" : "border-accent/30 bg-accent/[0.03]",
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+            <BadgeCheck className="size-3.5" strokeWidth={2} />
+            Verification triage
+            <span className="text-foreground/30">— § 22</span>
+          </div>
+          <h3 className="mt-2 text-lg font-semibold tracking-tight">
+            {total === 0 ? (
+              <>
+                Inbox <span className="font-normal italic text-success">zero.</span>
+              </>
+            ) : (
+              <>
+                <span className="font-normal italic">Caregivers waiting</span> on a decision.
+              </>
+            )}
+          </h3>
+        </div>
+
+        <Link href="/admin/verifications">
+          <Button variant="outline" size="sm">
+            Open queue
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </Link>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <TriageStat
+          label="Pending review"
+          count={data.verifications.pending_review}
+          hint="Submitted; admin action required."
+          tone="warn"
+        />
+        <TriageStat
+          label="Flagged"
+          count={data.verifications.flagged}
+          hint="Auto-flagged; needs human judgment."
+          tone="alarm"
+        />
+      </div>
+    </section>
+  );
+}
+
+function TriageStat({
+  label,
+  count,
+  hint,
+  tone,
+}: {
+  label: string;
+  count: number;
+  hint: string;
+  tone: "warn" | "alarm";
+}) {
+  const empty = count === 0;
+  return (
+    <div
+      className={cn(
+        "rounded-xl border bg-card p-4",
+        empty && "opacity-60",
+        !empty && tone === "alarm" && "border-accent/40 bg-accent/[0.05]",
+        !empty && tone === "warn" && "border-foreground/15",
+        empty && "border-border/60",
+      )}
+    >
+      <div className="flex items-baseline justify-between">
+        <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="font-mono text-2xl font-semibold tabular-nums">{count}</p>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function AdminQuickLinks() {
+  const links = [
+    { href: "/admin/users", label: "Users", hint: "Search · suspend · reactivate" },
+    { href: "/admin/bookings", label: "Bookings", hint: "Filter · refund · resolve disputes" },
+    {
+      href: "/admin/verifications",
+      label: "Verifications",
+      hint: "Approve · reject · investigate",
+    },
+    { href: "/admin/safety", label: "Safety", hint: "Panic alerts · incidents" },
+    { href: "/admin/alerts", label: "Alerts", hint: "Everything urgent in one feed" },
+    { href: "/admin/audit", label: "Audit log", hint: "Who did what, when" },
+    { href: "/admin/revenue", label: "Revenue", hint: "Trends · category breakdown · refunds" },
+  ];
+
+  return (
+    <section>
+      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-8 bg-foreground/30" />
+        Jump to
+        <span className="text-foreground/30">— § 23</span>
+      </div>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map((l) => (
+          <li key={l.href}>
+            <Link
+              href={l.href}
+              className="group flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-foreground/30"
+            >
+              <div className="min-w-0">
+                <p className="font-semibold tracking-tight">{l.label}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{l.hint}</p>
+              </div>
+              <ArrowUpRight
+                className="size-4 shrink-0 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
+                strokeWidth={2}
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function AdminLoading() {
+  return (
+    <div className="mt-8 space-y-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-32 animate-pulse rounded-2xl border border-border/60 bg-card/60"
+          />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="h-72 animate-pulse rounded-2xl border border-border/60 bg-card/60" />
+        <div className="h-72 animate-pulse rounded-2xl border border-border/60 bg-card/60" />
+      </div>
+    </div>
   );
 }
 

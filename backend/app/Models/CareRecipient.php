@@ -35,6 +35,9 @@ class CareRecipient extends Model
     {
         return [
             'interests' => 'array',
+            // Phase 15.B — accessibility_notes can carry medical / cognitive
+            // context. Never queried, so encrypted-at-rest is safe.
+            'accessibility_notes' => 'encrypted',
         ];
     }
 

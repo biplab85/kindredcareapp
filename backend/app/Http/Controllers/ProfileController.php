@@ -3,8 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Caregiver\UpdateCaregiverProfileRequest;
+use App\Models\Booking;
 use App\Models\CaregiverProfile;
+use App\Models\Message;
+use App\Models\Review;
 use App\Models\User;
+use App\Models\UserConsent;
+use App\Models\VerificationRecord;
+use App\Services\AccountAnonymizer;
 use App\Services\ProfileCompletionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -116,18 +122,29 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function destroy(Request $request): JsonResponse
+    /**
+     * Phase 15.C — PIPEDA right-to-deletion. Anonymize personal fields
+     * but retain financial records (bookings) for the CRA-mandated 7
+     * years. Hard-delete is unsafe because Booking rows back tax
+     * reporting; AccountAnonymizer scrubs personal data while keeping
+     * the row alive.
+     */
+    public function destroy(Request $request, AccountAnonymizer $anonymizer): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-        $user->tokens()->delete();
-        $user->delete();
+
+        $anonymizer->anonymize($user);
 
         return response()->json([
-            'message' => 'Account deleted.',
+            'message' => 'Account deletion processed. Personal data has been removed; financial records are retained for 7 years per CRA requirements.',
         ]);
     }
 
+    /**
+     * Phase 15.C — PIPEDA right-to-access. Returns the complete personal
+     * data the platform holds for this user across every table.
+     */
     public function export(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -141,8 +158,54 @@ class ProfileController extends Controller
             $user->load('familyProfile.careRecipients');
         }
 
+        $verifications = VerificationRecord::query()
+            ->where('user_id', $user->id)
+            ->get();
+
+        $caregiverBookings = Booking::query()
+            ->where('caregiver_user_id', $user->id)
+            ->get();
+
+        $familyBookings = $user->familyProfile !== null
+            ? Booking::query()
+                ->where('family_profile_id', $user->familyProfile->id)
+                ->get()
+            : collect();
+
+        $bookingIds = $caregiverBookings->pluck('id')
+            ->merge($familyBookings->pluck('id'))
+            ->unique()
+            ->values();
+
+        $messages = Message::query()
+            ->where(function ($q) use ($user, $bookingIds) {
+                $q->where('sender_user_id', $user->id)
+                    ->orWhereIn('booking_id', $bookingIds);
+            })
+            ->get();
+
+        $reviewsGiven = Review::query()->where('rater_user_id', $user->id)->get();
+        $reviewsReceived = Review::query()->where('ratee_user_id', $user->id)->get();
+
+        $consents = UserConsent::query()
+            ->where('user_id', $user->id)
+            ->orderBy('id')
+            ->get();
+
         return response()->json([
             'user' => $user->makeVisible(['email', 'phone', 'created_at']),
+            'verification_records' => $verifications,
+            'bookings' => [
+                'as_caregiver' => $caregiverBookings,
+                'as_family' => $familyBookings,
+            ],
+            'messages' => $messages,
+            'reviews' => [
+                'given' => $reviewsGiven,
+                'received' => $reviewsReceived,
+            ],
+            'consents' => $consents,
+            'exported_at' => now()->toIso8601String(),
         ]);
     }
 

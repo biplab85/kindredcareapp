@@ -112,5 +112,16 @@ class AdminAnalyticsTest extends TestCase
         $response->assertJsonPath('data.revenue_this_month.visits', 1);
         $response->assertJsonPath('data.revenue_this_month.gmv_cents', 7500);
         $response->assertJsonPath('data.revenue_this_month.commission_cents', 563);
+
+        // Phase 14.4 quality pulse — averages + Trust Score histogram.
+        $response->assertJsonStructure([
+            'data' => [
+                'ratings' => ['count', 'average_stars'],
+                'trust_score' => ['total', 'new', 'buckets', 'average'],
+            ],
+        ]);
+        $response->assertJsonPath('data.ratings.count', 0); // no reviews seeded yet
+        $response->assertJsonPath('data.trust_score.total', 1); // one caregiver profile created
+        $response->assertJsonPath('data.trust_score.new', 1); // <3 reviews → counted as "new"
     }
 }

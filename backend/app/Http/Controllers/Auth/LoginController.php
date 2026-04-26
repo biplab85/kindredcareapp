@@ -21,6 +21,19 @@ class LoginController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // Phase 15.B — suspended/deleted accounts are blocked from logging
+        // in. Without this guard, an admin suspension only stops new
+        // bookings; the user could still authenticate and use existing
+        // sessions. Returning 403 (not 401) so clients can distinguish
+        // "wrong password" from "account locked".
+        if ($user->status === 'suspended' || $user->status === 'deleted') {
+            Auth::logout();
+
+            return response()->json([
+                'message' => 'This account is not active. Contact support if you believe this is an error.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([

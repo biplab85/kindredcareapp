@@ -9,6 +9,7 @@ use App\Models\Gig;
 use App\Models\ServiceCategory;
 use App\Models\User;
 use App\Models\VerificationRecord;
+use Carbon\CarbonImmutable;
 use Database\Seeders\ServiceCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -260,8 +261,9 @@ class GigMatchesTest extends TestCase
     public function test_enforces_weekly_availability(): void
     {
         $family = $this->familyWithProfile();
-        // Tuesday 10am–1pm gig.
-        $tuesday = now()->next('Tuesday')->setTime(10, 0);
+        // Tuesday 10am–1pm local (America/Toronto) — stored UTC 14:00–17:00 during DST,
+        // UTC 15:00–18:00 in standard time, both within the 09:00–17:00 availability window.
+        $tuesday = now()->next('Tuesday')->setTime(14, 0);
         $gig = $this->makeGig($family, [
             'scheduled_start' => $tuesday,
             'scheduled_end' => $tuesday->copy()->addHours(3),
@@ -290,6 +292,41 @@ class GigMatchesTest extends TestCase
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($fitsTuesday->id, $ids);
         $this->assertNotContains($tuesdayBlocked->id, $ids);
+    }
+
+    public function test_availability_is_checked_in_operating_timezone(): void
+    {
+        // Tue 2026-04-28 01:00–02:00 UTC is Mon 2026-04-27 21:00–22:00 America/Toronto (EDT).
+        // A caregiver whose availability only has Monday evenings must still match,
+        // and a caregiver whose availability only has Tuesday mornings must not.
+        $family = $this->familyWithProfile();
+        $gig = $this->makeGig($family, [
+            'scheduled_start' => CarbonImmutable::parse('2026-04-28 01:00:00', 'UTC'),
+            'scheduled_end' => CarbonImmutable::parse('2026-04-28 02:00:00', 'UTC'),
+        ]);
+
+        $mondayEvening = $this->verifiedCaregiver([
+            'availability' => [
+                'weekly' => [
+                    'mon' => [['start' => '20:00', 'end' => '23:00']],
+                ],
+            ],
+        ]);
+        $tuesdayMorning = $this->verifiedCaregiver([
+            'availability' => [
+                'weekly' => [
+                    'tue' => [['start' => '09:00', 'end' => '17:00']],
+                ],
+            ],
+        ]);
+
+        Sanctum::actingAs($family->user);
+
+        $response = $this->postJson("/api/gigs/{$gig->id}/matches")->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($mondayEvening->id, $ids, 'caregiver with local-Monday availability should match a gig whose local time is Monday evening');
+        $this->assertNotContains($tuesdayMorning->id, $ids, 'caregiver whose only availability is Tuesday morning should not match a Monday-evening local gig');
     }
 
     /* ────────────── ranking ────────────── */

@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    'stripe' => [
+        // Publishable key — exposed to the frontend via /api/me so Stripe
+        // Elements can tokenize cards client-side. Leave blank in dev to
+        // degrade to the stub channel.
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        // HMAC signing secret for the Stripe webhook receiver. Required
+        // before we trust any payment_intent.* event.
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        // Stripe API version we pin to — update deliberately, not via
+        // whatever the SDK happens to default to.
+        'api_version' => env('STRIPE_API_VERSION', '2024-12-18.acacia'),
+    ],
+
 ];

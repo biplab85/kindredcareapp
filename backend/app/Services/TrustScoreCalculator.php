@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Booking;
 use App\Models\CaregiverProfile;
+use App\Models\Review;
 use App\Models\User;
 use App\Models\VerificationRecord;
 
@@ -30,6 +32,9 @@ class TrustScoreCalculator
     private const WEIGHT_TENURE = 10;
 
     private const TENURE_CAP_DAYS = 365;
+
+    /** Below this review count we surface the "New" badge + use neutral-100 for score. */
+    public const NEW_REVIEW_THRESHOLD = 3;
 
     /**
      * @return array{
@@ -89,21 +94,79 @@ class TrustScoreCalculator
     }
 
     /**
-     * Reviews arrive in Phase 11. Until the reviews table exists, assume
-     * neutral 100 so new caregivers aren't penalised for platform immaturity.
+     * Reviews contribute once a caregiver has 3+ visible ratings (mvp-
+     * requirements §4.6: "New" label for caregivers with <3 reviews).
+     * Below the threshold, stay neutral-100 so matching doesn't penalise
+     * newcomers who simply haven't accumulated yet.
+     *
+     * Star scale (1–5) maps to a 0–100 signal via × 20 (5 stars = 100).
      */
     private function reviewScore(User $user): int
     {
-        return 100;
+        $visible = Review::query()
+            ->forRatee($user->id)
+            ->visible()
+            ->get(['stars']);
+
+        if ($visible->count() < self::NEW_REVIEW_THRESHOLD) {
+            return 100;
+        }
+
+        $avg = (float) $visible->avg('stars');
+
+        return (int) round(max(0, min(100, $avg * 20)));
     }
 
     /**
-     * Reliability = on-time rate + completion rate. Starts at 100 until
-     * Phase 8 bookings + EVV produce signal.
+     * Reliability: combination of on-time check-ins and completion rate.
+     * Needs at least one visit on record to compute — until then, neutral
+     * 100 so fresh caregivers don't get penalised for having no history.
+     *
+     *   - On-time rate:   visits where the caregiver checked in within
+     *                     the 200m + on-schedule envelope.
+     *   - Completion rate: completed visits / (completed + caregiver-
+     *                      cancelled + no-show).
+     *
+     * The average of the two, × 100.
      */
     private function reliabilityScore(User $user): int
     {
-        return 100;
+        $totalVisits = Booking::query()
+            ->where('caregiver_user_id', $user->id)
+            ->whereIn('status', [
+                Booking::STATUS_COMPLETED,
+                Booking::STATUS_CANCELLED_CAREGIVER,
+                Booking::STATUS_NO_SHOW,
+            ])
+            ->count();
+
+        if ($totalVisits === 0) {
+            return 100;
+        }
+
+        $completed = Booking::query()
+            ->where('caregiver_user_id', $user->id)
+            ->where('status', Booking::STATUS_COMPLETED)
+            ->count();
+
+        $completionRate = $completed / $totalVisits;
+
+        // On-time: among completed visits, how many checked in before the
+        // scheduled start (with a generous 5-minute tolerance).
+        $onTimeEligible = Booking::query()
+            ->where('caregiver_user_id', $user->id)
+            ->where('status', Booking::STATUS_COMPLETED)
+            ->whereNotNull('check_in_at')
+            ->get(['check_in_at', 'scheduled_start']);
+
+        if ($onTimeEligible->isEmpty()) {
+            return (int) round($completionRate * 100);
+        }
+
+        $onTime = $onTimeEligible->filter(fn ($b) => $b->check_in_at->lessThanOrEqualTo($b->scheduled_start->copy()->addMinutes(5)))->count();
+        $onTimeRate = $onTime / $onTimeEligible->count();
+
+        return (int) round((($completionRate + $onTimeRate) / 2) * 100);
     }
 
     private function tenureScore(CaregiverProfile $profile): int
@@ -120,7 +183,6 @@ class TrustScoreCalculator
 
     private function reviewCount(User $user): int
     {
-        // Will reflect real counts once the reviews table ships in Phase 11.
-        return 0;
+        return Review::query()->forRatee($user->id)->visible()->count();
     }
 }

@@ -5,14 +5,18 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BadgeCheck,
+  Bell,
   CalendarDays,
   ChevronsLeft,
   ChevronsRight,
   type LucideIcon,
   LayoutDashboard,
   PlusCircle,
+  ScrollText,
   Search,
   Settings,
+  ShieldAlert,
+  UserCog,
   UsersRound,
   X,
 } from "lucide-react";
@@ -84,7 +88,13 @@ const ADMIN_SECTIONS: SidebarSection[] = [
     heading: "Work",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/users", label: "Users", icon: UsersRound },
+      { href: "/admin/bookings", label: "Bookings", icon: CalendarDays },
       { href: "/admin/verifications", label: "Verifications", icon: BadgeCheck },
+      { href: "/admin/safety", label: "Safety", icon: ShieldAlert },
+      { href: "/admin/alerts", label: "Alerts", icon: Bell },
+      { href: "/admin/audit", label: "Audit log", icon: ScrollText },
+      { href: "/admin/admins", label: "Admins", icon: UserCog },
     ],
   },
   {

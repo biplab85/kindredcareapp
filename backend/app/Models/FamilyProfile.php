@@ -14,6 +14,8 @@ class FamilyProfile extends Model
         'postal_code',
         'city',
         'onboarding_complete',
+        'stripe_customer_id',
+        'default_payment_method_id',
     ];
 
     /**
