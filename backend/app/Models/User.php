@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedDate;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,7 +45,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
-            'date_of_birth' => 'date',
+            // Phase 15.B — date_of_birth is sensitive and never queried
+            // (matching uses CaregiverProfile age bucketing, not direct DB
+            // lookup), so encrypted-at-rest is safe. Custom cast because
+            // Laravel's built-in `encrypted` casts don't cover dates.
+            'date_of_birth' => EncryptedDate::class,
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];

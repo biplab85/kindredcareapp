@@ -1,7 +1,13 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAccountController;
+use App\Http\Controllers\Admin\AlertsController;
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\DemandDensityController;
 use App\Http\Controllers\Admin\IncidentController;
+use App\Http\Controllers\Admin\PanicAlertController;
+use App\Http\Controllers\Admin\RevenueController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -9,7 +15,11 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CaregiverConnectController;
 use App\Http\Controllers\CaregiverController;
+use App\Http\Controllers\ConsentController;
+use App\Http\Controllers\EarningsController;
+use App\Http\Controllers\EarningsStatementController;
 use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\FamilyProfileController;
 use App\Http\Controllers\GigController;
@@ -47,14 +57,16 @@ Route::get('/health', function () {
 
 // ─── AUTH (public) ───
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [RegisterController::class, 'store']);
-    Route::post('/login', [LoginController::class, 'store']);
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'store']);
-    Route::post('/reset-password', [ResetPasswordController::class, 'store']);
+    Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:auth-loose');
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:auth-strict');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])->middleware('throttle:auth-strict');
+    Route::post('/reset-password', [ResetPasswordController::class, 'store'])->middleware('throttle:auth-strict');
 });
 
 // ─── AUTH (authenticated) ───
-Route::middleware('auth:sanctum')->group(function () {
+// Default per-user throttle of 60/min applies to every authenticated route.
+// Endpoints that need tighter limits (auth resends, OTPs) override below.
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     Route::post('/auth/logout', [LoginController::class, 'destroy']);
 
@@ -66,17 +78,22 @@ Route::middleware('auth:sanctum')->group(function () {
         $request->user()->sendEmailVerificationNotification();
 
         return response()->json(['message' => 'Verification link sent.']);
-    })->middleware('throttle:6,1');
+    })->middleware('throttle:auth-loose');
 
     // ─── PHONE VERIFICATION ───
-    Route::post('/auth/phone/send', [PhoneVerificationController::class, 'send'])->middleware('throttle:3,1');
-    Route::post('/auth/phone/verify', [PhoneVerificationController::class, 'store']);
+    Route::post('/auth/phone/send', [PhoneVerificationController::class, 'send'])->middleware('throttle:auth-strict');
+    Route::post('/auth/phone/verify', [PhoneVerificationController::class, 'store'])->middleware('throttle:auth-strict');
 
     // ─── PROFILE ───
     Route::get('/me', [ProfileController::class, 'show']);
     Route::patch('/me', [ProfileController::class, 'update']);
     Route::delete('/me', [ProfileController::class, 'destroy']);
     Route::get('/me/data-export', [ProfileController::class, 'export']);
+
+    // ─── PIPEDA CONSENT ───
+    Route::get('/me/consents', [ConsentController::class, 'index']);
+    Route::post('/me/consents', [ConsentController::class, 'store'])
+        ->middleware('throttle:auth-loose');
     Route::post('/me/logout-all', [ProfileController::class, 'logoutAll']);
     Route::patch('/me/caregiver-profile', [ProfileController::class, 'updateCaregiverProfile']);
     Route::post('/me/photo', [ProfileController::class, 'uploadPhoto']);
@@ -116,11 +133,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::patch('/bookings/{booking}/check-in', [BookingController::class, 'checkIn']);
     Route::patch('/bookings/{booking}/check-out', [BookingController::class, 'checkOut']);
+    Route::patch('/bookings/{booking}/tasks', [BookingController::class, 'updateTasks']);
+    Route::post('/bookings/{booking}/dispute', [BookingController::class, 'openDispute']);
 
     // ─── PAYMENTS ───
     Route::post('/payments/setup-intent', [PaymentController::class, 'setupIntent']);
-    Route::post('/bookings/{booking}/refund', [PaymentController::class, 'refund']);
-    Route::get('/payouts', [PaymentController::class, 'payouts']);
+    Route::get('/me/payment-methods', [PaymentController::class, 'listPaymentMethods']);
+    Route::delete('/me/payment-methods/{paymentMethodId}', [PaymentController::class, 'destroyPaymentMethod']);
+    Route::patch('/me/payment-methods/default', [PaymentController::class, 'setDefaultPaymentMethod']);
+    Route::get('/me/earnings', [EarningsController::class, 'show']);
+    Route::get('/me/earnings/statement/{year}', [EarningsStatementController::class, 'show'])
+        ->whereNumber('year');
+    Route::get('/me/stripe-connect/status', [CaregiverConnectController::class, 'status']);
+    Route::post('/me/stripe-connect/onboarding', [CaregiverConnectController::class, 'onboarding']);
+    Route::post('/me/stripe-connect/refresh', [CaregiverConnectController::class, 'refresh']);
 
     // ─── MESSAGES ───
     Route::get('/bookings/{booking}/messages', [MessageController::class, 'index']);
@@ -128,24 +154,30 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── REVIEWS ───
     Route::post('/bookings/{booking}/review', [ReviewController::class, 'store']);
+    Route::get('/me/reviews/pending', [ReviewController::class, 'pending']);
+    Route::get('/users/{user}/reviews', [ReviewController::class, 'forUser']);
+    Route::post('/reviews/{review}/flag', [ReviewController::class, 'flag']);
 
     // ─── EMERGENCY ───
     Route::post('/emergency/panic', [EmergencyController::class, 'panic']);
+    Route::post('/bookings/{booking}/safety-ack', [EmergencyController::class, 'safetyAck']);
+    Route::post('/bookings/{booking}/incidents', [EmergencyController::class, 'submitIncident']);
 
     // ─── NOTIFICATIONS ───
     Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
 });
 
 // ─── VERIFICATION WEBHOOKS (no auth — signature verified in controller) ───
-Route::prefix('webhooks')->group(function () {
+Route::prefix('webhooks')->middleware('throttle:webhooks')->group(function () {
     Route::post('/veriff', [VeriffWebhookController::class, 'handle']);
     Route::post('/certn', [CertnWebhookController::class, 'handle']);
     Route::post('/stripe', [StripeWebhookController::class, 'handle']);
 });
 
 // ─── ADMIN ───
-Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
+Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{user}', [UserController::class, 'show']);
     Route::patch('/users/{user}/suspend', [UserController::class, 'suspend']);
@@ -163,9 +195,32 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/bookings/{booking}/refund', [App\Http\Controllers\Admin\BookingController::class, 'refund']);
 
     Route::get('/incidents', [IncidentController::class, 'index']);
+    Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
     Route::patch('/incidents/{incident}', [IncidentController::class, 'update']);
 
+    Route::get('/panic-alerts', [PanicAlertController::class, 'index']);
+    Route::get('/panic-alerts/{panicAlert}', [PanicAlertController::class, 'show']);
+    Route::patch('/panic-alerts/{panicAlert}/acknowledge', [PanicAlertController::class, 'acknowledge']);
+    Route::patch('/panic-alerts/{panicAlert}/resolve', [PanicAlertController::class, 'resolve']);
+
     Route::get('/analytics', [AnalyticsController::class, 'index']);
+    Route::get('/revenue', [RevenueController::class, 'index']);
+
+    Route::get('/audit-log', [AuditLogController::class, 'index']);
+
+    Route::get('/alerts', [AlertsController::class, 'index']);
+
+    Route::patch('/messages/{message}/hide', [App\Http\Controllers\Admin\MessageController::class, 'hide']);
+    Route::patch('/messages/{message}/unhide', [App\Http\Controllers\Admin\MessageController::class, 'unhide']);
+
+    // Phase 14 cleanup — demand density (Mapbox heatmap follow-up) and
+    // admin-account CRUD with TOTP deferred to Phase 15 hardening.
+    Route::get('/demand-density', [DemandDensityController::class, 'index']);
+
+    Route::get('/admins', [AdminAccountController::class, 'index']);
+    Route::post('/admins', [AdminAccountController::class, 'store']);
+    Route::patch('/admins/{admin}', [AdminAccountController::class, 'update']);
+    Route::delete('/admins/{admin}', [AdminAccountController::class, 'destroy']);
 });
 
 // ─── SERVICE CATEGORIES (public) ───

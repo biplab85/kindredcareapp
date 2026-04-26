@@ -31,6 +31,8 @@ class MatchingEngine
 {
     private const MAX_RESULTS = 10;
 
+    private const OPERATING_TIMEZONE = 'America/Toronto';
+
     private const WEIGHTS = [
         'distance' => 30,
         'trust' => 30,
@@ -224,6 +226,12 @@ class MatchingEngine
      * always available. When a calendar is set, we require the gig window
      * to sit inside one of that weekday's ranges. This matches the
      * onboarding fallback in ProfileCompletionService.
+     *
+     * Both sides are compared in the platform's operating timezone: gigs
+     * are stored as UTC, caregivers set availability as local wall-clock
+     * times ("08:00–17:00" means 8 a.m. local). MVP is Durham-only, so
+     * hardcoding Toronto is correct; v1.2 expansion to BC/AB will need a
+     * per-region lookup.
      */
     private function availableAt(CaregiverProfile $profile, Gig $gig): bool
     {
@@ -237,14 +245,17 @@ class MatchingEngine
             return true;
         }
 
-        $weekday = $this->weekdayKey($gig->scheduled_start);
+        $startLocal = $gig->scheduled_start->copy()->setTimezone(self::OPERATING_TIMEZONE);
+        $endLocal = $gig->scheduled_end->copy()->setTimezone(self::OPERATING_TIMEZONE);
+
+        $weekday = $this->weekdayKey($startLocal);
         $ranges = $weekly[$weekday] ?? null;
         if (! is_array($ranges) || $ranges === []) {
             return false;
         }
 
-        $start = $this->minutesSinceMidnight($gig->scheduled_start);
-        $end = $this->minutesSinceMidnight($gig->scheduled_end);
+        $start = $this->minutesSinceMidnight($startLocal);
+        $end = $this->minutesSinceMidnight($endLocal);
 
         foreach ($ranges as $range) {
             if (! is_array($range)) {

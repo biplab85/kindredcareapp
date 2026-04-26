@@ -1,28 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  Shield,
-  MapPin,
-  Clock,
-  DollarSign,
-  MessageCircle,
-  Loader2,
-  Star,
-  Briefcase,
+  ArrowLeft,
   Award,
-  User,
+  BadgeCheck,
+  Briefcase,
+  Clock,
+  Languages,
+  MapPin,
+  MessageCircle,
+  ShieldCheck,
+  Sparkles,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { StarRating } from "@/components/ui/star-rating";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PublicLayout } from "@/components/layouts/public-layout";
 import api from "@/lib/api";
+import { getUserReviews, type Review } from "@/lib/reviews";
+import { cn } from "@/lib/utils";
+
+/* ─────────────────────────────────────────────────────────────
+ * Types
+ * ───────────────────────────────────────────────────────────── */
 
 interface CaregiverService {
   id: number;
@@ -38,310 +39,774 @@ interface Certification {
   status: string;
 }
 
+interface CaregiverProfile {
+  bio: string;
+  hourly_rate: string;
+  travel_radius_km: number;
+  years_of_experience: number;
+  languages: string[];
+  interests: string[];
+  personality_tags: string[];
+  certifications: Certification[] | null;
+  photo_path: string | null;
+  photo_status: string;
+  onboarding_complete: boolean;
+  services: CaregiverService[];
+}
+
 interface CaregiverData {
   id: number;
   name: string;
   gender: string | null;
-  caregiver_profile: {
-    bio: string;
-    hourly_rate: string;
-    travel_radius_km: number;
-    years_of_experience: number;
-    languages: string[];
-    interests: string[];
-    personality_tags: string[];
-    certifications: Certification[] | null;
-    photo_path: string | null;
-    photo_status: string;
-    onboarding_complete: boolean;
-    services: CaregiverService[];
-  };
+  trust_score?: number | null;
+  caregiver_profile: CaregiverProfile;
 }
 
-export default function CaregiverProfilePage() {
-  const params = useParams();
-  const [caregiver, setCaregiver] = useState<CaregiverData | null>(null);
-  const [isVerified, setIsVerified] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface ReviewsState {
+  list: Review[];
+  count: number;
+  average: number | null;
+}
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await api.get(`/api/caregivers/${params.id}`);
-        setCaregiver(res.data.caregiver);
-        setIsVerified(res.data.is_verified || false);
-      } catch {
-        setError("Caregiver not found.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    load();
-  }, [params.id]);
+type LoadPhase = "loading" | "ready" | "error";
 
-  if (isLoading) {
-    return (
-      <PublicLayout>
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-primary" />
-        </div>
-      </PublicLayout>
-    );
-  }
+/* ─────────────────────────────────────────────────────────────
+ * Route shell
+ * ───────────────────────────────────────────────────────────── */
 
-  if (error || !caregiver) {
-    return (
-      <PublicLayout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center">
-          <h2 className="mb-2">Caregiver Not Found</h2>
-          <p className="text-muted-foreground">{error}</p>
-        </div>
-      </PublicLayout>
-    );
-  }
-
-  const profile = caregiver.caregiver_profile;
-  const initials = caregiver.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
-  const photoUrl =
-    profile.photo_path && profile.photo_status === "approved"
-      ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${profile.photo_path}`
-      : undefined;
-
+export default function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   return (
     <PublicLayout>
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardContent className="flex flex-col items-center p-6 text-center">
-                <Avatar className="mb-4 size-28">
-                  {photoUrl && <AvatarImage src={photoUrl} alt={caregiver.name} />}
-                  <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-
-                <h1 className="text-xl font-bold">{caregiver.name}</h1>
-
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                  {isVerified ? (
-                    <Badge className="bg-success text-success-foreground">
-                      <Shield className="mr-1 size-3" /> Basic Verified
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Unverified
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="mt-3 flex items-center gap-1">
-                  <StarRating value={0} readonly size="sm" />
-                  <span className="text-sm text-muted-foreground">No reviews yet</span>
-                </div>
-
-                <Separator className="my-4" />
-
-                <div className="w-full space-y-3 text-left text-sm">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="size-4 text-primary" />
-                    <span className="font-medium">${profile.hourly_rate}/hr</span>
-                  </div>
-                  {profile.years_of_experience > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="size-4 text-primary" />
-                      <span>{profile.years_of_experience} years experience</span>
-                    </div>
-                  )}
-                  {caregiver.gender && caregiver.gender !== "prefer_not_to_say" && (
-                    <div className="flex items-center gap-2">
-                      <User className="size-4 text-primary" />
-                      <span className="capitalize">{caregiver.gender.replace("_", " ")}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <MapPin className="size-4 text-primary" />
-                    <span>Travels up to {profile.travel_radius_km} km</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="size-4 text-primary" />
-                    <span>Member since {new Date().getFullYear()}</span>
-                  </div>
-                </div>
-
-                <Separator className="my-4" />
-
-                <div className="flex w-full gap-2">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button className="flex-1" disabled>
-                          Book
-                        </Button>
-                      }
-                    />
-                    <TooltipContent>Booking coming soon</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button variant="outline" className="flex-1" disabled>
-                          <MessageCircle className="mr-1 size-4" /> Message
-                        </Button>
-                      }
-                    />
-                    <TooltipContent>Messaging coming soon</TooltipContent>
-                  </Tooltip>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main content */}
-          <div className="space-y-6 lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">About</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="leading-relaxed text-muted-foreground">{profile.bio}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Services Offered</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {profile.services.map((svc) => (
-                    <Badge key={svc.id} variant="secondary" className="px-3 py-1.5">
-                      {svc.name}
-                      {svc.pivot.years_experience > 0 && (
-                        <span className="ml-1 text-muted-foreground">
-                          · {svc.pivot.years_experience} yr
-                          {svc.pivot.years_experience !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {profile.certifications && profile.certifications.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Award className="size-4 text-primary" />
-                    Certifications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {profile.certifications.map((cert, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2.5"
-                      >
-                        <Shield className="size-4 text-primary" />
-                        <span className="flex-1 text-sm font-medium">{cert.name}</span>
-                        {cert.issuer && (
-                          <span className="text-xs text-muted-foreground">{cert.issuer}</span>
-                        )}
-                        {cert.year && (
-                          <span className="text-xs text-muted-foreground">{cert.year}</span>
-                        )}
-                        <Badge
-                          variant="outline"
-                          className="px-1.5 py-0 text-[0.6rem] text-muted-foreground"
-                        >
-                          Self-reported
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {profile.languages && profile.languages.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Languages</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.languages.map((lang) => (
-                      <Badge key={lang} variant="outline" className="px-3 py-1.5">
-                        {lang}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {((profile.interests && profile.interests.length > 0) ||
-              (profile.personality_tags && profile.personality_tags.length > 0)) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Interests & Personality</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {profile.interests && profile.interests.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-xs font-medium text-muted-foreground">Interests</p>
-                      <div className="flex flex-wrap gap-2">
-                        {profile.interests.map((interest) => (
-                          <Badge key={interest} variant="secondary" className="px-3 py-1.5">
-                            {interest}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {profile.personality_tags && profile.personality_tags.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-xs font-medium text-muted-foreground">Personality</p>
-                      <div className="flex flex-wrap gap-2">
-                        {profile.personality_tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="px-3 py-1.5">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Star className="size-4 text-amber-400" />
-                  Reviews
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center py-8 text-center">
-                  <p className="text-muted-foreground">No reviews yet.</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Reviews will appear here after completed bookings.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+      <ProfileView caregiverId={id} />
     </PublicLayout>
   );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Main view
+ * ───────────────────────────────────────────────────────────── */
+
+function ProfileView({ caregiverId }: { caregiverId: string }) {
+  const [phase, setPhase] = useState<LoadPhase>("loading");
+  const [caregiver, setCaregiver] = useState<CaregiverData | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [reviews, setReviews] = useState<ReviewsState>({
+    list: [],
+    count: 0,
+    average: null,
+  });
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await api.get(`/api/caregivers/${caregiverId}`);
+        if (!alive) return;
+        const data: CaregiverData = res.data.caregiver;
+        setCaregiver(data);
+        setIsVerified(res.data.is_verified ?? false);
+
+        try {
+          const reviewsRes = await getUserReviews(data.id);
+          if (!alive) return;
+          setReviews({
+            list: reviewsRes.data,
+            count: reviewsRes.meta.count,
+            average: reviewsRes.meta.average_stars,
+          });
+        } catch {
+          if (!alive) return;
+        }
+        setPhase("ready");
+      } catch {
+        if (!alive) return;
+        setPhase("error");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [caregiverId]);
+
+  return (
+    <div className="relative">
+      {/* Paper wash */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
+        }}
+      />
+
+      <div className="mx-auto max-w-5xl px-4 pt-8 pb-24 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </Link>
+
+        {phase === "loading" && <LoadingScreen />}
+        {phase === "error" && <ErrorScreen />}
+        {phase === "ready" && caregiver && (
+          <ProfileBody caregiver={caregiver} isVerified={isVerified} reviews={reviews} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Profile body
+ * ───────────────────────────────────────────────────────────── */
+
+function ProfileBody({
+  caregiver,
+  isVerified,
+  reviews,
+}: {
+  caregiver: CaregiverData;
+  isVerified: boolean;
+  reviews: ReviewsState;
+}) {
+  const { caregiver_profile: profile } = caregiver;
+  const firstName = caregiver.name.split(/\s+/)[0] ?? caregiver.name;
+
+  return (
+    <>
+      <ProfileHeader caregiver={caregiver} isVerified={isVerified} reviewCount={reviews.count} />
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
+        <div className="space-y-6">
+          <TrustBlock caregiver={caregiver} reviews={reviews} />
+          {profile.bio && <AboutBlock bio={profile.bio} firstName={firstName} />}
+          {profile.services.length > 0 && <ServicesBlock services={profile.services} />}
+          {profile.certifications && profile.certifications.length > 0 && (
+            <CertificationsBlock certifications={profile.certifications} />
+          )}
+          <ReviewsBlock reviews={reviews} firstName={firstName} />
+        </div>
+
+        <aside className="space-y-6 lg:sticky lg:top-24">
+          <FactsBlock caregiver={caregiver} profile={profile} />
+          {profile.languages.length > 0 && <LanguagesBlock languages={profile.languages} />}
+          {(profile.interests.length > 0 || profile.personality_tags.length > 0) && (
+            <FlavourBlock interests={profile.interests} personality={profile.personality_tags} />
+          )}
+          <ActionBlock />
+        </aside>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Header
+ * ───────────────────────────────────────────────────────────── */
+
+function ProfileHeader({
+  caregiver,
+  isVerified,
+  reviewCount,
+}: {
+  caregiver: CaregiverData;
+  isVerified: boolean;
+  reviewCount: number;
+}) {
+  const isNew = reviewCount < 3;
+  const firstName = caregiver.name.split(/\s+/)[0] ?? caregiver.name;
+
+  return (
+    <header>
+      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-8 bg-foreground/30" />
+        Caregiver profile
+        <span className="text-foreground/30">— § 01</span>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+        <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-5xl">
+          Meet <span className="font-normal italic text-primary">{firstName}.</span>
+        </h1>
+        <span className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
+          #{String(caregiver.id).padStart(5, "0")}
+        </span>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        {isVerified ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-success uppercase">
+            <BadgeCheck className="size-3.5" strokeWidth={2.25} />
+            Basic verified
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            Unverified
+          </span>
+        )}
+        {isNew && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-accent uppercase">
+            <Sparkles className="size-3.5" strokeWidth={2.25} />
+            New
+          </span>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Trust Score — headline card
+ * ───────────────────────────────────────────────────────────── */
+
+function TrustBlock({ caregiver, reviews }: { caregiver: CaregiverData; reviews: ReviewsState }) {
+  const score = caregiver.trust_score ?? null;
+  const average = reviews.average;
+  const hasScore = score !== null && score !== undefined;
+
+  return (
+    <section
+      aria-label="Trust score"
+      className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.05] via-card to-card p-6 sm:p-8"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 -right-10 size-40 rounded-full bg-primary/[0.05] blur-3xl"
+      />
+
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-primary/40" />
+        Trust score — § 02
+      </div>
+
+      <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          {hasScore ? (
+            <>
+              <p className="font-mono text-6xl leading-none font-semibold tabular-nums text-foreground sm:text-7xl">
+                {score}
+                <span className="ml-1 text-2xl text-muted-foreground">/100</span>
+              </p>
+              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                Composite of verification, reviews, reliability, and tenure.{" "}
+                <span className="italic">Higher is more trusted.</span>
+              </p>
+            </>
+          ) : average !== null ? (
+            <>
+              <div className="flex items-baseline gap-2">
+                <p className="font-mono text-6xl leading-none font-semibold tabular-nums text-foreground sm:text-7xl">
+                  {average.toFixed(1)}
+                </p>
+                <span className="text-2xl text-muted-foreground">/5</span>
+              </div>
+              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                Average across <span className="font-mono tabular-nums">{reviews.count}</span>{" "}
+                review
+                {reviews.count === 1 ? "" : "s"}.{" "}
+                <span className="italic">Trust Score lands once we have more data.</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-mono text-6xl leading-none font-semibold tabular-nums text-muted-foreground/50 sm:text-7xl">
+                —
+              </p>
+              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                No Trust Score yet.{" "}
+                <span className="italic">Comes together after the first few visits.</span>
+              </p>
+            </>
+          )}
+        </div>
+
+        {hasScore && average !== null && (
+          <div className="border-t border-dashed border-primary/20 pt-4 sm:border-0 sm:border-l-2 sm:pt-0 sm:pl-6">
+            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+              Star average
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <p className="font-mono text-2xl font-semibold tabular-nums">{average.toFixed(1)}</p>
+              <StaticStars value={average} />
+            </div>
+            <p className="mt-1.5 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums">
+              Over {reviews.count} review{reviews.count === 1 ? "" : "s"}
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * About
+ * ───────────────────────────────────────────────────────────── */
+
+function AboutBlock({ bio, firstName }: { bio: string; firstName: string }) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        In {firstName}&rsquo;s words — § 03
+      </div>
+      <blockquote className="mt-5 border-l-2 border-primary/30 pl-5 text-base leading-relaxed text-foreground/90 italic">
+        &ldquo;{bio}&rdquo;
+      </blockquote>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Services
+ * ───────────────────────────────────────────────────────────── */
+
+function ServicesBlock({ services }: { services: CaregiverService[] }) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        Services offered — § 04
+      </div>
+
+      <ul className="mt-5 divide-y divide-dashed divide-border/50">
+        {services.map((svc, i) => (
+          <li
+            key={svc.id}
+            className="flex items-baseline justify-between gap-4 py-3 first:pt-0 last:pb-0"
+          >
+            <div className="flex items-baseline gap-3">
+              <span className="font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="text-base font-medium tracking-tight">{svc.name}</span>
+            </div>
+            {svc.pivot.years_experience > 0 && (
+              <span className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
+                {svc.pivot.years_experience} yr
+                {svc.pivot.years_experience === 1 ? "" : "s"}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Certifications
+ * ───────────────────────────────────────────────────────────── */
+
+function CertificationsBlock({ certifications }: { certifications: Certification[] }) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <Award className="size-3.5" />
+        Certifications — § 05
+      </div>
+
+      <ul className="mt-5 space-y-3">
+        {certifications.map((cert, i) => (
+          <li
+            key={i}
+            className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/40 px-4 py-3"
+          >
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold tracking-tight">{cert.name}</p>
+              <p className="mt-0.5 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
+                {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "Self-reported"}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Reviews — ticket-stub rows
+ * ───────────────────────────────────────────────────────────── */
+
+function ReviewsBlock({ reviews, firstName }: { reviews: ReviewsState; firstName: string }) {
+  const isNew = reviews.count < 3;
+
+  return (
+    <section aria-label="Reviews">
+      <div className="mb-5 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-8 bg-foreground/30" />
+        Reviews
+        {reviews.count > 0 && (
+          <span className="font-mono tabular-nums text-foreground/60">· {reviews.count}</span>
+        )}
+        <span className="text-foreground/30">— § 06</span>
+      </div>
+
+      {reviews.list.length === 0 ? (
+        <EmptyReviews />
+      ) : (
+        <ul className="space-y-4">
+          {reviews.list.map((review, i) => (
+            <li key={review.id}>
+              <ReviewStub
+                review={review}
+                index={i}
+                isFreshCaregiver={isNew}
+                raterPlaceholder={firstName}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ReviewStub({
+  review,
+  index,
+  isFreshCaregiver,
+}: {
+  review: Review;
+  index: number;
+  isFreshCaregiver: boolean;
+  raterPlaceholder: string;
+}) {
+  const date = new Date(review.visible_at ?? review.submitted_at);
+  const raterName = shortenName(review.rater.name);
+  const showsNewBadge = isFreshCaregiver && index === 0;
+
+  return (
+    <article className="relative overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors hover:border-border">
+      {/* Perforated left edge */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
+      />
+
+      <div className="px-5 py-5 pl-9 sm:px-6 sm:pl-11">
+        <div className="flex items-center justify-between gap-3">
+          <StaticStars value={review.stars} />
+          <p className="font-mono text-[10px] tracking-[0.14em] tabular-nums text-muted-foreground uppercase">
+            {date.toLocaleDateString("en-CA", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <p className="text-sm font-semibold tracking-tight">{raterName}</p>
+          {showsNewBadge && (
+            <span className="inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[9px] tracking-[0.18em] text-accent uppercase">
+              New
+            </span>
+          )}
+        </div>
+
+        {review.body && (
+          <blockquote className="mt-3 border-l-2 border-primary/25 pl-4 text-sm leading-relaxed text-foreground/85 italic">
+            &ldquo;{review.body}&rdquo;
+          </blockquote>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function EmptyReviews() {
+  return (
+    <section
+      aria-label="No reviews yet"
+      className="rounded-3xl border-2 border-dashed border-border/60 bg-card/40 p-8 text-center sm:p-12"
+    >
+      <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+        <Star className="size-6" strokeWidth={1.75} />
+      </span>
+      <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+        <span className="italic text-foreground">No reviews yet</span>
+        &nbsp;— they&rsquo;ll appear here after the first visit.
+      </p>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Sidebar facts
+ * ───────────────────────────────────────────────────────────── */
+
+function FactsBlock({
+  caregiver,
+  profile,
+}: {
+  caregiver: CaregiverData;
+  profile: CaregiverProfile;
+}) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        Fast facts
+      </div>
+
+      <dl className="mt-5 space-y-4">
+        <Fact
+          icon={<Briefcase className="size-3.5" strokeWidth={2} />}
+          label="Rate"
+          value={`$${profile.hourly_rate} / hour`}
+        />
+        {profile.years_of_experience > 0 && (
+          <Fact
+            icon={<Clock className="size-3.5" strokeWidth={2} />}
+            label="Experience"
+            value={`${profile.years_of_experience} year${profile.years_of_experience === 1 ? "" : "s"}`}
+          />
+        )}
+        <Fact
+          icon={<MapPin className="size-3.5" strokeWidth={2} />}
+          label="Travels"
+          value={`Up to ${profile.travel_radius_km} km`}
+        />
+        {caregiver.gender && caregiver.gender !== "prefer_not_to_say" && (
+          <Fact icon={null} label="Gender" value={caregiver.gender.replace(/_/g, " ")} capitalize />
+        )}
+      </dl>
+    </section>
+  );
+}
+
+function Fact({
+  icon,
+  label,
+  value,
+  capitalize,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-dashed border-border/50 pb-3 last:border-0 last:pb-0">
+      <dt className="flex items-center gap-2 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+        {icon}
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "text-right font-mono text-sm tabular-nums text-foreground",
+          capitalize && "capitalize",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Sidebar: languages + interests
+ * ───────────────────────────────────────────────────────────── */
+
+function LanguagesBlock({ languages }: { languages: string[] }) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <Languages className="size-3.5" />
+        Languages
+      </div>
+      <ul className="mt-4 flex flex-wrap gap-1.5">
+        {languages.map((lang) => (
+          <li
+            key={lang}
+            className="rounded-full border border-border/60 bg-background/60 px-3 py-1 font-mono text-[10px] tracking-[0.16em] text-foreground/80 uppercase"
+          >
+            {lang}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function FlavourBlock({ interests, personality }: { interests: string[]; personality: string[] }) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <Sparkles className="size-3.5" />
+        Interests &amp; personality
+      </div>
+
+      {interests.length > 0 && (
+        <div className="mt-4">
+          <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+            Loves
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {interests.map((item) => (
+              <li
+                key={item}
+                className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {personality.length > 0 && (
+        <div className="mt-5">
+          <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+            Vibe
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {personality.map((tag) => (
+              <li
+                key={tag}
+                className="rounded-full border border-border/60 px-3 py-1 text-xs italic text-foreground/80"
+              >
+                {tag}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Sidebar: actions (stub — booking flow lives off the gig page)
+ * ───────────────────────────────────────────────────────────── */
+
+function ActionBlock() {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        Get in touch
+      </div>
+
+      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+        Booking goes through your gig posting &mdash; matching will rank this caregiver if
+        they&rsquo;re a fit.
+      </p>
+
+      <div className="mt-5 flex flex-col gap-2">
+        <Button disabled title="Direct booking coming later" size="lg" className="w-full">
+          Book directly
+          <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
+            soon
+          </span>
+        </Button>
+        <Button
+          disabled
+          title="Messaging arrives in Phase 10"
+          variant="outline"
+          size="lg"
+          className="w-full"
+        >
+          <MessageCircle className="size-4" />
+          Send a message
+          <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
+            soon
+          </span>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Stars — readonly, accent-red filled for earned, muted for rest
+ * ───────────────────────────────────────────────────────────── */
+
+function StaticStars({ value }: { value: number }) {
+  const rounded = Math.round(value);
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${value.toFixed(1)} of 5`}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const filled = n <= rounded;
+        return (
+          <Star
+            key={n}
+            className={cn(
+              "size-4",
+              filled ? "fill-accent stroke-accent" : "fill-transparent stroke-border",
+            )}
+            strokeWidth={1.5}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * States
+ * ───────────────────────────────────────────────────────────── */
+
+function LoadingScreen() {
+  return (
+    <>
+      <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+      <div className="mt-6 h-14 w-2/3 animate-pulse rounded-lg bg-muted" />
+      <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr]">
+        <div className="space-y-6">
+          <div className="h-52 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-32 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-64 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+        </div>
+        <div className="space-y-6">
+          <div className="h-56 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-40 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ErrorScreen() {
+  return (
+    <div className="mx-auto max-w-xl py-16 text-center">
+      <div className="flex items-center justify-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-8 bg-foreground/30" />
+        Not found
+      </div>
+      <h1 className="mt-5 text-3xl font-semibold tracking-tight">
+        <span className="font-normal italic text-accent">This caregiver</span> isn&rsquo;t here.
+      </h1>
+      <p className="mt-3 text-muted-foreground">
+        They may have paused their profile, or the link is out of date.
+      </p>
+      <Link href="/" className="mt-6 inline-block">
+        <Button variant="outline">
+          <ArrowLeft className="size-4" />
+          Back home
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Utils
+ * ───────────────────────────────────────────────────────────── */
+
+function shortenName(name: string | null): string {
+  if (!name) return "Anonymous";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  return `${first} ${last.charAt(0).toUpperCase()}.`;
 }

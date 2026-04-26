@@ -31,6 +31,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $photo_path
  * @property string $photo_status
  * @property bool $onboarding_complete
+ * @property string|null $stripe_connect_account_id
+ * @property bool $payouts_enabled
+ * @property Carbon|null $connect_onboarded_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User $user
@@ -60,6 +63,9 @@ class CaregiverProfile extends Model
         'photo_path',
         'photo_status',
         'onboarding_complete',
+        'stripe_connect_account_id',
+        'payouts_enabled',
+        'connect_onboarded_at',
     ];
 
     /**
@@ -76,6 +82,8 @@ class CaregiverProfile extends Model
             'availability' => 'array',
             'hourly_rate' => 'decimal:2',
             'onboarding_complete' => 'boolean',
+            'payouts_enabled' => 'boolean',
+            'connect_onboarded_at' => 'datetime',
         ];
     }
 

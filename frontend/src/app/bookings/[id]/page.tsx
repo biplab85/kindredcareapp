@@ -1,36 +1,55 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   BadgeCheck,
   Check,
   CheckCircle2,
   Circle,
+  ClipboardList,
   Clock,
   MapPin,
+  MapPinOff,
   MessageCircle,
+  Navigation,
+  PlayCircle,
+  Star,
+  StopCircle,
   Trash2,
   X,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import { IncidentReportTrigger } from "@/components/bookings/incident-form";
+import { MessagesBlock } from "@/components/bookings/messages-block";
+import { PanicButton } from "@/components/bookings/panic-button";
+import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
 import {
   acceptBooking,
   type Booking,
   cancelBooking,
+  checkInBooking,
+  checkOutBooking,
   declineBooking,
+  flagReasonLabel,
   formatCents,
   formatHours,
+  type GeoCoords,
   getBooking,
+  requestGeolocation,
   statusLabel,
   statusTone,
+  updateBookingTasks,
+  type VisitFlagReason,
 } from "@/lib/bookings";
+import { getPendingReviews, submitReview } from "@/lib/reviews";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────
@@ -127,9 +146,14 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
 
         <DetailHeader booking={booking} role={role} />
 
+        <ArrivalBanner booking={booking} role={role} />
+
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
           <div className="space-y-6">
             <ReceiptBlock booking={booking} />
+            <VisitBlock booking={booking} role={role} onChanged={reload} />
+            <MessagesBlock bookingId={booking.id} />
+            <RatingPromptBlock booking={booking} />
             <PartyBlock booking={booking} role={role} />
           </div>
 
@@ -206,6 +230,53 @@ function DetailHeader({
           )}
       </p>
     </header>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Arrival banner — family-only, fires once check_in_at is set
+ * ───────────────────────────────────────────────────────────── */
+
+function ArrivalBanner({ booking, role }: { booking: Booking; role: string }) {
+  if (role !== "family") return null;
+  if (!booking.visit.check_in_at) return null;
+
+  const checkIn = new Date(booking.visit.check_in_at);
+  const live = booking.status === "in_progress";
+  const caregiverName = booking.caregiver.name.split(" ")[0] ?? booking.caregiver.name;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mt-6 overflow-hidden rounded-2xl border border-success/30 bg-success/5"
+    >
+      <div className="flex items-center gap-4 px-5 py-3 sm:px-6">
+        <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success ring-1 ring-success/30">
+          {live && <span className="absolute inset-0 animate-ping rounded-full bg-success/30" />}
+          <Check className="relative size-4" strokeWidth={2.5} />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <p className="text-sm font-semibold tracking-tight">
+            {caregiverName} arrived at{" "}
+            <span className="font-mono tabular-nums">
+              {checkIn.toLocaleTimeString("en-CA", {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          </p>
+          <p className="font-mono text-[10px] tracking-[0.22em] text-success/80 uppercase">
+            {live ? "Visit in progress" : "Visit recorded"}
+          </p>
+        </div>
+      </div>
+      {/* Perforated "stamp" bottom edge */}
+      <div
+        aria-hidden
+        className="h-1.5 w-full bg-[radial-gradient(circle_at_6px_50%,theme(colors.background)_3px,transparent_3.5px)] bg-[length:12px_100%]"
+      />
+    </div>
   );
 }
 
@@ -297,6 +368,653 @@ function Line({
       >
         {value}
       </dd>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Visit block — composite: pre-visit start, live log, summary
+ * ───────────────────────────────────────────────────────────── */
+
+function VisitBlock({
+  booking,
+  role,
+  onChanged,
+}: {
+  booking: Booking;
+  role: "family" | "caregiver" | "admin";
+  onChanged: () => void;
+}) {
+  const { status } = booking;
+  const isCaregiver = role === "caregiver";
+
+  if (status === "confirmed" && isCaregiver) {
+    return (
+      <>
+        <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.safety_acknowledged_at ? (
+          <VisitStartPanel booking={booking} onChanged={onChanged} />
+        ) : (
+          <SafetyGate bookingId={booking.id} onAcknowledged={onChanged} />
+        )}
+      </>
+    );
+  }
+
+  if (status === "in_progress" && isCaregiver) {
+    return (
+      <>
+        <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        <VisitLiveLog booking={booking} onChanged={onChanged} />
+      </>
+    );
+  }
+
+  if (status === "in_progress" && role === "family") {
+    return <VisitInProgressWatch booking={booking} />;
+  }
+
+  if (status === "completed") {
+    return <VisitSummary booking={booking} role={role} />;
+  }
+
+  return null;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Visit: Start panel (caregiver, confirmed)
+ * ───────────────────────────────────────────────────────────── */
+
+function VisitStartPanel({ booking, onChanged }: { booking: Booking; onChanged: () => void }) {
+  type Phase = "idle" | "locating" | "submitting" | "error";
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function start() {
+    setPhase("locating");
+    setErrorMsg(null);
+    try {
+      const coords = await requestGeolocation();
+      setPhase("submitting");
+      await checkInBooking(booking.id, coords);
+      onChanged();
+      // Parent re-render will unmount this panel.
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Check-in failed.");
+      setPhase("error");
+    }
+  }
+
+  // Snapshot "now" at mount so render stays pure. Freshness isn't important
+  // here — the backend accepts any time and this is just a soft UI hint.
+  const [nowMs] = useState(() => Date.now());
+  const start_time = new Date(booking.scheduled_start);
+  const minutesToStart = (start_time.getTime() - nowMs) / 60_000;
+  const tooEarly = minutesToStart > 30;
+  const working = phase === "locating" || phase === "submitting";
+
+  return (
+    <section
+      aria-label="Start visit"
+      className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.04] via-card to-card p-6 sm:p-8"
+    >
+      {/* Radar tint — visible only while locating */}
+      {phase === "locating" && (
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,theme(colors.primary/0.1),transparent_65%)]"
+        />
+      )}
+
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-primary/40" />
+        Visit — § 11
+      </div>
+
+      <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-start">
+        <div className="relative shrink-0">
+          <span
+            className={cn(
+              "grid size-16 place-items-center rounded-2xl ring-1 transition-all",
+              phase === "locating"
+                ? "bg-primary/15 text-primary ring-primary/40"
+                : "bg-primary/10 text-primary ring-primary/20",
+            )}
+          >
+            {phase === "locating" && (
+              <span className="absolute inset-0 animate-ping rounded-2xl bg-primary/15" />
+            )}
+            {phase === "submitting" ? (
+              <span className="size-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            ) : phase === "error" ? (
+              <MapPinOff className="size-7" strokeWidth={1.75} />
+            ) : (
+              <Navigation className="size-7" strokeWidth={1.75} />
+            )}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {phase === "locating"
+              ? "Finding you…"
+              : phase === "submitting"
+                ? "Logging your arrival…"
+                : "Ready to start the visit?"}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {phase === "locating"
+              ? "Your browser is checking your location. Please allow access when prompted."
+              : phase === "submitting"
+                ? "Almost there. We're recording the check-in."
+                : tooEarly
+                  ? "You can start any time, but the visit is still a while away. The family will be notified the moment you check in."
+                  : "Tap to capture your GPS and notify the family that you've arrived. The address becomes final-final after this."}
+          </p>
+
+          {phase === "error" && errorMsg && (
+            <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+              <p className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {errorMsg}
+              </p>
+            </div>
+          )}
+
+          <div className="mt-5 flex items-center gap-3">
+            <Button
+              onClick={start}
+              disabled={working}
+              size="lg"
+              className="group relative overflow-hidden"
+            >
+              <PlayCircle className="size-4" strokeWidth={2.25} />
+              {phase === "error" ? "Try again" : "Start visit"}
+            </Button>
+            <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+              GPS required
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Visit: Live log (caregiver, in_progress)
+ * ───────────────────────────────────────────────────────────── */
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () => void }) {
+  const defaultTasks = useMemo<string[]>(
+    () => booking.gig?.service_category?.default_tasks ?? [],
+    [booking.gig?.service_category?.default_tasks],
+  );
+
+  // Merge default tasks with any previously-logged custom ones, so the
+  // caregiver sees every task that was ever ticked even if the category's
+  // defaults changed. Stable order: defaults first, then anything extra.
+  const allTasks = useMemo(() => {
+    const existing = booking.visit.tasks_completed ?? [];
+    const seen = new Set(defaultTasks);
+    const extras = existing.filter((t) => !seen.has(t));
+    return [...defaultTasks, ...extras];
+  }, [defaultTasks, booking.visit.tasks_completed]);
+
+  const [checked, setChecked] = useState<Set<string>>(
+    () => new Set(booking.visit.tasks_completed ?? []),
+  );
+  const [notes, setNotes] = useState(booking.visit.caregiver_notes ?? "");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+
+  type EndPhase = "idle" | "locating" | "submitting" | "error";
+  const [endPhase, setEndPhase] = useState<EndPhase>("idle");
+  const [endError, setEndError] = useState<string | null>(null);
+
+  const saveTimerRef = useRef<number | null>(null);
+
+  function scheduleAutosave(nextTasks: Set<string>, nextNotes: string) {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    setSaveState("saving");
+    saveTimerRef.current = window.setTimeout(() => {
+      updateBookingTasks(booking.id, {
+        tasks_completed: [...nextTasks],
+        caregiver_notes: nextNotes || null,
+      })
+        .then(() => setSaveState("saved"))
+        .catch(() => setSaveState("error"));
+    }, 700);
+  }
+
+  function toggleTask(task: string) {
+    const next = new Set(checked);
+    if (next.has(task)) next.delete(task);
+    else next.add(task);
+    setChecked(next);
+    scheduleAutosave(next, notes);
+  }
+
+  function changeNotes(value: string) {
+    setNotes(value);
+    scheduleAutosave(checked, value);
+  }
+
+  async function endVisit() {
+    setEndPhase("locating");
+    setEndError(null);
+    try {
+      const coords: GeoCoords = await requestGeolocation();
+      setEndPhase("submitting");
+      await checkOutBooking(booking.id, {
+        ...coords,
+        tasks_completed: [...checked],
+        caregiver_notes: notes || null,
+      });
+      onChanged();
+    } catch (err) {
+      setEndError(err instanceof Error ? err.message : "Check-out failed.");
+      setEndPhase("error");
+    }
+  }
+
+  const working = endPhase === "locating" || endPhase === "submitting";
+  const checkIn = booking.visit.check_in_at ? new Date(booking.visit.check_in_at) : null;
+  // Snapshot "now" once. The elapsed counter freezes at mount — acceptable
+  // for MVP; a live tick would need useSyncExternalStore per CLAUDE.md.
+  const [nowAtMount] = useState(() => Date.now());
+  const elapsedMin = checkIn
+    ? Math.max(0, Math.floor((nowAtMount - checkIn.getTime()) / 60_000))
+    : 0;
+
+  return (
+    <section
+      aria-label="Live visit log"
+      className="relative overflow-hidden rounded-3xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card"
+    >
+      {/* Header strip */}
+      <div className="flex items-center justify-between border-b border-dashed border-success/30 px-6 py-4 sm:px-8">
+        <div className="flex items-center gap-3">
+          <span className="relative flex size-2.5 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
+            <span className="relative size-2.5 rounded-full bg-success" />
+          </span>
+          <p className="font-mono text-[11px] tracking-[0.22em] text-success uppercase">
+            Visit — live
+          </p>
+        </div>
+        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          {elapsedMin < 60
+            ? `${elapsedMin} min elapsed`
+            : `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m elapsed`}
+        </p>
+      </div>
+
+      <div className="space-y-7 p-6 sm:p-8">
+        {/* Task checklist */}
+        <div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+              <ClipboardList className="size-3.5" />
+              What you&rsquo;re covering
+            </div>
+            <SaveIndicator state={saveState} />
+          </div>
+
+          {allTasks.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground italic">
+              No task suggestions for this category. Use the notes below to describe what you helped
+              with.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-1.5">
+              {allTasks.map((task, i) => {
+                const isChecked = checked.has(task);
+                return (
+                  <li key={task}>
+                    <button
+                      type="button"
+                      onClick={() => toggleTask(task)}
+                      className={cn(
+                        "group flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                        "hover:bg-success/5",
+                      )}
+                    >
+                      <span className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "mt-px grid size-5 shrink-0 place-items-center rounded-[5px] border transition-all",
+                          isChecked
+                            ? "scale-100 border-success bg-success text-success-foreground"
+                            : "scale-95 border-border/80 bg-background group-hover:border-success/60",
+                        )}
+                      >
+                        {isChecked && <Check className="size-3.5" strokeWidth={3} />}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-sm transition-colors",
+                          isChecked
+                            ? "text-foreground"
+                            : "text-foreground/80 group-hover:text-foreground",
+                        )}
+                      >
+                        {task}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label
+            htmlFor="caregiver-notes"
+            className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase"
+          >
+            <span className="h-px w-6 bg-foreground/30" />A note for the family
+          </label>
+          <textarea
+            id="caregiver-notes"
+            value={notes}
+            onChange={(e) => changeNotes(e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="Anything they'd want to know — mood, what you did, something for next time."
+            className="mt-3 w-full resize-none rounded-xl border border-border/60 bg-background px-3.5 py-2.5 text-sm leading-relaxed outline-none ring-primary/30 transition-shadow focus:ring-2"
+          />
+        </div>
+
+        {/* End visit CTA */}
+        <div className="border-t-2 border-dashed border-success/30 pt-6">
+          {endError && (
+            <div className="mb-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+              <p className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {endError}
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-md text-sm text-muted-foreground">
+              Ending the visit captures the payment and sends the family a summary.
+            </p>
+            <Button
+              onClick={endVisit}
+              disabled={working}
+              size="lg"
+              variant="default"
+              className="sm:shrink-0"
+            >
+              {working ? (
+                <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+              ) : (
+                <StopCircle className="size-4" strokeWidth={2.25} />
+              )}
+              {endPhase === "locating"
+                ? "Finding you…"
+                : endPhase === "submitting"
+                  ? "Closing out…"
+                  : "End visit"}
+            </Button>
+          </div>
+
+          <div className="mt-5 border-t border-dashed border-border/60 pt-4">
+            <IncidentReportTrigger bookingId={booking.id} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SaveIndicator({ state }: { state: SaveState }) {
+  if (state === "idle") return null;
+  const label =
+    state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Couldn't save — retrying";
+  const tone =
+    state === "saving"
+      ? "text-muted-foreground"
+      : state === "saved"
+        ? "text-success"
+        : "text-accent";
+  return <p className={cn("font-mono text-[10px] tracking-[0.16em] uppercase", tone)}>{label}</p>;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Visit: In-progress watch (family, passive)
+ * ───────────────────────────────────────────────────────────── */
+
+function VisitInProgressWatch({ booking }: { booking: Booking }) {
+  const tasks = booking.visit.tasks_completed ?? [];
+  const defaultTasks = booking.gig?.service_category?.default_tasks ?? [];
+
+  return (
+    <section
+      aria-label="Visit in progress"
+      className="rounded-3xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="relative flex size-2.5 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
+            <span className="relative size-2.5 rounded-full bg-success" />
+          </span>
+          <p className="font-mono text-[11px] tracking-[0.22em] text-success uppercase">
+            Visit — in progress
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+        {booking.caregiver.name.split(" ")[0]} is with your loved one right now. We&rsquo;ll send a
+        summary the moment the visit wraps up.
+      </p>
+
+      {(tasks.length > 0 || defaultTasks.length > 0) && (
+        <div className="mt-6 rounded-2xl bg-background/60 p-4 ring-1 ring-border/40">
+          <p className="mb-3 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            Progress so far
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            {(defaultTasks.length > 0 ? defaultTasks : tasks).map((task) => {
+              const done = tasks.includes(task);
+              return (
+                <li key={task} className="flex items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "grid size-4 place-items-center rounded-[4px] border",
+                      done
+                        ? "border-success bg-success text-success-foreground"
+                        : "border-border/70 bg-background",
+                    )}
+                  >
+                    {done && <Check className="size-2.5" strokeWidth={3} />}
+                  </span>
+                  <span className={cn(done ? "text-foreground" : "text-muted-foreground/70")}>
+                    {task}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Visit: Summary (completed)
+ * ───────────────────────────────────────────────────────────── */
+
+function VisitSummary({
+  booking,
+  role,
+}: {
+  booking: Booking;
+  role: "family" | "caregiver" | "admin";
+}) {
+  const { visit } = booking;
+  const checkIn = visit.check_in_at ? new Date(visit.check_in_at) : null;
+  const checkOut = visit.check_out_at ? new Date(visit.check_out_at) : null;
+  const actualMinutes =
+    checkIn && checkOut
+      ? Math.max(0, Math.round((checkOut.getTime() - checkIn.getTime()) / 60_000))
+      : null;
+
+  const tasks = visit.tasks_completed ?? [];
+  const defaultTasks = booking.gig?.service_category?.default_tasks ?? [];
+  // Merge defaults + anything custom the caregiver ticked. Defaults retain
+  // their order; unticked defaults show line-through, custom extras always
+  // count as done (they're in tasks_completed by definition).
+  const defaultSet = new Set(defaultTasks);
+  const extras = tasks.filter((t) => !defaultSet.has(t));
+  const displayTasks = [
+    ...defaultTasks.map((t) => ({ label: t, done: tasks.includes(t) })),
+    ...extras.map((t) => ({ label: t, done: true })),
+  ];
+
+  return (
+    <section
+      aria-label="Visit summary"
+      className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8"
+    >
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        Visit log — § 12
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
+        <StatCell
+          label="Checked in"
+          value={
+            checkIn
+              ? checkIn.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
+              : "—"
+          }
+        />
+        <StatCell
+          label="Checked out"
+          value={
+            checkOut
+              ? checkOut.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
+              : "—"
+          }
+        />
+        <StatCell
+          label="Actual"
+          value={
+            actualMinutes !== null
+              ? actualMinutes < 60
+                ? `${actualMinutes} min`
+                : `${Math.floor(actualMinutes / 60)}h ${actualMinutes % 60}m`
+              : "—"
+          }
+        />
+        <StatCell label="Booked" value={formatHours(booking.duration_minutes)} />
+      </div>
+
+      {displayTasks.length > 0 && (
+        <>
+          <div className="my-7 border-t border-dashed border-border/60" />
+          <div>
+            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+              Tasks
+            </p>
+            <ul className="mt-3 space-y-1.5 text-sm">
+              {displayTasks.map((task) => (
+                <li key={task.label} className="flex items-start gap-2.5">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "mt-1 grid size-4 place-items-center rounded-[4px] border",
+                      task.done
+                        ? "border-success bg-success text-success-foreground"
+                        : "border-border/70 bg-background text-muted-foreground",
+                    )}
+                  >
+                    {task.done && <Check className="size-2.5" strokeWidth={3} />}
+                  </span>
+                  <span
+                    className={cn(
+                      "leading-relaxed",
+                      task.done ? "text-foreground" : "text-muted-foreground/70 line-through",
+                    )}
+                  >
+                    {task.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {visit.caregiver_notes && (
+        <>
+          <div className="my-7 border-t border-dashed border-border/60" />
+          <div>
+            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+              Note from the caregiver
+            </p>
+            <blockquote className="mt-3 border-l-2 border-primary/30 pl-4 text-sm leading-relaxed text-foreground/90 italic">
+              &ldquo;{visit.caregiver_notes}&rdquo;
+            </blockquote>
+          </div>
+        </>
+      )}
+
+      {visit.is_flagged && visit.flag_reasons.length > 0 && (
+        <FlagPill reasons={visit.flag_reasons} />
+      )}
+
+      {role !== "admin" && (
+        <div className="mt-7 border-t border-dashed border-border/60 pt-5">
+          <IncidentReportTrigger bookingId={booking.id} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StatCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="mt-1.5 font-mono text-xl tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function FlagPill({ reasons }: { reasons: VisitFlagReason[] }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-accent/25 bg-accent/5 p-4">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-accent" strokeWidth={2} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-accent">Flagged for admin review</p>
+          <ul className="mt-2 space-y-1 text-xs text-accent/90">
+            {reasons.map((r) => (
+              <li key={r} className="flex items-start gap-2">
+                <span aria-hidden className="mt-1.5 size-1 shrink-0 rounded-full bg-accent/70" />
+                <span>{flagReasonLabel(r)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
@@ -445,19 +1163,24 @@ type TimelineEvent = {
 };
 
 function buildTimeline(booking: Booking): TimelineEvent[] {
+  const fmtMeta = (d: Date) =>
+    d.toLocaleString("en-CA", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
   const created = new Date(booking.created_at);
   const responded = booking.responded_at ? new Date(booking.responded_at) : null;
   const cancelled = booking.cancelled_at ? new Date(booking.cancelled_at) : null;
+  const checkIn = booking.visit.check_in_at ? new Date(booking.visit.check_in_at) : null;
+  const checkOut = booking.visit.check_out_at ? new Date(booking.visit.check_out_at) : null;
 
   const base: TimelineEvent[] = [
     {
       title: "Offer sent to caregiver",
-      meta: created.toLocaleString("en-CA", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
+      meta: fmtMeta(created),
       state: "done",
     },
   ];
@@ -469,14 +1192,7 @@ function buildTimeline(booking: Booking): TimelineEvent[] {
   ) {
     base.push({
       title: `Cancelled by ${booking.cancelled_by ?? "system"}`,
-      meta: cancelled
-        ? cancelled.toLocaleString("en-CA", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })
-        : null,
+      meta: cancelled ? fmtMeta(cancelled) : null,
       state: "done",
     });
     return base;
@@ -485,13 +1201,7 @@ function buildTimeline(booking: Booking): TimelineEvent[] {
   if (booking.status === "declined" || booking.status === "expired") {
     base.push({
       title: booking.status === "declined" ? "Caregiver declined" : "Offer expired",
-      meta:
-        responded?.toLocaleString("en-CA", {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }) ?? null,
+      meta: responded ? fmtMeta(responded) : null,
       state: "done",
     });
     base.push({
@@ -504,13 +1214,7 @@ function buildTimeline(booking: Booking): TimelineEvent[] {
 
   base.push({
     title: booking.status === "pending_caregiver" ? "Awaiting response" : "Caregiver confirmed",
-    meta:
-      responded?.toLocaleString("en-CA", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }) ?? null,
+    meta: responded ? fmtMeta(responded) : null,
     state:
       booking.status === "pending_caregiver"
         ? "active"
@@ -522,20 +1226,15 @@ function buildTimeline(booking: Booking): TimelineEvent[] {
   });
 
   base.push({
-    title: "Check in at the visit",
-    meta: null,
-    state:
-      booking.status === "in_progress" || booking.status === "completed"
-        ? "done"
-        : booking.status === "confirmed"
-          ? "active"
-          : "pending",
+    title: checkIn ? "Visit started" : "Check in at the visit",
+    meta: checkIn ? fmtMeta(checkIn) : null,
+    state: checkIn ? "done" : booking.status === "confirmed" ? "active" : "pending",
   });
 
   base.push({
-    title: "Visit complete",
-    meta: null,
-    state: booking.status === "completed" ? "done" : "pending",
+    title: checkOut ? "Visit complete" : "Visit wraps up",
+    meta: checkOut ? fmtMeta(checkOut) : null,
+    state: checkOut ? "done" : booking.status === "in_progress" ? "active" : "pending",
   });
 
   return base;
@@ -793,4 +1492,333 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((n) => n.charAt(0).toUpperCase())
     .join("");
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Rating prompt — post-visit, each party rates the other
+ *
+ * Visibility rules:
+ *   - Booking must be completed
+ *   - This booking must still appear in the current user's
+ *     `pending reviews` list (ie. they haven't reviewed yet)
+ *   - After successful submit, we flip to a local "thanks" state
+ *     so the card doesn't vanish mid-interaction
+ * ───────────────────────────────────────────────────────────── */
+
+type PromptPhase = "checking" | "prompt" | "submitting" | "thanks" | "skipped" | "hidden";
+
+/**
+ * Outer gate: only mount the stateful inner component when the booking is
+ * actually eligible for a review. This keeps all hooks inside
+ * {@link RatingPromptInner} unconditional (react-hooks/rules-of-hooks),
+ * while avoiding a dead setState-in-effect against a prop that won't change.
+ */
+function RatingPromptBlock({ booking }: { booking: Booking }) {
+  if (booking.status !== "completed") return null;
+  return <RatingPromptInner booking={booking} />;
+}
+
+function RatingPromptInner({ booking }: { booking: Booking }) {
+  const [phase, setPhase] = useState<PromptPhase>("checking");
+  const [stars, setStars] = useState(0);
+  const [body, setBody] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // On mount, hit the pending-reviews endpoint once. If this booking is in
+  // the list, the current user still owes their half — show the prompt.
+  // Otherwise they've already reviewed and we render nothing. Same
+  // let-alive pattern as every other load on this page.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const pending = await getPendingReviews();
+        if (!alive) return;
+        const owesReview = pending.some((row) => row.booking_id === booking.id);
+        setPhase(owesReview ? "prompt" : "hidden");
+      } catch {
+        if (!alive) return;
+        // If the lookup fails we'd rather hide than double-prompt. The
+        // caregiver can re-visit later and try again.
+        setPhase("hidden");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [booking.id]);
+
+  async function handleSubmit() {
+    if (stars < 1) return;
+    setPhase("submitting");
+    setErrorMsg(null);
+    try {
+      await submitReview(booking.id, {
+        stars,
+        body: body.trim() === "" ? null : body.trim(),
+      });
+      setPhase("thanks");
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Couldn't submit your review. Try again in a moment.";
+      setErrorMsg(msg);
+      setPhase("prompt");
+    }
+  }
+
+  if (phase === "checking" || phase === "hidden") {
+    return null;
+  }
+
+  if (phase === "thanks") {
+    return <ThanksCard />;
+  }
+
+  if (phase === "skipped") {
+    return <SkippedCard onUndo={() => setPhase("prompt")} />;
+  }
+
+  const submitting = phase === "submitting";
+
+  return (
+    <section
+      aria-label="Rate this visit"
+      className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.04] via-card to-card p-6 sm:p-8"
+    >
+      {/* Corner bloom */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-8 -right-8 size-32 rotate-6 rounded-full bg-primary/[0.05] blur-3xl"
+      />
+
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-primary/40" />
+        Your turn — § 13
+      </div>
+
+      <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
+        A word on <span className="italic text-primary">how it went?</span>
+      </h2>
+
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+        Your rating lands on the other party&rsquo;s profile once both of you have weighed in, or
+        automatically after seven days — whichever comes first. Honest is what helps.
+      </p>
+
+      <div className="my-7 border-t-2 border-dashed border-primary/20" />
+
+      <StarPicker value={stars} onChange={setStars} disabled={submitting} />
+
+      <div className="mt-7">
+        <label
+          htmlFor="review-body"
+          className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase"
+        >
+          <span className="h-px w-6 bg-foreground/30" />A note (optional)
+        </label>
+        <textarea
+          id="review-body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={4}
+          maxLength={2000}
+          placeholder="What stood out? Anything the next person should know?"
+          disabled={submitting}
+          className="mt-3 w-full resize-none rounded-xl border border-border/60 bg-background px-3.5 py-2.5 text-sm leading-relaxed outline-none ring-primary/30 transition-shadow focus:ring-2 disabled:opacity-60"
+        />
+        <p className="mt-1 text-right font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums">
+          {body.length} / 2000
+        </p>
+      </div>
+
+      {errorMsg && (
+        <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+          <p className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            {errorMsg}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          onClick={() => setPhase("skipped")}
+          disabled={submitting}
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Maybe later
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={stars < 1 || submitting}
+          size="lg"
+          className="sm:min-w-[12rem]"
+        >
+          {submitting ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+          ) : (
+            <Star className="size-4" strokeWidth={2.25} />
+          )}
+          {submitting ? "Sending…" : "Send your review"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Star picker — keyboard-navigable radio group with hover preview
+ * ───────────────────────────────────────────────────────────── */
+
+function StarPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const [hover, setHover] = useState(0);
+  const display = hover || value;
+  const labels = ["Dreadful", "Not great", "Fine", "Really good", "Exceptional"];
+
+  function onKey(e: React.KeyboardEvent<HTMLButtonElement>, current: number) {
+    if (disabled) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+      e.preventDefault();
+      onChange(Math.max(1, current - 1));
+    } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+      e.preventDefault();
+      onChange(Math.min(5, current + 1));
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      onChange(1);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      onChange(5);
+    }
+  }
+
+  return (
+    <div>
+      <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        How many stars?
+      </p>
+      <div
+        role="radiogroup"
+        aria-label="Rating"
+        onMouseLeave={() => setHover(0)}
+        className="mt-4 inline-flex items-center gap-2"
+      >
+        {[1, 2, 3, 4, 5].map((n) => {
+          const filled = n <= display;
+          return (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={value === n}
+              aria-label={`${n} star${n === 1 ? "" : "s"}`}
+              disabled={disabled}
+              tabIndex={value === n || (value === 0 && n === 1) ? 0 : -1}
+              onClick={() => onChange(n)}
+              onMouseEnter={() => !disabled && setHover(n)}
+              onFocus={() => !disabled && setHover(n)}
+              onBlur={() => setHover(0)}
+              onKeyDown={(e) => onKey(e, value || 1)}
+              className={cn(
+                "group rounded-md p-1 outline-none transition-transform",
+                "focus-visible:ring-2 focus-visible:ring-primary/50",
+                !disabled && "hover:scale-110 active:scale-100",
+                disabled && "cursor-not-allowed opacity-60",
+              )}
+            >
+              <Star
+                className={cn(
+                  "size-9 transition-all",
+                  filled ? "fill-accent stroke-accent" : "fill-transparent stroke-border",
+                  filled && hover === n && "drop-shadow-[0_0_8px_theme(colors.accent/0.4)]",
+                )}
+                strokeWidth={1.5}
+              />
+            </button>
+          );
+        })}
+      </div>
+      <p
+        className="mt-3 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums"
+        aria-live="polite"
+      >
+        {display > 0 ? (
+          <>
+            <span className="text-foreground">{display}</span> of 5 ·{" "}
+            <span className="italic">{labels[display - 1]}</span>
+          </>
+        ) : (
+          <span>Tap a star or use arrow keys</span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Post-submit confirmation
+ * ───────────────────────────────────────────────────────────── */
+
+function ThanksCard() {
+  return (
+    <section
+      aria-label="Review sent"
+      className="relative overflow-hidden rounded-3xl border border-success/25 bg-gradient-to-br from-success/[0.05] via-card to-card p-6 sm:p-8"
+    >
+      <div className="flex items-start gap-5">
+        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-success/10 text-success ring-1 ring-success/25">
+          <CheckCircle2 className="size-6" strokeWidth={2} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+            <span className="h-px w-6 bg-success/40" />
+            Received
+          </div>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight">Thanks for weighing in.</h2>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            Your review lands on their profile once your counterpart rates too, or automatically
+            after seven days. Either way — it counts toward their Trust Score from now.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Maybe-later card — kept on-screen so the prompt's spot doesn't
+ * collapse; user can undo if they change their mind.
+ * ───────────────────────────────────────────────────────────── */
+
+function SkippedCard({ onUndo }: { onUndo: () => void }) {
+  return (
+    <section
+      aria-label="Review deferred"
+      className="rounded-3xl border border-dashed border-border/70 bg-card/50 p-5 sm:p-6"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            No review yet
+          </p>
+          <p className="mt-1 text-sm text-foreground/80">
+            We&rsquo;ll nudge you again — or it&rsquo;ll close on its own after seven days.
+          </p>
+        </div>
+        <Button onClick={onUndo} variant="outline" size="sm">
+          Actually, I&rsquo;ll do it now
+        </Button>
+      </div>
+    </section>
+  );
 }

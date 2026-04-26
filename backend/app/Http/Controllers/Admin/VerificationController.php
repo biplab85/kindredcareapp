@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminAuditLog;
 use App\Models\User;
 use App\Models\VerificationRecord;
+use App\Services\AdminAuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class VerificationController extends Controller
 {
+    public function __construct(private readonly AdminAuditLogger $auditLogger) {}
+
     public function pending(Request $request): JsonResponse
     {
         $status = $request->query('status', 'pending_review');
@@ -53,20 +57,34 @@ class VerificationController extends Controller
 
     public function approve(Request $request, VerificationRecord $verification): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'admin_notes' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
 
         /** @var User $admin */
         $admin = $request->user();
 
+        $previousStatus = $verification->status;
         $verification->update([
             'status' => VerificationRecord::STATUS_CLEARED,
-            'admin_notes' => $request->admin_notes,
+            'admin_notes' => $data['admin_notes'] ?? null,
             'reviewed_by' => $admin->id,
             'reviewed_at' => now(),
             'rejection_reason' => null,
         ]);
+
+        $this->auditLogger->record(
+            admin: $admin,
+            action: 'verification.approved',
+            targetType: AdminAuditLog::TARGET_VERIFICATION_RECORD,
+            targetId: $verification->id,
+            metadata: [
+                'check_type' => $verification->check_type,
+                'caregiver_user_id' => $verification->user_id,
+                'previous_status' => $previousStatus,
+            ],
+            reason: $data['admin_notes'] ?? null,
+        );
 
         return response()->json([
             'message' => 'Verification approved.',
@@ -76,7 +94,7 @@ class VerificationController extends Controller
 
     public function reject(Request $request, VerificationRecord $verification): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'rejection_reason' => ['required', 'string', 'max:500'],
             'admin_notes' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
@@ -84,13 +102,27 @@ class VerificationController extends Controller
         /** @var User $admin */
         $admin = $request->user();
 
+        $previousStatus = $verification->status;
         $verification->update([
             'status' => VerificationRecord::STATUS_REJECTED,
-            'rejection_reason' => $request->rejection_reason,
-            'admin_notes' => $request->admin_notes,
+            'rejection_reason' => $data['rejection_reason'],
+            'admin_notes' => $data['admin_notes'] ?? null,
             'reviewed_by' => $admin->id,
             'reviewed_at' => now(),
         ]);
+
+        $this->auditLogger->record(
+            admin: $admin,
+            action: 'verification.rejected',
+            targetType: AdminAuditLog::TARGET_VERIFICATION_RECORD,
+            targetId: $verification->id,
+            metadata: [
+                'check_type' => $verification->check_type,
+                'caregiver_user_id' => $verification->user_id,
+                'previous_status' => $previousStatus,
+            ],
+            reason: $data['rejection_reason'],
+        );
 
         return response()->json([
             'message' => 'Verification rejected.',

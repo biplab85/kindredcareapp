@@ -30,11 +30,39 @@ export interface BookingCaregiverCard {
 export interface BookingGigCard {
   id: number;
   description: string;
+  latitude: number;
+  longitude: number;
   service_category: {
     id: number;
     name: string;
     slug: string;
+    default_tasks: string[];
   } | null;
+}
+
+export type VisitFlagReason = "check_in_far" | "check_out_far" | "short_duration";
+
+export interface BookingVisit {
+  check_in_at: string | null;
+  check_in_distance_m: number | null;
+  check_in_lat: number | null;
+  check_in_lng: number | null;
+  check_out_at: string | null;
+  check_out_distance_m: number | null;
+  check_out_lat: number | null;
+  check_out_lng: number | null;
+  tasks_completed: string[];
+  caregiver_notes: string | null;
+  is_flagged: boolean;
+  flag_reasons: VisitFlagReason[];
+}
+
+export interface BookingActivePanicAlert {
+  id: number;
+  triggered_at: string;
+  silent: boolean;
+  status: "active" | "acknowledged" | "resolved";
+  acknowledged_at: string | null;
 }
 
 export interface Booking {
@@ -61,6 +89,9 @@ export interface Booking {
   address_full: string | null;
   caregiver: BookingCaregiverCard;
   gig?: BookingGigCard;
+  visit: BookingVisit;
+  safety_acknowledged_at?: string | null;
+  active_panic_alert?: BookingActivePanicAlert | null;
   created_at: string;
   updated_at: string;
 }
@@ -109,6 +140,88 @@ export async function declineBooking(id: number, reason?: string): Promise<Booki
 export async function cancelBooking(id: number, reason?: string): Promise<Booking> {
   const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/cancel`, { reason });
   return res.data.data;
+}
+
+export interface GeoCoords {
+  latitude: number;
+  longitude: number;
+}
+
+export async function checkInBooking(id: number, coords: GeoCoords): Promise<Booking> {
+  const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/check-in`, coords);
+  return res.data.data;
+}
+
+export interface CheckOutPayload extends GeoCoords {
+  tasks_completed?: string[];
+  caregiver_notes?: string | null;
+}
+
+export async function checkOutBooking(id: number, payload: CheckOutPayload): Promise<Booking> {
+  const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/check-out`, payload);
+  return res.data.data;
+}
+
+export interface UpdateTasksPayload {
+  tasks_completed: string[];
+  caregiver_notes?: string | null;
+}
+
+export async function updateBookingTasks(
+  id: number,
+  payload: UpdateTasksPayload,
+): Promise<Booking> {
+  const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/tasks`, payload);
+  return res.data.data;
+}
+
+/**
+ * Promise wrapper around navigator.geolocation. Resolves with lat/lng on
+ * success; rejects with a human-readable reason when the user denies
+ * permission or GPS is unavailable (so the UI can offer a retry/fallback).
+ */
+export function requestGeolocation(timeoutMs = 10_000): Promise<GeoCoords> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("Location services are not available on this device."));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) =>
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
+      (error) => {
+        const msg =
+          error.code === error.PERMISSION_DENIED
+            ? "Location permission was denied. Turn it on in your browser to check in."
+            : error.code === error.POSITION_UNAVAILABLE
+              ? "We couldn't determine your location right now. Try again in a moment."
+              : error.code === error.TIMEOUT
+                ? "Locating took too long. Try again outside or with a stronger signal."
+                : "Location lookup failed.";
+        reject(new Error(msg));
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: timeoutMs,
+        maximumAge: 0,
+      },
+    );
+  });
+}
+
+export function flagReasonLabel(reason: VisitFlagReason): string {
+  switch (reason) {
+    case "check_in_far":
+      return "Check-in location was far from the visit address";
+    case "check_out_far":
+      return "Check-out location was far from the visit address";
+    case "short_duration":
+      return "Visit was much shorter than booked";
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────

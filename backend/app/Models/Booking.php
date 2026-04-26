@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -31,6 +32,24 @@ use Illuminate\Support\Carbon;
  * @property string|null $cancelled_by
  * @property string|null $cancellation_reason
  * @property string|null $stripe_payment_intent_id
+ * @property Carbon|null $check_in_at
+ * @property float|null $check_in_lat
+ * @property float|null $check_in_lng
+ * @property int|null $check_in_distance_m
+ * @property Carbon|null $check_out_at
+ * @property float|null $check_out_lat
+ * @property float|null $check_out_lng
+ * @property int|null $check_out_distance_m
+ * @property array<int, string>|null $tasks_completed
+ * @property string|null $caregiver_notes
+ * @property Carbon|null $safety_acknowledged_at
+ * @property Carbon|null $reminder_24h_sent_at
+ * @property Carbon|null $reminder_1h_sent_at
+ * @property Carbon|null $flagged_at
+ * @property array<int, string>|null $flag_reasons
+ * @property Carbon|null $payout_at
+ * @property Carbon|null $payout_transferred_at
+ * @property string|null $stripe_transfer_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Gig $gig
@@ -66,6 +85,9 @@ class Booking extends Model
 
     public const PAYMENT_NOT_REQUIRED = 'not_required';
 
+    // Stub-channel states — used when Stripe isn't configured (dev) OR when
+    // the family hasn't attached a payment method yet. Phase 9 keeps these
+    // around indefinitely so the unconfigured path continues to work.
     public const PAYMENT_AUTHORIZED_STUB = 'authorized_stub';
 
     public const PAYMENT_CAPTURED_STUB = 'captured_stub';
@@ -73,6 +95,20 @@ class Booking extends Model
     public const PAYMENT_RELEASED_STUB = 'released_stub';
 
     public const PAYMENT_REFUNDED_STUB = 'refunded_stub';
+
+    // Real-Stripe states — written when StripePaymentService is configured
+    // and a PaymentIntent backs the booking.
+    public const PAYMENT_AUTHORIZED = 'authorized';
+
+    public const PAYMENT_CAPTURED = 'captured';
+
+    public const PAYMENT_RELEASED = 'released';
+
+    public const PAYMENT_REFUNDED = 'refunded';
+
+    // Dispute-triggered freeze — set on dispute creation, cleared only by
+    // admin resolution.
+    public const PAYMENT_HELD_PENDING_DISPUTE = 'held_pending_dispute';
 
     public const CANCELLED_BY_FAMILY = 'family';
 
@@ -91,6 +127,35 @@ class Booking extends Model
 
     /** Family-side free-cancel window before scheduled start. */
     public const FAMILY_FREE_CANCEL_HOURS = 24;
+
+    /** Minutes after scheduled_start before a missing check-in becomes a no-show. */
+    public const NO_SHOW_THRESHOLD_MINUTES = 30;
+
+    /** Hours after check-out during which the family can open a dispute. */
+    public const DISPUTE_WINDOW_HOURS = 48;
+
+    /**
+     * How long the platform holds captured funds before transferring them
+     * to the caregiver. Gives the family a dispute window and matches the
+     * mvp-requirements §4.9 escrow promise.
+     */
+    public const PAYOUT_HOLD_HOURS = 24;
+
+    /** Geofence radius (meters) for a clean GPS check-in. */
+    public const CHECK_IN_RADIUS_M = 200;
+
+    /** Outside this, the visit enters admin review. */
+    public const CHECK_IN_FLAG_RADIUS_M = 500;
+
+    /** Flag the visit when actual duration is shorter than this ratio of booked. */
+    public const DURATION_ANOMALY_RATIO = 0.5;
+
+    /** Flag reason codes. */
+    public const FLAG_CHECK_IN_FAR = 'check_in_far';
+
+    public const FLAG_CHECK_OUT_FAR = 'check_out_far';
+
+    public const FLAG_SHORT_DURATION = 'short_duration';
 
     protected $fillable = [
         'gig_id',
@@ -115,6 +180,24 @@ class Booking extends Model
         'cancelled_by',
         'cancellation_reason',
         'stripe_payment_intent_id',
+        'check_in_at',
+        'check_in_lat',
+        'check_in_lng',
+        'check_in_distance_m',
+        'check_out_at',
+        'check_out_lat',
+        'check_out_lng',
+        'check_out_distance_m',
+        'tasks_completed',
+        'caregiver_notes',
+        'safety_acknowledged_at',
+        'reminder_24h_sent_at',
+        'reminder_1h_sent_at',
+        'flagged_at',
+        'flag_reasons',
+        'payout_at',
+        'payout_transferred_at',
+        'stripe_transfer_id',
     ];
 
     /**
@@ -129,6 +212,20 @@ class Booking extends Model
             'response_deadline_at' => 'datetime',
             'responded_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'check_in_at' => 'datetime',
+            'check_in_lat' => 'float',
+            'check_in_lng' => 'float',
+            'check_out_at' => 'datetime',
+            'check_out_lat' => 'float',
+            'check_out_lng' => 'float',
+            'tasks_completed' => 'array',
+            'safety_acknowledged_at' => 'datetime',
+            'reminder_24h_sent_at' => 'datetime',
+            'reminder_1h_sent_at' => 'datetime',
+            'flagged_at' => 'datetime',
+            'flag_reasons' => 'array',
+            'payout_at' => 'datetime',
+            'payout_transferred_at' => 'datetime',
         ];
     }
 
@@ -154,6 +251,46 @@ class Booking extends Model
     public function familyProfile(): BelongsTo
     {
         return $this->belongsTo(FamilyProfile::class);
+    }
+
+    /**
+     * @return HasMany<Review, $this>
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /**
+     * @return HasMany<PanicAlert, $this>
+     */
+    public function panicAlerts(): HasMany
+    {
+        return $this->hasMany(PanicAlert::class);
+    }
+
+    /**
+     * @return HasMany<BookingDispute, $this>
+     */
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(BookingDispute::class);
+    }
+
+    /**
+     * @return HasMany<Message, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    /**
+     * @return HasMany<IncidentReport, $this>
+     */
+    public function incidentReports(): HasMany
+    {
+        return $this->hasMany(IncidentReport::class);
     }
 
     public function isActive(): bool
@@ -182,6 +319,21 @@ class Booking extends Model
     public function isExpired(): bool
     {
         return $this->isPending() && $this->response_deadline_at->isPast();
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isFlagged(): bool
+    {
+        return $this->flagged_at !== null;
     }
 
     /**

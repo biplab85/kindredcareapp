@@ -2,17 +2,22 @@
 
 namespace App\Services;
 
+use App\Http\Resources\CaregiverGigResource;
 use App\Models\Booking;
+use App\Models\BookingDispute;
 use App\Models\CaregiverProfile;
 use App\Models\FamilyProfile;
 use App\Models\Gig;
 use App\Models\User;
 use App\Notifications\BookingCancelled;
+use App\Notifications\BookingCheckedIn;
 use App\Notifications\BookingConfirmed;
 use App\Notifications\BookingDeclined;
 use App\Notifications\BookingExpired;
 use App\Notifications\BookingOffered;
+use App\Notifications\VisitCompleted;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +44,8 @@ use Illuminate\Validation\ValidationException;
  */
 class BookingService
 {
+    public function __construct(private readonly StripePaymentService $stripe) {}
+
     /**
      * Create the first booking in a cascade from the Phase 6 matches list.
      *
@@ -97,9 +104,17 @@ class BookingService
         }
 
         return DB::transaction(function () use ($booking) {
+            // Try the real authorization. If Stripe isn't configured, or the
+            // family hasn't attached a method yet, authorize() returns null
+            // and we fall through to the stub channel — same shape as Phase 7.
+            $intent = $this->stripe->authorizeForBooking($booking->loadMissing('familyProfile.user'));
+
             $booking->update([
                 'status' => Booking::STATUS_CONFIRMED,
-                'payment_status' => Booking::PAYMENT_AUTHORIZED_STUB,
+                'payment_status' => $intent
+                    ? Booking::PAYMENT_AUTHORIZED
+                    : Booking::PAYMENT_AUTHORIZED_STUB,
+                'stripe_payment_intent_id' => $intent?->id,
                 'responded_at' => now(),
             ]);
 
@@ -151,6 +166,243 @@ class BookingService
     }
 
     /**
+     * Caregiver check-in — moves the booking into an active visit. GPS
+     * coordinates are captured once and distance-from-gig is frozen so the
+     * anomaly check at check-out doesn't need to recompute haversine twice.
+     * A check-in farther than FLAG_RADIUS drops the booking into the admin
+     * review queue but still transitions (the visit is happening, after all).
+     */
+    public function checkIn(Booking $booking, User $actor, float $lat, float $lng): Booking
+    {
+        $this->assertCaregiverOwnsBooking($booking, $actor);
+
+        if (! $booking->isConfirmed()) {
+            throw ValidationException::withMessages([
+                'status' => 'Check-in is only available for confirmed bookings.',
+            ]);
+        }
+
+        $booking->loadMissing('gig');
+        $distanceM = $this->metersFromGig($booking, $lat, $lng);
+
+        return DB::transaction(function () use ($booking, $lat, $lng, $distanceM) {
+            $booking->update([
+                'status' => Booking::STATUS_IN_PROGRESS,
+                'check_in_at' => now(),
+                'check_in_lat' => $lat,
+                'check_in_lng' => $lng,
+                'check_in_distance_m' => $distanceM,
+            ]);
+
+            $this->evaluateAnomalyFlags($booking->fresh());
+
+            $fresh = $booking->fresh(['gig.serviceCategory', 'caregiver', 'familyProfile.user']);
+            $this->familyUserFor($fresh)->notify(new BookingCheckedIn($fresh));
+
+            return $fresh;
+        });
+    }
+
+    /**
+     * Caregiver check-out — closes the visit, captures the stub payment, and
+     * accepts the final task list + notes in the same call so the visit
+     * summary is atomic (no half-complete rows).
+     *
+     * @param  array<int, string>  $tasks
+     */
+    public function checkOut(
+        Booking $booking,
+        User $actor,
+        float $lat,
+        float $lng,
+        array $tasks = [],
+        ?string $notes = null,
+    ): Booking {
+        $this->assertCaregiverOwnsBooking($booking, $actor);
+
+        if (! $booking->isInProgress()) {
+            throw ValidationException::withMessages([
+                'status' => 'Check-out requires an in-progress visit.',
+            ]);
+        }
+
+        $booking->loadMissing('gig');
+        $distanceM = $this->metersFromGig($booking, $lat, $lng);
+
+        return DB::transaction(function () use ($booking, $lat, $lng, $distanceM, $tasks, $notes) {
+            $completedAt = now();
+
+            // Partial-capture support: if actual duration is shorter than the
+            // booked duration, capture only the pro-rated amount. mvp-reqs
+            // §4.9 — "handle partial captures if visit was shorter than booked".
+            $captureAmount = $this->computeCaptureAmount($booking, $completedAt);
+
+            $booking->update([
+                'status' => Booking::STATUS_COMPLETED,
+                'check_out_at' => $completedAt,
+                'check_out_lat' => $lat,
+                'check_out_lng' => $lng,
+                'check_out_distance_m' => $distanceM,
+                'tasks_completed' => $tasks === [] ? $booking->tasks_completed : $tasks,
+                'caregiver_notes' => $notes ?? $booking->caregiver_notes,
+            ]);
+
+            $captured = $this->stripe->captureForBooking($booking->fresh(), $captureAmount);
+            $booking->update([
+                'payment_status' => $captured
+                    ? Booking::PAYMENT_CAPTURED
+                    : Booking::PAYMENT_CAPTURED_STUB,
+                // 24-hour hold before the caregiver payout is released.
+                // The ReleasePayouts command polls this timestamp.
+                'payout_at' => now()->addHours(Booking::PAYOUT_HOLD_HOURS),
+            ]);
+
+            $this->evaluateAnomalyFlags($booking->fresh());
+
+            $fresh = $booking->fresh(['gig.serviceCategory', 'caregiver', 'familyProfile.user']);
+            $fresh->caregiver->notify(new VisitCompleted($fresh, forFamily: false));
+            $this->familyUserFor($fresh)->notify(new VisitCompleted($fresh, forFamily: true));
+
+            return $fresh;
+        });
+    }
+
+    /**
+     * No-show path — caregiver failed to check in within the threshold
+     * after scheduled_start. Called from the HandleNoShows command.
+     * Releases the authorization (family isn't charged) and returns the
+     * gig to open so the family can re-match.
+     */
+    public function markNoShow(Booking $booking): ?Booking
+    {
+        if ($booking->status !== Booking::STATUS_CONFIRMED) {
+            return null;
+        }
+
+        $threshold = $booking->scheduled_start->copy()->addMinutes(Booking::NO_SHOW_THRESHOLD_MINUTES);
+        if (now()->lessThan($threshold)) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($booking) {
+            $this->stripe->cancelAuthorization($booking);
+
+            $booking->update([
+                'status' => Booking::STATUS_NO_SHOW,
+                'payment_status' => $booking->stripe_payment_intent_id
+                    ? Booking::PAYMENT_RELEASED
+                    : Booking::PAYMENT_RELEASED_STUB,
+                'cancelled_at' => now(),
+                'cancelled_by' => Booking::CANCELLED_BY_SYSTEM,
+                'cancellation_reason' => 'Caregiver did not check in within '.Booking::NO_SHOW_THRESHOLD_MINUTES.' minutes of the scheduled start.',
+            ]);
+
+            if (in_array($booking->gig->status, [Gig::STATUS_MATCHED, Gig::STATUS_BOOKED], true)) {
+                $booking->gig->update(['status' => Gig::STATUS_OPEN]);
+            }
+
+            // Phase 12 will add real notifications for no-show; for now
+            // we just lean on the existing cancelled notification so both
+            // parties hear about it.
+            $this->notifyCancellation(
+                $booking->fresh(['gig.serviceCategory', 'caregiver', 'familyProfile.user']),
+                Booking::CANCELLED_BY_SYSTEM,
+            );
+
+            return $booking->fresh();
+        });
+    }
+
+    /**
+     * Family opens a dispute on a completed booking. Freezes the payment
+     * (relevant once the 24-hour payout hold from 9.2 is in place) and
+     * creates the dispute row that admin will resolve.
+     *
+     * @param  array<int, string>  $evidencePaths
+     */
+    public function openDispute(
+        Booking $booking,
+        User $reporter,
+        string $reasonCode,
+        string $description,
+        array $evidencePaths = [],
+    ): BookingDispute {
+        if (! $this->actorIsFamilyOwner($booking, $reporter)) {
+            throw ValidationException::withMessages([
+                'reporter' => 'Only the family that booked the visit can open a dispute.',
+            ]);
+        }
+
+        if (! $booking->isCompleted()) {
+            throw ValidationException::withMessages([
+                'status' => 'Disputes can only be opened on completed visits.',
+            ]);
+        }
+
+        $deadline = $booking->check_out_at?->copy()->addHours(Booking::DISPUTE_WINDOW_HOURS);
+        if (! $deadline || now()->greaterThan($deadline)) {
+            throw ValidationException::withMessages([
+                'status' => 'The '.Booking::DISPUTE_WINDOW_HOURS.'-hour dispute window has closed for this visit.',
+            ]);
+        }
+
+        if (! in_array($reasonCode, BookingDispute::REASON_CODES, true)) {
+            throw ValidationException::withMessages([
+                'reason_code' => 'Unknown dispute reason.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($booking, $reporter, $reasonCode, $description, $evidencePaths) {
+            /** @var BookingDispute $dispute */
+            $dispute = BookingDispute::create([
+                'booking_id' => $booking->id,
+                'reporter_user_id' => $reporter->id,
+                'reason_code' => $reasonCode,
+                'description' => $description,
+                'evidence_paths' => $evidencePaths === [] ? null : $evidencePaths,
+                'status' => BookingDispute::STATUS_OPEN,
+            ]);
+
+            $booking->update([
+                'payment_status' => Booking::PAYMENT_HELD_PENDING_DISPUTE,
+                // Cancels any pending payout — the ReleasePayouts command
+                // also skips disputed bookings, but nulling this makes it
+                // explicit in the data.
+                'payout_at' => null,
+            ]);
+
+            // Notification hookup is deferred to Phase 14 (admin dashboard)
+            // where the dispute queue surfaces; here we just persist.
+
+            return $dispute;
+        });
+    }
+
+    /**
+     * Intermediate task-log update during an active visit. No status change
+     * and no payment side-effects — purely a receipt of progress.
+     *
+     * @param  array<int, string>  $tasks
+     */
+    public function logTasks(Booking $booking, User $actor, array $tasks, ?string $notes): Booking
+    {
+        $this->assertCaregiverOwnsBooking($booking, $actor);
+
+        if (! $booking->isInProgress()) {
+            throw ValidationException::withMessages([
+                'status' => 'Tasks can only be logged during an in-progress visit.',
+            ]);
+        }
+
+        $booking->update([
+            'tasks_completed' => $tasks,
+            'caregiver_notes' => $notes,
+        ]);
+
+        return $booking->fresh();
+    }
+
+    /**
      * Cancel a pending or confirmed booking.
      *
      * - Family cancelling <24h before start = no refund (fee retained stub).
@@ -179,6 +431,14 @@ class BookingService
         $feeRetained = $byFamily && $this->insideFreeCancelWindow($booking);
 
         return DB::transaction(function () use ($booking, $status, $by, $reason, $feeRetained) {
+            // Sync the Stripe side first — fee-retained cancels capture
+            // (full amount kept by platform), free cancels release the auth.
+            if ($feeRetained) {
+                $this->stripe->captureForBooking($booking);
+            } else {
+                $this->stripe->cancelAuthorization($booking);
+            }
+
             $booking->update([
                 'status' => $status,
                 'cancelled_at' => now(),
@@ -385,15 +645,87 @@ class BookingService
         return now()->diffInHours($booking->scheduled_start, absolute: false) < Booking::FAMILY_FREE_CANCEL_HOURS;
     }
 
+    /**
+     * Actual vs booked duration → pro-rated capture in cents. Short-visit
+     * cases (mvp-reqs §4.9) capture less than the full authorization.
+     * Longer-than-booked is capped at subtotal_cents — we don't charge
+     * families for over-stay without re-authorization.
+     */
+    private function computeCaptureAmount(Booking $booking, CarbonInterface $completedAt): int
+    {
+        if (! $booking->check_in_at || $booking->duration_minutes <= 0) {
+            return $booking->subtotal_cents;
+        }
+
+        $actualMinutes = (int) $booking->check_in_at->diffInMinutes($completedAt, absolute: true);
+        if ($actualMinutes >= $booking->duration_minutes) {
+            return $booking->subtotal_cents;
+        }
+
+        return (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
+    }
+
+    private function metersFromGig(Booking $booking, float $lat, float $lng): int
+    {
+        $km = CaregiverGigResource::haversineKm(
+            $lat,
+            $lng,
+            (float) $booking->gig->latitude,
+            (float) $booking->gig->longitude,
+        );
+
+        return (int) round($km * 1000);
+    }
+
+    /**
+     * Idempotent: recomputes the full flag set from the booking's current
+     * check-in/out data, so calling it on any transition is safe. Only
+     * writes when the computed set differs from the persisted one, avoiding
+     * gratuitous updated_at churn.
+     */
+    private function evaluateAnomalyFlags(Booking $booking): void
+    {
+        $reasons = [];
+
+        if (($booking->check_in_distance_m ?? 0) > Booking::CHECK_IN_FLAG_RADIUS_M) {
+            $reasons[] = Booking::FLAG_CHECK_IN_FAR;
+        }
+
+        if (($booking->check_out_distance_m ?? 0) > Booking::CHECK_IN_FLAG_RADIUS_M) {
+            $reasons[] = Booking::FLAG_CHECK_OUT_FAR;
+        }
+
+        if ($booking->check_in_at && $booking->check_out_at && $booking->duration_minutes > 0) {
+            $actual = (int) $booking->check_in_at->diffInMinutes($booking->check_out_at, absolute: true);
+            if ($actual < $booking->duration_minutes * Booking::DURATION_ANOMALY_RATIO) {
+                $reasons[] = Booking::FLAG_SHORT_DURATION;
+            }
+        }
+
+        $current = $booking->flag_reasons ?? [];
+        if ($reasons === $current) {
+            return;
+        }
+
+        $booking->update([
+            'flagged_at' => $reasons === [] ? null : ($booking->flagged_at ?? now()),
+            'flag_reasons' => $reasons === [] ? null : $reasons,
+        ]);
+    }
+
     private function cancelledPaymentStatus(Booking $booking, bool $feeRetained): string
     {
         if ($booking->payment_status === Booking::PAYMENT_NOT_REQUIRED) {
             return Booking::PAYMENT_NOT_REQUIRED;
         }
 
-        return $feeRetained
-            ? Booking::PAYMENT_CAPTURED_STUB  // inside <24h: family forfeits the fee
-            : Booking::PAYMENT_RELEASED_STUB;
+        $realStripe = $booking->stripe_payment_intent_id !== null;
+
+        if ($feeRetained) {
+            return $realStripe ? Booking::PAYMENT_CAPTURED : Booking::PAYMENT_CAPTURED_STUB;
+        }
+
+        return $realStripe ? Booking::PAYMENT_RELEASED : Booking::PAYMENT_RELEASED_STUB;
     }
 
     private function assertFamilyOwnsGig(Gig $gig, FamilyProfile $family): void
