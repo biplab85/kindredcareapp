@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { GuestGuard } from "@/components/auth/guest-guard";
 import api from "@/lib/api";
 
 const forgotSchema = z.object({
@@ -20,6 +21,14 @@ const forgotSchema = z.object({
 type ForgotForm = z.infer<typeof forgotSchema>;
 
 export default function ForgotPasswordPage() {
+  return (
+    <GuestGuard>
+      <ForgotPasswordView />
+    </GuestGuard>
+  );
+}
+
+function ForgotPasswordView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
 

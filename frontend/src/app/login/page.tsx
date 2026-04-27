@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { GuestGuard } from "@/components/auth/guest-guard";
 import { useAuthStore } from "@/lib/auth";
 
 const loginSchema = z.object({
@@ -22,6 +23,14 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  return (
+    <GuestGuard>
+      <LoginView />
+    </GuestGuard>
+  );
+}
+
+function LoginView() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
   const [isSubmitting, setIsSubmitting] = useState(false);

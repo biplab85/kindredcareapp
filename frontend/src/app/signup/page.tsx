@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { GuestGuard } from "@/components/auth/guest-guard";
 import { useAuthStore } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,14 @@ const signupSchema = z
 type SignupForm = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
+  return (
+    <GuestGuard>
+      <SignupView />
+    </GuestGuard>
+  );
+}
+
+function SignupView() {
   const router = useRouter();
   const register = useAuthStore((s) => s.register);
   const [role, setRole] = useState<"family" | "caregiver">("family");
