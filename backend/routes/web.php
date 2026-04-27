@@ -1,14 +1,10 @@
 <?php
 
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
-    $request->fulfill();
-
-    return redirect(config('app.frontend_url', 'http://localhost:3000').'/email-verified');
-})->middleware(['auth', 'signed'])->name('verification.verify');
+// Email verification was moved to the API surface so the frontend SPA
+// can render the success/error UI. See routes/api.php — `verification.verify`.

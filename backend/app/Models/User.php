@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\EncryptedDate;
+use App\Notifications\VerifyEmailNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -100,5 +101,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isFamily(): bool
     {
         return $this->role === 'family';
+    }
+
+    /**
+     * Override Laravel's default verification mailer so the link in the
+     * email lands on the Next.js SPA (`/verify-email`) instead of the
+     * raw backend route. The signature still validates against the
+     * canonical backend URL — see VerifyEmailNotification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification);
     }
 }

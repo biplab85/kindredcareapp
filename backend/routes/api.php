@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\PanicAlertController;
 use App\Http\Controllers\Admin\RevenueController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
@@ -62,6 +63,13 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])->middleware('throttle:auth-strict');
     Route::post('/reset-password', [ResetPasswordController::class, 'store'])->middleware('throttle:auth-strict');
 });
+
+// Email verification — signed URL, no auth needed (signature is the proof).
+// Frontend `/verify-email` page proxies a GET back to this route after
+// extracting the params from the email link.
+Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware(['signed', 'throttle:auth-loose'])
+    ->name('verification.verify');
 
 // ─── AUTH (authenticated) ───
 // Default per-user throttle of 60/min applies to every authenticated route.

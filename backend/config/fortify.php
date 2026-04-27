@@ -146,7 +146,11 @@ return [
     'features' => [
         Features::registration(),
         Features::resetPasswords(),
-        Features::emailVerification(),
+        // Email verification is handled by our own SPA-friendly routes
+        // (`verification.verify` in routes/api.php) rather than Fortify's
+        // default web flow. Keeping Fortify's version registered would
+        // shadow our route name and break URL signature generation.
+        // Features::emailVerification(),
         Features::updateProfileInformation(),
         Features::updatePasswords(),
         Features::twoFactorAuthentication([
