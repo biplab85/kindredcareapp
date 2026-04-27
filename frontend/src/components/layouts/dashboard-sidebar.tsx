@@ -132,6 +132,13 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const sections = sectionsFor(user?.role);
 
+  // Pick the single most-specific nav item for the current path so nested
+  // routes (e.g. /gigs/new) don't also light up their parent (/gigs).
+  const activeHref = sections
+    .flatMap((section) => section.items.map((item) => item.href))
+    .filter((href) => pathname === href || pathname.startsWith(href + "/"))
+    .sort((a, b) => b.length - a.length)[0];
+
   // Mobile drawer always shows full-width content; only the desktop sidebar respects `collapsed`.
   const labelsVisible = isMobileDrawer || !collapsed;
 
@@ -215,7 +222,7 @@ export function DashboardSidebar({
               )}
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
-                  const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                  const active = item.href === activeHref;
                   const Icon = item.icon;
                   const badgeCount = item.badge ? (badges?.[item.badge] ?? 0) : 0;
                   return (

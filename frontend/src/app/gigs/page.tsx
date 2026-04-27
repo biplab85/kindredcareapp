@@ -167,7 +167,7 @@ function GigsDashboard() {
           </h1>
         </div>
 
-        <Link href="/services">
+        <Link href="/gigs/new">
           <Button size="lg" className="h-12 px-6 text-base">
             <Plus className="size-4" />
             Post a new gig
@@ -392,13 +392,12 @@ function EmptyState({ filter }: { filter: StatusFilter }) {
         {filter === "all" ? "You haven't posted a gig yet." : `No ${filter} gigs right now.`}
       </h2>
       <p className="max-w-sm text-sm text-muted-foreground">
-        Browse the catalogue to describe what would help, and we&rsquo;ll show it to verified
-        caregivers near you.
+        Tell us what would help, and we&rsquo;ll show it to verified caregivers near you.
       </p>
-      <Link href="/services" className="mt-2">
+      <Link href="/gigs/new" className="mt-2">
         <Button size="lg">
           <Plus className="size-4" />
-          Browse services
+          Post your first gig
         </Button>
       </Link>
     </div>
