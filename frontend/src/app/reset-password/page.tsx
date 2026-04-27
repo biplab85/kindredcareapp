@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { GuestGuard } from "@/components/auth/guest-guard";
 import api from "@/lib/api";
 
 const resetSchema = z
@@ -156,8 +157,10 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense>
-      <ResetPasswordForm />
-    </Suspense>
+    <GuestGuard>
+      <Suspense>
+        <ResetPasswordForm />
+      </Suspense>
+    </GuestGuard>
   );
 }

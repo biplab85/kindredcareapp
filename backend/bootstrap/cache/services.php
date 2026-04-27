@@ -39,6 +39,7 @@
     35 => 'Termwind\\Laravel\\TermwindServiceProvider',
     36 => 'App\\Providers\\AppServiceProvider',
     37 => 'App\\Providers\\FortifyServiceProvider',
+    38 => 'App\\Providers\\TelescopeServiceProvider',
   ),
   'eager' => 
   array (
@@ -64,6 +65,7 @@
     19 => 'Termwind\\Laravel\\TermwindServiceProvider',
     20 => 'App\\Providers\\AppServiceProvider',
     21 => 'App\\Providers\\FortifyServiceProvider',
+    22 => 'App\\Providers\\TelescopeServiceProvider',
   ),
   'deferred' => 
   array (
