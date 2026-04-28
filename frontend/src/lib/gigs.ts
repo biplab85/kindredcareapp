@@ -61,6 +61,7 @@ export type UpdateGigPayload = Partial<
     | "is_recurring"
     | "recurrence_pattern"
     | "preferences"
+    | "posting_mode"
     | "photo"
   >
 >;

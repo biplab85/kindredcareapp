@@ -53,15 +53,21 @@ function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />;
 }
 
+// Plain styled label for dropdown headers. base-ui's MenuPrimitive.GroupLabel
+// requires a parent <Menu.Group> for its aria-labelledby wiring; using it
+// outside one throws at runtime. Most of our labels are decorative headers,
+// not labels for an actual group, so render a div and skip the requirement.
+// If a true group label is ever needed, compose <DropdownMenuGroup> with
+// <MenuPrimitive.GroupLabel> directly at the call site.
 function DropdownMenuLabel({
   className,
   inset,
   ...props
-}: MenuPrimitive.GroupLabel.Props & {
+}: React.ComponentProps<"div"> & {
   inset?: boolean;
 }) {
   return (
-    <MenuPrimitive.GroupLabel
+    <div
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn(
