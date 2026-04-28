@@ -15,6 +15,8 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
  * inline styles for hashed class definitions; a stricter nonce-based
  * approach is a follow-up once we can swap to CSS-in-JS.
  */
+const isProd = process.env.NODE_ENV === "production";
+
 const securityHeaders = [
   {
     key: "Content-Security-Policy",
@@ -23,14 +25,20 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://*.veriff.com",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
-      "img-src 'self' data: blob: https:",
+      // The API origin (localhost:8000 in dev, the deployed origin in prod)
+      // serves user-uploaded photos via /storage/* — has to be allowed
+      // explicitly because 'self' only covers the SPA's own origin.
+      `img-src 'self' data: blob: https: ${apiUrl}`,
       `connect-src 'self' ${apiUrl} https://api.stripe.com https://*.veriff.com https://*.mapbox.com wss://*.veriff.com`,
       "frame-src https://js.stripe.com https://*.veriff.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      "upgrade-insecure-requests",
+      // `upgrade-insecure-requests` would rewrite http://localhost:8000
+      // to https in dev and break local image loads. Only emit in prod
+      // where everything is genuinely HTTPS.
+      ...(isProd ? ["upgrade-insecure-requests"] : []),
     ].join("; "),
   },
   {
