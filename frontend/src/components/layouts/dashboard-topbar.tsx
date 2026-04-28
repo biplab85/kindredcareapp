@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LargeTextToggle } from "@/components/ui/large-text-toggle";
 import { useAuthStore } from "@/lib/auth";
 import { listNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -20,8 +19,8 @@ import { cn } from "@/lib/utils";
 /* ─────────────────────────────────────────────────────────────
  * DashboardTopbar — 64px bar sitting to the right of the sidebar.
  * Left: hamburger (mobile only) + page title slot.
- * Right: large-text toggle, notification bell (placeholder),
- * and the user dropdown (avatar + first name + role menu).
+ * Right: notification bell (placeholder) and the user dropdown
+ * (avatar + first name + role menu).
  * ───────────────────────────────────────────────────────────── */
 
 interface DashboardTopbarProps {
@@ -103,8 +102,6 @@ export function DashboardTopbar({
 
       {/* Right cluster */}
       <div className="flex shrink-0 items-center gap-1">
-        <LargeTextToggle />
-
         <Link
           href="/notifications"
           className="relative inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

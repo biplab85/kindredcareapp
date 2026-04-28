@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LargeTextToggle } from "@/components/ui/large-text-toggle";
 import { useAuthStore } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -167,7 +166,6 @@ export function AppShell({ children, tint = "primary" }: AppShellProps) {
 
           {/* Desktop actions */}
           <div className="ml-auto hidden items-center gap-1 md:flex">
-            <LargeTextToggle />
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -213,7 +211,6 @@ export function AppShell({ children, tint = "primary" }: AppShellProps) {
 
           {/* Mobile hamburger */}
           <div className="ml-auto flex items-center gap-1 md:hidden">
-            <LargeTextToggle />
             <Button
               variant="ghost"
               size="icon"

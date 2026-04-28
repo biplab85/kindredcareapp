@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Bell, LogOut, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LargeTextToggle } from "@/components/ui/large-text-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,8 +37,6 @@ export function AppHeader({
 
       {/* Actions */}
       <div className="flex items-center gap-1.5">
-        <LargeTextToggle />
-
         {/* Notifications */}
         <Link href="/notifications">
           <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
