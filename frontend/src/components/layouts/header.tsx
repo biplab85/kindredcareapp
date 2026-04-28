@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LargeTextToggle } from "@/components/ui/large-text-toggle";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -40,7 +39,6 @@ export function Header() {
 
         {/* Desktop actions */}
         <div className="hidden items-center gap-2 md:flex">
-          <LargeTextToggle />
           <Link href="/login">
             <Button variant="outline" size="sm">
               Log In
@@ -53,7 +51,6 @@ export function Header() {
 
         {/* Mobile hamburger */}
         <div className="flex items-center gap-2 md:hidden">
-          <LargeTextToggle />
           <Button
             variant="ghost"
             size="icon"
