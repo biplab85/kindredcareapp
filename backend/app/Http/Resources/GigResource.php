@@ -60,6 +60,11 @@ class GigResource extends JsonResource
                 : null,
             'years_of_experience' => $profile->years_of_experience,
             'languages' => $profile->languages ?? [],
+            // The booking page uses this to soft-warn when the family's
+            // requested window falls outside the caregiver's published hours.
+            // The matcher reads the same shape (`weekly.{day}` = array of
+            // {start, end}); empty/null means "always available".
+            'availability' => $profile->availability ?? null,
         ];
     }
 }

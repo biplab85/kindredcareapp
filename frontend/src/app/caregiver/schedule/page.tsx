@@ -129,20 +129,30 @@ function ScheduleHeader({ weekLabel }: { weekLabel: string }) {
         <span className="text-foreground/30">— § 11</span>
       </div>
 
-      <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-[3.25rem]">
-        Your week,
-        <br />
-        <span className="font-normal italic text-primary">ink-stamped and pencilled in.</span>
-      </h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="max-w-2xl">
+          <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-[3.25rem]">
+            Your week,
+            <br />
+            <span className="font-normal italic text-primary">ink-stamped and pencilled in.</span>
+          </h1>
 
-      <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-        Confirmed visits are inked. Pending offers are in pencil — they&rsquo;ll firm up once you
-        accept. Cancelled and declined visits stay here for the record.
-      </p>
+          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+            Confirmed visits are inked. Pending offers are in pencil — they&rsquo;ll firm up once
+            you accept. Cancelled and declined visits stay here for the record.
+          </p>
 
-      <p className="mt-4 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-        {weekLabel}
-      </p>
+          <p className="mt-4 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            {weekLabel}
+          </p>
+        </div>
+
+        <Link href="/caregiver/availability">
+          <Button variant="outline" className="h-11">
+            Manage availability
+          </Button>
+        </Link>
+      </div>
     </header>
   );
 }

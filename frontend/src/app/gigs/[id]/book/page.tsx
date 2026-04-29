@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Check, CalendarDays } from "lucide-react";
+import { ArrowLeft, Loader2, Check, CalendarDays, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
-import { getGig, type Gig } from "@/lib/gigs";
+import { getGig, type AvailabilityRange, type Gig } from "@/lib/gigs";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
 
 interface Recipient {
   id: number;
@@ -75,6 +78,45 @@ function BookGigView({ gigId }: { gigId: number }) {
     const fee = subtotal * 0.075;
     return { subtotal, fee, total: subtotal + fee };
   }, [gig, duration]);
+
+  // Soft availability check: warn (don't block) when the requested window
+  // falls outside the caregiver's published hours. Empty/missing
+  // availability means "always available" — no warning.
+  const availabilityHint = useMemo(() => {
+    if (!gig || !date || !time) return null;
+    const weekly = gig.caregiver?.availability?.weekly;
+    if (!weekly) return null;
+
+    const start = new Date(`${date}T${time}`);
+    if (Number.isNaN(start.getTime())) return null;
+    const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
+
+    const dayKey = WEEKDAY_KEYS[start.getDay()];
+    const ranges = (weekly[dayKey] ?? []) as AvailabilityRange[];
+    if (ranges.length === 0) {
+      // Caregiver has set availability for at least one day but not this one.
+      const liveDays = WEEKDAY_KEYS.filter((d) => (weekly[d]?.length ?? 0) > 0);
+      if (liveDays.length === 0) return null; // legacy/empty calendar = always available
+      return {
+        kind: "day-off" as const,
+        liveDays,
+      };
+    }
+
+    const visitStart = minutes(start);
+    const visitEnd = minutes(end);
+    const fits = ranges.some((r) => {
+      const rs = parseHHMM(r.start);
+      const re = parseHHMM(r.end);
+      return rs !== null && re !== null && visitStart >= rs && visitEnd <= re;
+    });
+    if (fits) return null;
+
+    return {
+      kind: "outside-window" as const,
+      ranges,
+    };
+  }, [gig, date, time, duration]);
 
   const canSubmit =
     !!gig &&
@@ -322,6 +364,42 @@ function BookGigView({ gigId }: { gigId: number }) {
             </p>
           </Section>
 
+          {/* Availability warning — soft-blocking, doesn't disable submit */}
+          {availabilityHint && (
+            <div className="rounded-2xl bg-accent/[0.08] px-5 py-4 ring-1 ring-accent/25">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-accent">
+                    {gig.caregiver?.display_name ?? "This caregiver"} may not be free at that time.
+                  </p>
+                  {availabilityHint.kind === "day-off" ? (
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      They&rsquo;ve published hours for{" "}
+                      <span className="font-medium">
+                        {availabilityHint.liveDays
+                          .map((d) => DAY_LABELS[d as WeekdayKey])
+                          .join(", ")}
+                      </span>
+                      , but not the day you picked. The booking will still go through — they can
+                      accept or decline.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      Their published windows that day are{" "}
+                      <span className="font-medium">
+                        {availabilityHint.ranges
+                          .map((r) => `${formatHHMM(r.start)} – ${formatHHMM(r.end)}`)
+                          .join(" · ")}
+                      </span>
+                      . You can still send the request — they&rsquo;ll accept or decline.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Total slip */}
           <div className="rounded-2xl bg-card p-6 ring-1 ring-border/60">
             <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
@@ -415,4 +493,33 @@ function Section({
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const DAY_LABELS: Record<WeekdayKey, string> = {
+  sun: "Sun",
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+};
+
+function minutes(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function parseHHMM(s: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Convert "14:00" → "2:00 p.m." for the warning copy. */
+function formatHHMM(s: string): string {
+  const min = parseHHMM(s);
+  if (min === null) return s;
+  const d = new Date();
+  d.setHours(Math.floor(min / 60), min % 60, 0, 0);
+  return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
 }
