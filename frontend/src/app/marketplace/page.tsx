@@ -236,7 +236,7 @@ function EmptyState({ filter }: { filter: "filter" | "all" }) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-6 py-20 text-center">
       <h2 className="max-w-sm text-2xl font-semibold tracking-tight">
-        {filter === "filter" ? "No notices in that catalogue yet." : "No notices on the board yet."}
+        {filter === "filter" ? "No gigs in that catalogue yet." : "No gigs on the board yet."}
       </h2>
       <p className="max-w-sm text-sm text-muted-foreground">
         {filter === "filter"

@@ -7,7 +7,7 @@ import { GigListingForm } from "../_components/gig-listing-form";
 export default function NewGigListingPage() {
   return (
     <AuthGuard roles={["caregiver"]}>
-      <DashboardShell pageTitle="Post a notice">
+      <DashboardShell pageTitle="Post a gig">
         <GigListingForm mode="create" />
       </DashboardShell>
     </AuthGuard>

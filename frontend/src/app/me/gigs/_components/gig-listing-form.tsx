@@ -113,7 +113,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
     const t = taskDraft.trim();
     if (!t) return;
     if (tasks.length >= 10) {
-      toast.error("Up to 10 tasks per notice.");
+      toast.error("Up to 10 tasks per gig.");
       return;
     }
     if (tasks.includes(t)) {
@@ -144,10 +144,10 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
 
       if (isEdit && initialGig) {
         await updateGig(initialGig.id, basePayload);
-        toast.success("Notice updated.");
+        toast.success("Gig updated.");
       } else {
         await createGig(basePayload);
-        toast.success("Notice published. Families can find it in the marketplace.");
+        toast.success("Gig published. Families can find it in the marketplace.");
       }
       router.push("/me/gigs");
     } catch (error: unknown) {
@@ -184,21 +184,18 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
         <div className="mb-10">
           <div className="mb-6 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
             <span className="h-px w-8 bg-foreground/30" />
-            {isEdit ? "Edit a notice" : "Post a notice"}
+            {isEdit ? "Edit a gig" : "Post a gig"}
           </div>
           <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
             {isEdit ? "Refine your" : "Tell families what"}
             <br />
-            <span className="italic font-normal text-primary">
-              {isEdit ? "notice" : "you offer"}
-            </span>
-            .
+            <span className="italic font-normal text-primary">{isEdit ? "gig" : "you offer"}</span>.
           </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-12">
           {/* Step 1 — category */}
-          <Section number="01" eyebrow="A service" title="Which service is this notice for?">
+          <Section number="01" eyebrow="A service" title="Which service is this gig for?">
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {categories.map((cat) => {
                 const Icon = iconMap[cat.icon] ?? Heart;
@@ -439,7 +436,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                 </>
               ) : (
                 <>
-                  {isEdit ? "Save changes" : "Publish notice"}
+                  {isEdit ? "Save changes" : "Publish gig"}
                   <Check className="size-4" strokeWidth={2.5} />
                 </>
               )}
