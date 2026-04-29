@@ -15,7 +15,7 @@ export default function EditGigListingPage({ params }: { params: Promise<{ id: s
 
   return (
     <AuthGuard roles={["caregiver"]}>
-      <DashboardShell pageTitle="Edit notice">
+      <DashboardShell pageTitle="Edit gig">
         <Loader gigId={gigId} />
       </DashboardShell>
     </AuthGuard>
@@ -34,7 +34,7 @@ function Loader({ gigId }: { gigId: number }) {
     getGig(gigId)
       .then(setGig)
       .catch(() => {
-        toast.error("Couldn't load that notice.");
+        toast.error("Couldn't load that gig.");
         router.replace("/me/gigs");
       });
   }, [gigId, router]);

@@ -99,22 +99,22 @@ function MyGigsView() {
           <div className="max-w-2xl">
             <div className="mb-4 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
               <span className="h-px w-8 bg-foreground/30" />
-              Your notices
+              Your gigs
             </div>
             <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
               The shop, <br />
               <span className="italic font-normal text-primary">at a glance</span>.
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Each notice is one of your services. Families can find them in the marketplace and
-              book directly.
+              Each gig is one of your services. Families find them in the marketplace and book
+              directly.
             </p>
           </div>
 
           <Link href="/me/gigs/new">
             <Button size="lg" className="h-12 px-6 text-base">
               <Plus className="size-4" />
-              Post a new notice
+              Post a new gig
             </Button>
           </Link>
         </div>
@@ -206,16 +206,16 @@ function EmptyState() {
         <Heart className="size-6" strokeWidth={1.75} />
       </div>
       <h2 className="max-w-sm text-2xl font-semibold tracking-tight">
-        You haven&rsquo;t posted a notice yet.
+        You haven&rsquo;t posted a gig yet.
       </h2>
       <p className="max-w-sm text-sm text-muted-foreground">
-        Each notice is one productized service. Most caregivers post 2–3 — companionship, errands,
-        tech help — and let families pick.
+        Each gig is one productized service. Most caregivers post 2–3 — companionship, errands, tech
+        help — and let families pick.
       </p>
       <Link href="/me/gigs/new" className="mt-2">
         <Button size="lg">
           <Plus className="size-4" />
-          Post your first notice
+          Post your first gig
         </Button>
       </Link>
     </div>
