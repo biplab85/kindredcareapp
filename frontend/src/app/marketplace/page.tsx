@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Heart,
@@ -36,16 +37,27 @@ export default function MarketplacePage() {
   return (
     <AuthGuard roles={["family"]}>
       <DashboardShell pageTitle="Marketplace">
-        <MarketplaceView />
+        <Suspense
+          fallback={
+            <div className="flex min-h-[60vh] items-center justify-center">
+              <Loader2 className="size-7 animate-spin text-primary" />
+            </div>
+          }
+        >
+          <MarketplaceView />
+        </Suspense>
       </DashboardShell>
     </AuthGuard>
   );
 }
 
 function MarketplaceView() {
+  const searchParams = useSearchParams();
+  const initialSlug = searchParams.get("category");
+
   const [categories, setCategories] = useState<ServiceCategory[] | null>(null);
   const [gigs, setGigs] = useState<Gig[] | null>(null);
-  const [activeSlug, setActiveSlug] = useState<string | null>(null);
+  const [activeSlug, setActiveSlug] = useState<string | null>(initialSlug);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {

@@ -444,10 +444,10 @@ function EmptyState({ tab, role }: { tab: Tab; role?: "family" | "caregiver" }) 
       title: role === "caregiver" ? "No open offers." : "No bookings awaiting a response.",
       sub:
         role === "caregiver"
-          ? "Keep your availability and service list up to date so families find you in the shortlist."
-          : "Post a gig or run matches on an open gig to invite a caregiver.",
-      href: role === "caregiver" ? "/jobs" : "/gigs",
-      cta: role === "caregiver" ? "Browse open gigs" : "Your gigs",
+          ? "Make sure your gigs are published so families find you in the marketplace."
+          : "Browse the marketplace and pick a gig from a caregiver who fits.",
+      href: role === "caregiver" ? "/me/gigs" : "/marketplace",
+      cta: role === "caregiver" ? "Manage my gigs" : "Browse marketplace",
     },
     active: {
       title: "Nothing in progress.",
@@ -458,8 +458,8 @@ function EmptyState({ tab, role }: { tab: Tab; role?: "family" | "caregiver" }) 
     past: {
       title: "No history yet.",
       sub: "Completed visits and cancellations land here.",
-      href: role === "caregiver" ? "/jobs" : "/gigs",
-      cta: role === "caregiver" ? "Browse open gigs" : "Your gigs",
+      href: role === "caregiver" ? "/me/gigs" : "/marketplace",
+      cta: role === "caregiver" ? "Manage my gigs" : "Browse marketplace",
     },
   };
 

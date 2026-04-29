@@ -243,12 +243,12 @@ function CategoryCard({
 }) {
   const styles = accentStyles[accent];
   const numericLabel = `№ ${String(index + 1).padStart(2, "0")}`;
-  const href = `/gigs/new?category=${category.slug}`;
+  const href = `/marketplace?category=${category.slug}`;
 
   return (
     <Link
       href={href}
-      aria-label={`Post a ${category.name.toLowerCase()} gig`}
+      aria-label={`Browse ${category.name.toLowerCase()} gigs`}
       className={cn(
         "group relative flex h-full flex-col overflow-hidden rounded-2xl bg-card text-card-foreground ring-1 ring-border/70 transition-all duration-300",
         "hover:-translate-y-0.5 hover:ring-foreground/30 hover:shadow-[0_24px_60px_-28px] hover:shadow-foreground/20",
