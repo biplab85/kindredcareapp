@@ -7,6 +7,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  Eye,
   Heart,
   type LucideIcon,
   Smartphone,
@@ -178,6 +179,12 @@ function GigRow({ gig, rank, onDelete }: { gig: Gig; rank: number; onDelete: () 
 
         {/* Actions */}
         <div className="flex shrink-0 items-center gap-1">
+          <Link href={`/gigs/${gig.id}`}>
+            <Button variant="ghost" size="sm" className="h-9">
+              <Eye className="size-3.5" />
+              View
+            </Button>
+          </Link>
           <Link href={`/me/gigs/${gig.id}/edit`}>
             <Button variant="ghost" size="sm" className="h-9">
               <Pencil className="size-3.5" />
