@@ -52,7 +52,7 @@ const CAREGIVER_SECTIONS: SidebarSection[] = [
     heading: "Work",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/jobs", label: "Open gigs", icon: Search },
+      { href: "/me/gigs", label: "My gigs", icon: PlusCircle },
       { href: "/bookings", label: "Bookings", icon: CalendarDays, badge: "bookings" },
       { href: "/caregiver/schedule", label: "Schedule", icon: CalendarDays },
     ],
@@ -71,8 +71,7 @@ const FAMILY_SECTIONS: SidebarSection[] = [
     heading: "Work",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/gigs", label: "My gigs", icon: Search },
-      { href: "/gigs/new", label: "Post a gig", icon: PlusCircle },
+      { href: "/marketplace", label: "Marketplace", icon: Search },
       { href: "/bookings", label: "Bookings", icon: CalendarDays, badge: "bookings" },
       { href: "/care-recipients", label: "Recipients", icon: UsersRound },
     ],

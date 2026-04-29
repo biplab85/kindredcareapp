@@ -19,31 +19,47 @@ class GigResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'title' => $this->title,
             'status' => $this->status,
-            'posting_mode' => $this->posting_mode,
             'description' => $this->description,
-            'location_address' => $this->location_address,
-            'latitude' => (float) $this->latitude,
-            'longitude' => (float) $this->longitude,
-            'scheduled_start' => $this->scheduled_start->toIso8601String(),
-            'scheduled_end' => $this->scheduled_end->toIso8601String(),
-            'is_recurring' => $this->is_recurring,
-            'recurrence_pattern' => $this->recurrence_pattern,
-            'preferences' => $this->preferences ?? [],
+            'tasks_included' => $this->tasks_included ?? [],
+            'hourly_rate_cents' => (int) $this->hourly_rate_cents,
+            'hourly_rate_dollars' => round($this->hourly_rate_cents / 100, 2),
             'photo_url' => $this->photo_path ? Storage::disk('public')->url($this->photo_path) : null,
+            'published_at' => $this->published_at?->toIso8601String(),
             'service_category' => $this->whenLoaded(
                 'serviceCategory',
                 fn () => new ServiceCategoryResource($this->serviceCategory),
             ),
-            'care_recipient' => $this->whenLoaded(
-                'careRecipient',
-                fn () => $this->careRecipient ? [
-                    'id' => $this->careRecipient->id,
-                    'name' => $this->careRecipient->name,
-                ] : null,
+            'caregiver' => $this->whenLoaded(
+                'caregiverProfile',
+                fn () => $this->shapeCaregiver(),
             ),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Caregiver summary that the family marketplace card needs — name,
+     * photo, headline-y signals. Full profile lives at /caregivers/{id}.
+     *
+     * @return array<string, mixed>
+     */
+    private function shapeCaregiver(): array
+    {
+        $profile = $this->caregiverProfile;
+        $user = $profile->user;
+
+        return [
+            'user_id' => $user?->id,
+            'profile_id' => $profile->id,
+            'display_name' => $user?->name,
+            'photo_url' => $profile->photo_path
+                ? Storage::disk('public')->url($profile->photo_path)
+                : null,
+            'years_of_experience' => $profile->years_of_experience,
+            'languages' => $profile->languages ?? [],
         ];
     }
 }

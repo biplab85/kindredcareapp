@@ -3,8 +3,15 @@
 namespace App\Http\Requests\Booking;
 
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
+/**
+ * Family books a chosen gig. Visit specifics ride along here — gig_id
+ * supplies the caregiver + rate; the family supplies date/time, recipient,
+ * and address.
+ */
 class StoreBookingRequest extends FormRequest
 {
     public function authorize(): bool
@@ -22,35 +29,38 @@ class StoreBookingRequest extends FormRequest
     {
         return [
             'gig_id' => ['required', 'integer', 'exists:gigs,id'],
-            'caregiver_user_id' => ['required', 'integer', 'exists:users,id'],
-            // The ranked queue from the Phase 6 matches view, primary caregiver
-            // first. Used to drive the auto-fallback on decline/expire.
-            'ranked_caregiver_ids' => ['required', 'array', 'min:1', 'max:10'],
-            'ranked_caregiver_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+            'care_recipient_id' => ['required', 'integer', 'exists:care_recipients,id'],
+            'scheduled_start' => ['required', 'date', 'after:now'],
+            // 1h–8h gig windows — matches the chip set in the booking UI.
+            'duration_minutes' => ['required', 'integer', 'min:60', 'max:480'],
+            'address_full' => ['required', 'string', 'max:255'],
+            'address_neighbourhood' => ['required', 'string', 'max:100'],
+            'notes_from_family' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
 
-    /**
-     * @return array<string, string>
-     */
-    public function messages(): array
+    public function withValidator(Validator $validator): void
     {
-        return [
-            'ranked_caregiver_ids.required' => 'The matches list is required so we can cascade if the caregiver declines.',
-        ];
-    }
+        $validator->after(function (Validator $validator) {
+            $start = $this->input('scheduled_start');
+            $minutes = $this->integer('duration_minutes');
 
-    public function prepareForValidation(): void
-    {
-        // Belt and braces: if the caller forgot to include the primary caregiver
-        // in the queue, prepend them so cascade logic has a coherent starting point.
-        $ranked = $this->input('ranked_caregiver_ids');
-        $primary = $this->input('caregiver_user_id');
+            if ($start && $minutes < 60) {
+                $validator->errors()->add(
+                    'duration_minutes',
+                    'A booking must be at least 1 hour long.',
+                );
+            }
 
-        if (is_array($ranked) && is_int($primary) && ! in_array($primary, $ranked, true)) {
-            $this->merge([
-                'ranked_caregiver_ids' => array_values(array_unique(array_merge([$primary], $ranked))),
-            ]);
-        }
+            if ($start) {
+                // Sanity check on the date itself — `after:now` covers the same
+                // ground but with a clearer error if the parser fails.
+                try {
+                    CarbonImmutable::parse((string) $start);
+                } catch (\Throwable $e) {
+                    $validator->errors()->add('scheduled_start', 'Invalid start time.');
+                }
+            }
+        });
     }
 }

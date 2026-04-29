@@ -5,68 +5,55 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
+ * Caregiver-owned gig listing (Fiverr-style). One row = one productized
+ * service offering: title, description, hourly rate, photo, included
+ * tasks. A caregiver may publish many gigs across categories. Visit
+ * specifics live on the booking row that's created when a family books
+ * this gig.
+ *
  * @property int $id
- * @property int $family_profile_id
- * @property int|null $care_recipient_id
+ * @property int $caregiver_profile_id
  * @property int $service_category_id
+ * @property string $title
+ * @property int $hourly_rate_cents
  * @property string $description
- * @property string $location_address
- * @property float $latitude
- * @property float $longitude
- * @property Carbon $scheduled_start
- * @property Carbon $scheduled_end
- * @property bool $is_recurring
- * @property array<string, mixed>|null $recurrence_pattern
- * @property array<string, mixed>|null $preferences
+ * @property array<int, string>|null $tasks_included
  * @property string|null $photo_path
- * @property string $status
- * @property string $posting_mode
+ * @property string $status draft | published | paused
+ * @property Carbon|null $published_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read FamilyProfile $familyProfile
- * @property-read CareRecipient|null $careRecipient
+ * @property-read CaregiverProfile $caregiverProfile
  * @property-read ServiceCategory $serviceCategory
  */
 class Gig extends Model
 {
-    public const STATUS_OPEN = 'open';
+    public const STATUS_DRAFT = 'draft';
 
-    public const STATUS_MATCHED = 'matched';
+    public const STATUS_PUBLISHED = 'published';
 
-    public const STATUS_BOOKED = 'booked';
+    public const STATUS_PAUSED = 'paused';
 
-    public const STATUS_COMPLETED = 'completed';
-
-    public const STATUS_CANCELLED = 'cancelled';
-
-    public const POSTING_MATCHED = 'matched';
-
-    public const POSTING_OPEN = 'open';
-
-    public const POSTING_MODES = [
-        self::POSTING_MATCHED,
-        self::POSTING_OPEN,
+    public const ALL_STATUSES = [
+        self::STATUS_DRAFT,
+        self::STATUS_PUBLISHED,
+        self::STATUS_PAUSED,
     ];
 
     protected $fillable = [
-        'family_profile_id',
-        'care_recipient_id',
+        'caregiver_profile_id',
         'service_category_id',
+        'title',
+        'hourly_rate_cents',
         'description',
-        'location_address',
-        'latitude',
-        'longitude',
-        'scheduled_start',
-        'scheduled_end',
-        'is_recurring',
-        'recurrence_pattern',
-        'preferences',
+        'tasks_included',
         'photo_path',
         'status',
-        'posting_mode',
+        'published_at',
     ];
 
     /**
@@ -75,30 +62,17 @@ class Gig extends Model
     protected function casts(): array
     {
         return [
-            'scheduled_start' => 'datetime',
-            'scheduled_end' => 'datetime',
-            'is_recurring' => 'boolean',
-            'recurrence_pattern' => 'array',
-            'preferences' => 'array',
-            'latitude' => 'decimal:7',
-            'longitude' => 'decimal:7',
+            'tasks_included' => 'array',
+            'published_at' => 'datetime',
         ];
     }
 
     /**
-     * @return BelongsTo<FamilyProfile, $this>
+     * @return BelongsTo<CaregiverProfile, $this>
      */
-    public function familyProfile(): BelongsTo
+    public function caregiverProfile(): BelongsTo
     {
-        return $this->belongsTo(FamilyProfile::class);
-    }
-
-    /**
-     * @return BelongsTo<CareRecipient, $this>
-     */
-    public function careRecipient(): BelongsTo
-    {
-        return $this->belongsTo(CareRecipient::class);
+        return $this->belongsTo(CaregiverProfile::class);
     }
 
     /**
@@ -109,17 +83,25 @@ class Gig extends Model
         return $this->belongsTo(ServiceCategory::class);
     }
 
-    public function isEditable(): bool
+    /**
+     * @return HasMany<Booking, $this>
+     */
+    public function bookings(): HasMany
     {
-        return $this->status === self::STATUS_OPEN;
+        return $this->hasMany(Booking::class);
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED;
     }
 
     /**
      * @param  Builder<Gig>  $query
      * @return Builder<Gig>
      */
-    public function scopeOpen(Builder $query): Builder
+    public function scopePublished(Builder $query): Builder
     {
-        return $query->where('status', self::STATUS_OPEN);
+        return $query->where('status', self::STATUS_PUBLISHED);
     }
 }

@@ -2,16 +2,22 @@
 
 namespace App\Http\Requests\Gig;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 
+/**
+ * Caregiver updates one of their own gig listings. Same shape as the
+ * store request but every field is `sometimes` — partial PATCH-style
+ * updates are supported (controller verifies ownership via the route
+ * model). Service category and listing status can be changed; previous
+ * bookings are unaffected because the booking row snapshots the rate
+ * at creation time.
+ */
 class UpdateGigRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isFamily() === true;
+        return $this->user()?->isCaregiver() === true;
     }
 
     /**
@@ -20,45 +26,14 @@ class UpdateGigRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'service_category_id' => ['sometimes', 'integer', 'exists:service_categories,id'],
+            'title' => ['sometimes', 'string', 'min:8', 'max:120'],
+            'hourly_rate_dollars' => ['sometimes', 'numeric', 'min:18', 'max:50'],
             'description' => ['sometimes', 'string', 'min:20', 'max:500'],
-
-            'scheduled_start' => ['sometimes', 'date', 'after:now'],
-            'scheduled_end' => ['sometimes', 'date', 'after:scheduled_start'],
-
-            'is_recurring' => ['sometimes', 'boolean'],
-            'recurrence_pattern' => ['sometimes', 'nullable', 'array'],
-            'recurrence_pattern.days' => ['sometimes', 'array', 'min:1'],
-            'recurrence_pattern.days.*' => ['in:mon,tue,wed,thu,fri,sat,sun'],
-            'recurrence_pattern.end_date' => ['sometimes', 'nullable', 'date'],
-
-            'preferences' => ['sometimes', 'nullable', 'array'],
-            'preferences.gender' => ['sometimes', 'nullable', 'in:male,female,any'],
-            'preferences.language' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'preferences.rate_max' => ['sometimes', 'nullable', 'numeric', 'min:18', 'max:50'],
-
-            'posting_mode' => ['sometimes', 'in:matched,open'],
-
+            'tasks_included' => ['sometimes', 'nullable', 'array', 'max:10'],
+            'tasks_included.*' => ['string', 'max:120'],
             'photo' => ['sometimes', 'nullable', 'image', 'max:5120'],
+            'status' => ['sometimes', 'in:draft,published,paused'],
         ];
-    }
-
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator) {
-            $start = $this->input('scheduled_start');
-            $end = $this->input('scheduled_end');
-
-            if ($start && $end) {
-                $startDt = CarbonImmutable::parse($start);
-                $endDt = CarbonImmutable::parse($end);
-
-                if ($startDt->diffInMinutes($endDt, absolute: true) < 60) {
-                    $validator->errors()->add(
-                        'scheduled_end',
-                        'A gig must be at least 1 hour long.',
-                    );
-                }
-            }
-        });
     }
 }
