@@ -1,7 +1,9 @@
 # KindredCare Global
 
 ## What Is This Project
-A gig marketplace connecting Canadian seniors with verified caregivers. Think Uber for senior care — families post needs, AI matches them with background-checked caregivers, payment flows through the platform at 7.5% commission. MVP targets Durham Region, Ontario with non-medical services only (companionship, errands, tech help, gardening, walking companion).
+A Fiverr-style gig marketplace for senior care in Canada. **Caregivers** publish gigs as productized service listings (each gig = one service, one hourly rate, what's included, photos). **Families** browse the marketplace with manual filters and AI ranking against the care recipient's profile, then book a chosen gig — the booking carries the date/time, address, and any recurrence. Background-checked caregivers, payment flows through the platform at 7.5% commission. MVP targets Durham Region, Ontario with non-medical services only (companionship, errands, tech help, gardening, walking companion).
+
+> **Note on direction**: a chunk of the existing code (`gigs` table with `family_profile_id`, `/gigs/new` family wizard, `/jobs` caregiver feed, `MatchingEngine::matchesFor(Gig)`) was built around an inverted "family posts a gig" model. That's legacy — it's pending migration to the Fiverr direction described above. Default to the Fiverr model when planning new work.
 
 ## Tech Stack
 - **Backend:** Laravel 12 (PHP 8.3) — API only, no Blade views
