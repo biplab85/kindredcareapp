@@ -13,10 +13,10 @@
 > Canadian families of seniors will pay a 7.5% commission to access an AI-matched, trust-verified marketplace of caregivers offering companionship and non-medical gig services, and caregivers will accept 7.5% as the platform fee in exchange for flexible work and access to a steady stream of gigs.
 
 ### What the MVP Must Prove
-1. **Demand exists**: Families will post gig requests and complete bookings
-2. **Supply exists**: Caregivers will onboard, complete verification, and accept gigs
+1. **Demand exists**: Families will browse the gig marketplace and book caregiver listings
+2. **Supply exists**: Caregivers will onboard, complete verification, publish gigs, and accept bookings
 3. **Trust works**: Families feel safe enough to book based on the verification system
-4. **Matching is useful**: AI recommendations are accepted more often than ignored
+4. **Matching is useful**: AI-ranked gig results are clicked-through more often than ignored
 5. **Payment flow works end-to-end**: From booking → service delivery → payout, with platform taking 7.5%
 
 ### What the MVP Does NOT Need to Prove
@@ -154,56 +154,79 @@ Native mobile apps (iOS/Android) deferred to v1.1. Mobile web must be fully func
   - Required before first booking: email + phone verified + valid payment method
 - Payment method: credit card (via Stripe), Apple Pay, Google Pay
 
-### 4.4 Service Request (Family Posts a Gig)
+### 4.4 Caregiver Service Listings (Gigs) + Family Booking Flow
 
-Family flow:
-1. Select service category (from MVP taxonomy)
-2. Describe need (free text, 200-500 chars) + optional uploaded photo (e.g., grocery list)
-3. Set location (address or "care recipient's address on file")
-4. Set schedule:
-   - One-time: specific date + time + duration
-   - Recurring: weekly/biweekly pattern, start date, end date (optional)
-5. Set preferences (all optional):
-   - Gender preference
-   - Language preference
-   - Specific experience tags
-6. Set budget (accept caregiver's rate, or propose a rate)
-7. Review and post
+KindredCare is a Fiverr-style marketplace: **caregivers create gigs**, **families book them**. Family does not create gigs.
+
+#### 4.4.1 Caregiver — create a gig (service listing)
+
+A gig is one productized service the caregiver offers. A single caregiver may publish many gigs across categories.
+
+Caregiver flow:
+1. Pick service category (from MVP taxonomy)
+2. Title (e.g. "Patient companionship visits in Oshawa")
+3. Description — what's included, who it's for, how the visit usually goes (200–500 chars)
+4. Hourly rate (within the platform $18–$50/hour band)
+5. What's included — bullet list of tasks/activities the rate covers
+6. Optional: photos (max 5 MB each, gallery)
+7. Status: draft → published → paused (caregiver can pause anytime to stop new bookings)
 
 System response:
 - Generate unique gig ID
-- Trigger matching engine (see 4.5)
-- Show ranked list of matched caregivers OR option to "auto-book top match"
+- Once `published`, the gig appears in the family-facing marketplace and is matchable
+
+#### 4.4.2 Family — find and book a gig
+
+Family flow (after sign-up + adding at least one care recipient):
+1. Open marketplace
+2. Default view: AI-ranked top gigs (see §4.5) against the chosen care recipient + family location
+3. Refine with filters: category, language, gender, max hourly rate, distance, rating, verification tier
+4. Click a gig → see full listing + caregiver profile + reviews + Trust Score
+5. Click **Book** → booking sheet:
+   - Pick care recipient (the senior receiving care)
+   - Set schedule (one-time date/time/duration OR recurring weekly/biweekly with optional end date)
+   - Confirm visit address (defaults to care recipient's address on file)
+   - Optional notes for the caregiver
+   - Hourly rate is locked at the gig's published rate; total estimate = rate × duration + 7.5% fee
+6. Confirm booking → payment authorized (not captured) via Stripe
+7. Caregiver receives the booking request and accepts or declines (see §4.7)
 
 ### 4.5 AI Matching Engine (MVP — Rule-Based)
 
 > For MVP, use **rule-based matching with weighted scoring**. Machine learning feedback loop is deferred to v1.1. The architecture must support future ML enhancement.
 
-**Hard filters (must pass):**
-- Caregiver has `Basic Verified` status
-- Caregiver offers the requested service category
-- Caregiver is available at the requested date/time (from their calendar)
-- Caregiver's service area covers the request location (within travel radius)
-- Caregiver's rate is within family's budget (or family accepts caregiver's rate)
-- Gender match (if family specified)
-- Language match (if family specified)
+The engine ranks **gigs** against a family's chosen care recipient + location. (Inputs and outputs invert the legacy direction.)
 
-**Weighted scoring (to rank qualifying caregivers):**
+**Inputs:**
+- `care_recipient` profile (conditions, language, schedule needs, accessibility)
+- Family `location` (the visit address)
+- Optional `category` filter
+
+**Hard filters (a gig must pass to be eligible):**
+- Gig is `published` (not draft or paused)
+- Owning caregiver has `Basic Verified` status
+- Owning caregiver's service area covers the visit address (within their travel radius)
+- Gig category matches the family's category filter (if one is set)
+- Caregiver's hourly rate is within the family's budget cap (if one is set)
+- Gender match (if family specified a preference)
+- Language match against the care recipient's language (if family specified one)
+
+**Weighted scoring (to rank eligible gigs):**
 
 | Factor | Weight | Data source |
 |---|---|---|
-| Geographic proximity | 30% | Distance from caregiver's home to gig location (km → score) |
-| Trust Score | 30% | Composite (see 4.6) |
-| Interest/language overlap | 20% | Tag matching between caregiver profile and gig/family profile |
-| Availability fit | 10% | How well the gig fits the caregiver's broader availability |
+| Geographic proximity | 30% | Distance from caregiver's home to visit address (km → score) |
+| Trust Score | 30% | Composite (see 4.6) of the owning caregiver |
+| Interest/language overlap | 20% | Tag matching between caregiver profile and care recipient profile |
+| Availability fit | 10% | How well caregiver's broader availability covers typical visit windows |
 | Rate alignment | 10% | How close the caregiver's rate is to the family's budget |
 
-**Output:** Top 10 caregivers ranked, shown with match score (e.g., "91% match").
+**Output:** Top 10 gigs ranked, each shown with the gig listing + match score (e.g., "91% match") and the caregiver's headline + Trust Score.
 
-Coordinator (family) can:
-- Select and book directly
-- Post as an open gig for any qualifying caregiver to claim
-- Expand filters and re-run
+Family can:
+- Click into any ranked gig and book
+- Layer filters (category, price, language, gender, distance) to narrow further
+- Switch to a manual list view (sort by price / rating / distance) if they prefer to browse
 
 ### 4.6 Trust Score (MVP)
 
@@ -220,14 +243,14 @@ Caregivers with <3 reviews show as "New" with verification-based score only.
 
 ### 4.7 Booking Flow
 
-1. Family selects caregiver from matches
-2. Booking summary screen: service, date/time, duration, total estimated cost (rate × duration + 7.5% fee), caregiver profile link
-3. Family confirms booking → payment authorized (not captured) via Stripe
-4. Caregiver receives notification (email + SMS + in-app)
-5. Caregiver accepts (within 4 hours for scheduled; within 15 min for on-demand) OR declines
-6. If declined: automatically offer to next-ranked caregiver
-7. If accepted: booking confirmed, both parties receive confirmation
-8. Calendar events added to caregiver's dashboard
+1. Family clicks **Book** on a chosen gig (from the marketplace or AI-ranked results)
+2. Booking sheet captures: care recipient, date/time, duration (one-time or recurring pattern), visit address (defaults to care recipient's address), optional notes
+3. Booking summary: gig title + caregiver, date/time, duration, total estimated cost (gig hourly rate × duration + 7.5% fee)
+4. Family confirms → payment authorized (not captured) via Stripe; booking persisted with `gig_id`, `caregiver_profile_id`, `family_profile_id`, `care_recipient_id`
+5. Caregiver receives notification (email + SMS + in-app) of the booking request
+6. Caregiver accepts (within 4 hours for scheduled; within 15 min for on-demand) OR declines
+7. If declined: family is notified and prompted to pick another gig from the original ranked list (the matcher snapshot is preserved on the booking for fallback continuity)
+8. If accepted: booking confirmed, both parties receive confirmation; calendar event added to caregiver's dashboard
 
 ### 4.8 Electronic Visit Verification (EVV)
 
@@ -474,17 +497,22 @@ VerificationRecord
   - status (pending/in_progress/cleared/flagged)
   - raw_result_encrypted, completed_at
 
-Gig (Service Request)
-  - id, family_id, care_recipient_id
-  - service_category_id, description, location_address, geo_point
-  - scheduled_start, scheduled_end, is_recurring
-  - recurrence_pattern, status
-  - preferences (JSON: gender, language, rate_range)
+Gig (Caregiver Service Listing)
+  - id, caregiver_profile_id
+  - service_category_id, title, description
+  - hourly_rate (within $18–$50 platform band)
+  - tasks_included (JSON list of bullet points)
+  - photos (JSON array of paths)
+  - status (draft/published/paused)
+  - timestamps
 
-Booking
-  - id, gig_id, caregiver_id, family_id
+Booking (created by family against a chosen gig)
+  - id, gig_id, caregiver_profile_id, family_profile_id, care_recipient_id
+  - scheduled_start, scheduled_end, is_recurring, recurrence_pattern
+  - location_address, geo_point (defaults to care recipient's address)
+  - notes_from_family (free text)
   - status (pending/confirmed/active/completed/cancelled/disputed)
-  - rate, platform_fee_pct, total_amount
+  - rate (locked from gig at booking time), platform_fee_pct, total_amount
   - stripe_payment_intent_id
   - check_in_timestamp, check_in_geo
   - check_out_timestamp, check_out_geo
@@ -526,9 +554,9 @@ Full OpenAPI spec to be written in design phase. High-level surface:
 `POST /verification/webhook/certn`
 `GET /verification/status`
 
-**Gigs**: `POST /gigs`, `GET /gigs`, `GET /gigs/:id`, `POST /gigs/:id/matches`
+**Gigs (caregiver service listings)**: `POST /gigs` (caregiver creates), `GET /gigs/:id`, `PATCH /gigs/:id`, `DELETE /gigs/:id`. The marketplace browse is `GET /gigs?care_recipient_id=X&category=Y&filters=...` returning AI-ranked + filterable gig results.
 
-**Bookings**: `POST /bookings`, `GET /bookings`, `PATCH /bookings/:id/accept`, `/decline`, `/check-in`, `/check-out`, `/cancel`
+**Bookings**: `POST /bookings` (family books a chosen gig — body carries `gig_id` + visit details), `GET /bookings`, `PATCH /bookings/:id/accept`, `/decline`, `/check-in`, `/check-out`, `/cancel`
 
 **Payments**: `POST /payments/setup-intent`, `POST /bookings/:id/refund`, `GET /payouts`
 

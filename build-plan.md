@@ -223,6 +223,8 @@
 
 ## Phase 5: Service Taxonomy & Gig Posting (Weeks 9-11)
 
+> **Direction pivot (2026-04-29).** The marketplace was originally built around a demand-driven model (family posts a gig, caregivers respond). It has since been re-aligned to a **Fiverr-style supply-driven model**: caregivers publish gigs as productized service listings, families browse and book them. The tasks in §5.2 / §5.3 below describe the **legacy** work that shipped — they remain checked because the code is in production. The corrected direction now lives in `mvp-requirements.md` §4.4–4.5 and a follow-up code/schema rework is being planned separately. New work on gig flows must follow the Fiverr direction; do not extend the legacy `family_profile_id` shape.
+
 ### 5.1 Service Taxonomy
 
 - [x] **Build service category management**
@@ -257,6 +259,8 @@
 
 ## Phase 6: Matching Engine (Weeks 10-12)
 
+> **Direction pivot.** The legacy matcher takes a `Gig` (family request) and returns ranked caregivers. Under the Fiverr direction, the same scoring components stay valuable but the I/O inverts: input becomes `(care_recipient, family_location, ?category)` and output becomes ranked **gigs**. Migration tracked in the separate code-rework plan; the items below describe the legacy build.
+
 - [x] **Implement hard filter logic**
   `MatchingEngine::passesHardFilters()` eliminates candidates on: full verification (all 4 VerificationRecords cleared), service-category pivot membership, travel radius via Haversine, rate cap (`preferences.rate_max`), gender against `users.gender`, language against `caregiver_profile.languages`, and weekly availability calendar. Candidate pool is narrowed at the SQL level (`whereHas('services')`) so PHP only iterates the qualifying set.
 
@@ -289,6 +293,8 @@
 ---
 
 ## Phase 7: Booking Flow (Weeks 11-13)
+
+> **Direction pivot.** Under the Fiverr direction, the booking entry point is **a chosen gig** (family clicks Book on a gig listing) rather than "family selects a caregiver from matches." `POST /api/bookings` carries `gig_id` plus the visit details (date/time, recipient, address, notes); the rate is locked from the gig. Cascade on decline becomes "family is offered the next-best gig from the original AI-ranked snapshot," not "next-ranked caregiver." Lifecycle, payment, and EVV stay the same. Items below describe the legacy build.
 
 - [x] **Build booking creation flow**
   `/gigs/[id]/book/[caregiverUserId]` — ticket-stub receipt aesthetic: perforated dashed rule, mono tabular pricing, stable "Booking slip #GGGG-CCCC" id, Haversine-aware caregiver card with match score pill. Posts to `POST /api/bookings` with the full ranked queue (stashed via `sessionStorage` on the matches page so cascade has a snapshot), redirects to `/bookings/{id}` on success. `StoreBookingRequest` authorises family role + validates the ranked queue shape; controller defers to `BookingService::createFromMatch`.
@@ -619,10 +625,10 @@ Phase 9 (Payment Processing) is **code-complete on all three sub-sections** (9.1
   Test the end-to-end flow from verification initiation through webhook receipt to status update. Use Veriff and Certn sandbox environments.
 
 - [x] **Write integration tests for booking lifecycle**
-  Test the full lifecycle: gig posted → matched → booked → accepted → check-in → check-out → payment captured → payout → rated. Include cancellation and decline paths.
+  Test the full lifecycle: caregiver publishes gig → family browses + books → caregiver accepts → check-in → check-out → payment captured → payout → rated. Include cancellation and decline paths.
 
 - [ ] **Write end-to-end tests for critical user journeys**
-  Automate browser-based tests for: caregiver signup and verification, family signup and gig posting, booking and visit completion, and payment receipt.
+  Automate browser-based tests for: caregiver signup and verification, caregiver gig publishing, family browse + book, booking and visit completion, and payment receipt.
 
 ### 16.2 Manual Testing & QA
 
@@ -655,7 +661,10 @@ Phase 9 (Payment Processing) is **code-complete on all three sub-sections** (9.1
   Create user-facing documentation or in-app tooltips explaining each verification step, what documents are needed, how long each step takes, and what to do if a check fails.
 
 - [ ] **Write family getting-started guide**
-  Create a simple guide for families: how to post a gig, how to read caregiver profiles, how booking and payment work, and how to leave a review.
+  Create a simple guide for families: how to add a care recipient, how to browse the gig marketplace and use filters/AI matching, how to read caregiver profiles, how booking and payment work, and how to leave a review.
+
+- [ ] **Write caregiver gig-listing guide**
+  Create a simple guide for caregivers on writing a great gig: choosing the right service category, picking a competitive hourly rate, what to put in the description, photos that help conversion, when to pause vs delete a gig.
 
 - [ ] **Configure production monitoring and alerting**
   Finalize alerting rules for production: error rate thresholds, payment failure rate, panic button triggers, uptime checks, and certificate expiration. Set up on-call notification routing.
@@ -771,9 +780,9 @@ Phase 9 (Payment Processing) is **code-complete on all three sub-sections** (9.1
 | 2. Auth & User Management | 5-7 | 3 weeks | Signup, login, OTP, roles, account management |
 | 3. Profile Management | 6-8 | 3 weeks | Caregiver profiles, family profiles, care recipients |
 | 4. Verification Pipeline | 7-10 | 4 weeks | Veriff, Certn, AML, references, verification dashboard |
-| 5. Service Taxonomy & Gig Posting | 9-11 | 3 weeks | Categories, gig creation, gig feed |
-| 6. Matching Engine | 10-12 | 3 weeks | Hard filters, weighted scoring, ranked results |
-| 7. Booking Flow | 11-13 | 3 weeks | Book, accept/decline, confirm, cancel, calendar |
+| 5. Service Taxonomy & Gig Listings | 9-11 | 3 weeks | Categories, caregiver-published gigs, family marketplace browse (legacy build was family-posts-gig; pending migration to Fiverr direction) |
+| 6. Matching Engine | 10-12 | 3 weeks | Hard filters, weighted scoring, ranked gigs for the family's care recipient |
+| 7. Booking Flow | 11-13 | 3 weeks | Book a chosen gig, accept/decline, confirm, cancel, calendar |
 | 8. EVV | 12-14 | 3 weeks | GPS check-in/out, task logging, visit summary |
 | 9. Payment Processing | 13-15 | 3 weeks | Stripe Connect, capture, split, payout, refund |
 | 10. Messaging | 13-15 | 3 weeks | Real-time chat, redaction, notifications |

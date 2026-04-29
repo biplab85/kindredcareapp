@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-KindredCare will be a **gig marketplace connecting seniors and their families directly with caregivers** -- bypassing traditional agencies entirely. Think Uber/TaskRabbit, but purpose-built for senior care with an expanded service taxonomy that goes far beyond what any agency offers.
+KindredCare will be a **gig marketplace connecting seniors and their families directly with caregivers** -- bypassing traditional agencies entirely. Think Fiverr, but purpose-built for senior care: caregivers publish gigs as productized service listings (each gig = one service, one hourly rate, what's included, photos), families browse the marketplace with filters and AI ranking against the care recipient's profile, then pick a gig and book it. The expanded service taxonomy goes far beyond what any agency offers.
 
 **The core value proposition is simple:**
 - **Families pay less** (7.5% platform fee vs 10-15% agency markup)
@@ -96,36 +96,47 @@ It also creates a **natural trust funnel**: families can start with low-risk ser
 ### For Seniors / Families
 
 ```
-1. Sign up (web or app)
-2. Describe what you need:
-   - Select service category (or describe a custom need)
-   - Set schedule (one-time, recurring, or on-demand)
-   - Set location
-   - Add preferences (language, gender, interests, experience level)
-   - Specify any conditions (Alzheimer's, diabetes, mobility issues)
+1. Sign up (web or app), add care recipient profile(s)
+   - Senior's name, address, language, conditions (Alzheimer's, diabetes, mobility)
+   - Interests and preferences (so AI matching has signal)
 
-3. AI presents matched caregivers:
-   - Ranked by: skill match, proximity, Trust Score, personality fit
-   - Each profile shows: experience, certifications, reviews, languages,
-     interests, background verification status, hourly rate
+2. Open the marketplace
+   - Default view: AI-ranked top gigs against the chosen care recipient + your location
+   - Refine with filters: category, language, gender, max hourly rate, distance,
+     rating, verification tier
+   - Each gig shows: title, caregiver headline, included tasks, hourly rate,
+     match score, Trust Score, reviews
 
-4. Select a caregiver (or let the AI auto-match)
+3. Click a gig to see the full listing + caregiver profile
+   - Experience, certifications, reviews, languages, interests, background
+     verification status, gallery
 
-5. Caregiver confirms and arrives at scheduled time
+4. Click Book and fill the booking sheet
+   - Pick care recipient
+   - Set schedule (one-time, recurring weekly/biweekly, or on-demand)
+   - Confirm visit address (defaults to the recipient's address)
+   - Optional notes for the caregiver
+   - Total estimate = gig hourly rate × duration + 7.5% fee
+
+5. Caregiver accepts or declines
+   - On accept: confirmed booking, calendar event added, payment authorized
+   - On decline: family is offered the next-best gig from the original ranked list
+
+6. Caregiver arrives at scheduled time
    - GPS-verified check-in
    - Family receives notification
 
-6. Service is delivered
+7. Service is delivered
    - Tasks logged in app
    - Check-out verified
 
-7. Payment is automatic:
+8. Payment is automatic
    - Family pays through platform
    - KindredCare retains 7.5%
    - Caregiver receives payment (minus 7.5% fee)
    - No invoicing, no cash, no hassle
 
-8. Rate and review the experience
+9. Rate and review the experience
    - Feeds into Trust Score and ML matching improvements
 ```
 
@@ -134,11 +145,10 @@ It also creates a **natural trust funnel**: families can start with low-risk ser
 ```
 1. Sign up and create profile:
    - Skills, certifications, and experience
-   - Services you want to offer (choose from full taxonomy)
    - Chronic disease experience (tagged and verified)
-   - Availability (set your own schedule, update anytime)
-   - Hourly rate (you set your own price)
+   - Availability calendar (set your own schedule, update anytime)
    - Languages, personality traits, interests
+   - Service area (travel radius)
 
 2. Verification (builds Trust Score):
    - Background check via Certn API (CPIC criminal record check)
@@ -149,26 +159,32 @@ It also creates a **natural trust funnel**: families can start with low-risk ser
    - AML screening (recommended for both caregivers and seniors)
    - References checked
 
-3. Receive match notifications:
-   - AI suggests gigs that match your skills, location, and availability
-   - Accept or decline (your choice -- it's gig-based)
-   - See client profile, needs, location, and pay before accepting
+3. Create gigs (productized service listings):
+   - One gig per service you offer (e.g. "Companionship visits", "Tech help")
+   - Title, description, service category, hourly rate, what's included, photos
+   - Status: draft / published / paused (you control visibility anytime)
+   - Publish multiple gigs across multiple categories
 
-4. Deliver service:
+4. Receive booking requests:
+   - When a family picks one of your gigs, you get notified
+   - See client profile, care recipient details, requested date/time, location
+   - Accept or decline (your choice -- it's gig-based)
+
+5. Deliver service:
    - Check in via app (GPS verified)
    - Log tasks completed
    - Check out
 
-5. Get paid automatically:
+6. Get paid automatically:
    - Payment processed through platform after service completion
    - Your rate minus 7.5% platform fee
    - Deposited to your bank account on a set schedule
    - Annual earning statement generated for tax filing
 
-6. Build your reputation:
+7. Build your reputation:
    - Earn reviews and ratings from clients
    - Trust Score increases with completed gigs, on-time arrivals, positive reviews
-   - Higher Trust Score = more visibility = more gig offers
+   - Higher Trust Score = your gigs rank higher = more bookings
    - Badges and milestones (gamification)
    - Career progression: earn certifications, unlock higher-paying service categories
 ```
@@ -224,24 +240,25 @@ Everyone wins: families pay less, caregivers earn more, and the 7.5% covers plat
 
 ### How Matching Works
 
-When a senior/family posts a need, the AI engine runs:
+When a family opens the marketplace, the AI engine ranks the available **gig listings** against the chosen care recipient + the family's location:
 
-**Hard Filters (must pass):**
-- Is the caregiver verified (background check cleared, identity confirmed)?
-- Does the caregiver offer the requested service category?
-- Is the caregiver available at the requested time?
-- Is the caregiver within reasonable travel distance?
+**Hard Filters (a gig must pass to be eligible):**
+- Is the gig published (not draft or paused)?
+- Is the owning caregiver verified (background check cleared, identity confirmed)?
+- Does the caregiver's service area cover the visit address?
+- Does the gig category match the family's category filter (if one is set)?
+- Is the caregiver's hourly rate within the family's budget cap (if one is set)?
 - Does the caregiver meet mandatory requirements (certifications for medical services)?
 
-**Weighted Scoring (ranks qualifying caregivers):**
+**Weighted Scoring (ranks eligible gigs):**
 
 | Factor | Weight | What It Measures |
 |---|---|---|
-| Service/condition experience | 35% | Years and depth of experience with the specific service or condition requested |
-| Geographic proximity | 20% | Calculated commute time to the senior's location |
+| Service/condition experience | 35% | Years and depth of caregiver experience with the specific service or care recipient's condition |
+| Geographic proximity | 20% | Calculated commute time from caregiver to the visit address |
 | Trust Score | 20% | Composite of: verification level, review ratings, on-time rate, completion rate, tenure on platform |
-| Personality & interest match | 15% | Shared interests, personality compatibility, language match |
-| Schedule optimization | 10% | Does this gig fit well into the caregiver's existing schedule? |
+| Personality & interest match | 15% | Shared interests with care recipient, personality compatibility, language match |
+| Schedule optimization | 10% | Does the family's typical visit window fit well into the caregiver's existing schedule? |
 
 **ML Feedback Loop:**
 After each completed gig, the system collects:
