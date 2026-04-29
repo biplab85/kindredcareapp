@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   CheckCircle2,
+  Pencil,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,12 @@ function GigDetailView({ gigId }: { gigId: number }) {
     .map((n) => n.charAt(0).toUpperCase())
     .join("");
   const isFamily = user?.role === "family";
+  // Caregiver viewing their own listing — they need management actions, not
+  // the family-facing "Book" CTA, and the back-link should land them on
+  // their own dashboard since the marketplace route is family-gated.
+  const isOwner = !!user && gig.caregiver?.user_id === user.id;
+  const backHref = isOwner ? "/me/gigs" : "/marketplace";
+  const backLabel = isOwner ? "Back to my gigs" : "Back to marketplace";
 
   return (
     <div className="relative">
@@ -96,11 +103,11 @@ function GigDetailView({ gigId }: { gigId: number }) {
 
       <div className="mx-auto max-w-5xl px-4 pt-12 pb-24 sm:px-6 lg:px-8">
         <Link
-          href="/marketplace"
+          href={backHref}
           className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Back to marketplace
+          {backLabel}
         </Link>
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] lg:gap-12">
@@ -200,7 +207,14 @@ function GigDetailView({ gigId }: { gigId: number }) {
 
               {/* CTA */}
               <div className="mt-6">
-                {isFamily ? (
+                {isOwner ? (
+                  <Link href={`/me/gigs/${gig.id}/edit`} className="block">
+                    <Button size="lg" variant="outline" className="h-12 w-full text-base">
+                      <Pencil className="size-4" />
+                      Edit this gig
+                    </Button>
+                  </Link>
+                ) : isFamily ? (
                   <Link href={`/gigs/${gig.id}/book`} className="block">
                     <Button
                       size="lg"
