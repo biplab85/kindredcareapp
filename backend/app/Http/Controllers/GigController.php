@@ -51,10 +51,18 @@ class GigController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
+        if (! $user->isCaregiver()) {
+            return response()->json(['message' => 'Only caregivers can view their gigs.'], 403);
+        }
+
         $profile = $user->caregiverProfile;
 
-        if (! $user->isCaregiver() || ! $profile) {
-            return response()->json(['message' => 'Only caregivers can view their gigs.'], 403);
+        // Caregivers who've signed up but haven't completed their profile yet
+        // see an empty list instead of an error — they'll create the profile
+        // implicitly the first time they publish a gig (see `store`).
+        if (! $profile) {
+            return GigResource::collection(collect());
         }
 
         $gigs = $profile->gigs()

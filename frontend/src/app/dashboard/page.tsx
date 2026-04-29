@@ -289,9 +289,9 @@ function CaregiverDashboard() {
             <QuickRoutes
               routes={[
                 {
-                  href: "/jobs",
-                  label: "Open gigs",
-                  hint: "Families posting to the wider feed.",
+                  href: "/me/gigs",
+                  label: "My gigs",
+                  hint: "Service listings families can find in the marketplace.",
                 },
                 {
                   href: "/bookings",
@@ -377,13 +377,14 @@ function NextVisitBlock({
     return (
       <SectionBlock heading="Up next" sub="Nothing on the books yet.">
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          Offers from families will land here first. Browse the open-call feed or wait for a matched
-          offer — they usually arrive with a four-hour response window.
+          Offers from families will land here when they book one of your gigs — they usually arrive
+          with a four-hour response window. Make sure your gigs are published so you&rsquo;re
+          findable in the marketplace.
         </p>
         <div className="mt-5">
-          <Link href="/jobs">
+          <Link href="/me/gigs">
             <Button>
-              Browse open gigs
+              Manage my gigs
               <ArrowRight className="size-4" />
             </Button>
           </Link>
@@ -657,15 +658,15 @@ function FamilyDashboard() {
 
             <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
               <FamilyNextVisitBlock booking={stats.nextVisit} />
-              <SectionBlock heading="Start here" sub="Post a gig and run matches.">
+              <SectionBlock heading="Start here" sub="Browse the marketplace and book a gig.">
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Describe what you need — companionship, errands, a walking partner — and the
-                  matching engine ranks verified caregivers in your area.
+                  Verified caregivers post their service — companionship, errands, a walking partner
+                  — at their own rate. Pick one that fits and book a visit.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2">
-                  <Link href="/gigs/new">
+                  <Link href="/marketplace">
                     <Button>
-                      New gig
+                      Browse marketplace
                       <ArrowRight className="size-4" />
                     </Button>
                   </Link>
