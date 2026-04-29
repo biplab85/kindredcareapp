@@ -8,6 +8,23 @@ import type { ServiceCategory } from "@/lib/service-categories";
  */
 export type GigStatus = "draft" | "published" | "paused";
 
+/** Single time window in the caregiver's weekly schedule (24-hour HH:MM). */
+export interface AvailabilityRange {
+  start: string;
+  end: string;
+}
+
+/** Matcher-shaped weekly map. Days the caregiver hasn't set are absent or empty. */
+export interface AvailabilityWeekly {
+  mon?: AvailabilityRange[];
+  tue?: AvailabilityRange[];
+  wed?: AvailabilityRange[];
+  thu?: AvailabilityRange[];
+  fri?: AvailabilityRange[];
+  sat?: AvailabilityRange[];
+  sun?: AvailabilityRange[];
+}
+
 export interface GigCaregiverSummary {
   user_id: number;
   profile_id: number;
@@ -15,6 +32,8 @@ export interface GigCaregiverSummary {
   photo_url: string | null;
   years_of_experience: number | null;
   languages: string[];
+  /** Whole `availability` JSON column — null/missing = always available. */
+  availability: { weekly?: AvailabilityWeekly } | null;
 }
 
 export interface Gig {
