@@ -161,6 +161,8 @@ class Booking extends Model
         'gig_id',
         'caregiver_user_id',
         'family_profile_id',
+        'care_recipient_id',
+        'notes_from_family',
         'match_rank',
         'fallback_queue',
         'status',
@@ -251,6 +253,14 @@ class Booking extends Model
     public function familyProfile(): BelongsTo
     {
         return $this->belongsTo(FamilyProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<CareRecipient, $this>
+     */
+    public function careRecipient(): BelongsTo
+    {
+        return $this->belongsTo(CareRecipient::class);
     }
 
     /**

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -102,5 +103,13 @@ class CaregiverProfile extends Model
     {
         return $this->belongsToMany(ServiceCategory::class, 'caregiver_service')
             ->withPivot('years_experience');
+    }
+
+    /**
+     * @return HasMany<Gig, $this>
+     */
+    public function gigs(): HasMany
+    {
+        return $this->hasMany(Gig::class);
     }
 }

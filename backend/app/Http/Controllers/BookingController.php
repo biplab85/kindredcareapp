@@ -15,6 +15,7 @@ use App\Models\Booking;
 use App\Models\Gig;
 use App\Models\User;
 use App\Services\BookingService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -69,17 +70,17 @@ class BookingController extends Controller
         }
 
         /** @var Gig $gig */
-        $gig = Gig::findOrFail($request->integer('gig_id'));
+        $gig = Gig::with('caregiverProfile')->findOrFail($request->integer('gig_id'));
 
-        /** @var list<int|string> $rawRanked */
-        $rawRanked = $request->input('ranked_caregiver_ids', []);
-        $ranked = array_map(static fn ($v): int => (int) $v, $rawRanked);
-
-        $booking = $this->service->createFromMatch(
+        $booking = $this->service->createFromGig(
             gig: $gig,
             family: $profile,
-            caregiverUserId: $request->integer('caregiver_user_id'),
-            rankedCaregiverIds: $ranked,
+            careRecipientId: $request->integer('care_recipient_id'),
+            scheduledStart: CarbonImmutable::parse((string) $request->input('scheduled_start')),
+            durationMinutes: $request->integer('duration_minutes'),
+            addressFull: (string) $request->string('address_full'),
+            addressNeighbourhood: (string) $request->string('address_neighbourhood'),
+            notesFromFamily: $request->input('notes_from_family'),
         );
 
         $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);

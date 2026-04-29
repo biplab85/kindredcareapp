@@ -126,13 +126,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/cpic', [VerificationController::class, 'startCpicCheck']);
     });
 
-    // ─── GIGS ───
+    // ─── GIGS (caregiver-published service listings) ───
     // Static paths must come before apiResource so {gig} doesn't swallow them.
-    Route::get('/gigs/feed', [GigController::class, 'feed']);
+    Route::get('/me/gigs', [GigController::class, 'myGigs']);
     Route::apiResource('gigs', GigController::class)
         ->only(['index', 'store', 'show', 'update', 'destroy']);
-    Route::patch('/gigs/{gig}/cancel', [GigController::class, 'cancel']);
-    Route::post('/gigs/{gig}/matches', [GigController::class, 'matches']);
 
     // ─── BOOKINGS ───
     Route::apiResource('bookings', BookingController::class)->only(['index', 'store', 'show']);

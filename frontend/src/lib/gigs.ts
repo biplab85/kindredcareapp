@@ -1,70 +1,49 @@
 import api from "@/lib/api";
 import type { ServiceCategory } from "@/lib/service-categories";
 
-export type GigStatus = "open" | "matched" | "booked" | "completed" | "cancelled";
+/**
+ * Caregiver-owned gig listing (Fiverr direction). Carries the productized
+ * service offering. Visit specifics live on the booking row that's
+ * created when a family books one of these.
+ */
+export type GigStatus = "draft" | "published" | "paused";
 
-export type PostingMode = "matched" | "open";
-
-export interface GigPreferences {
-  gender?: "male" | "female" | "any" | null;
-  language?: string | null;
-  rate_max?: number | null;
-}
-
-export interface RecurrencePattern {
-  days: Array<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun">;
-  end_date?: string | null;
+export interface GigCaregiverSummary {
+  user_id: number;
+  profile_id: number;
+  display_name: string;
+  photo_url: string | null;
+  years_of_experience: number | null;
+  languages: string[];
 }
 
 export interface Gig {
   id: number;
+  title: string;
   status: GigStatus;
-  posting_mode: PostingMode;
   description: string;
-  location_address: string;
-  latitude: number;
-  longitude: number;
-  scheduled_start: string;
-  scheduled_end: string;
-  is_recurring: boolean;
-  recurrence_pattern: RecurrencePattern | null;
-  preferences: GigPreferences;
+  tasks_included: string[];
+  hourly_rate_cents: number;
+  hourly_rate_dollars: number;
   photo_url: string | null;
+  published_at: string | null;
   service_category?: ServiceCategory;
-  care_recipient?: { id: number; name: string } | null;
+  caregiver?: GigCaregiverSummary;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateGigPayload {
   service_category_id: number;
-  care_recipient_id?: number | null;
+  title: string;
+  hourly_rate_dollars: number;
   description: string;
-  location_address: string;
-  latitude: number;
-  longitude: number;
-  scheduled_start: string;
-  scheduled_end: string;
-  is_recurring?: boolean;
-  recurrence_pattern?: RecurrencePattern | null;
-  preferences?: GigPreferences | null;
-  posting_mode?: PostingMode;
+  tasks_included?: string[];
   photo?: File | null;
+  status?: GigStatus;
 }
 
-export type UpdateGigPayload = Partial<
-  Pick<
-    CreateGigPayload,
-    | "description"
-    | "scheduled_start"
-    | "scheduled_end"
-    | "is_recurring"
-    | "recurrence_pattern"
-    | "preferences"
-    | "posting_mode"
-    | "photo"
-  >
->;
+export type UpdateGigPayload = Partial<CreateGigPayload>;
 
 interface SingleGigResponse {
   data: Gig;
@@ -74,6 +53,10 @@ interface GigListResponse {
   data: Gig[];
 }
 
+/**
+ * Build a multipart payload. Optional photo rides as a real File; arrays
+ * use Laravel's bracket notation. Booleans flatten to "1"/"0".
+ */
 function buildGigFormData(payload: CreateGigPayload | UpdateGigPayload): FormData {
   const fd = new FormData();
 
@@ -85,19 +68,10 @@ function buildGigFormData(payload: CreateGigPayload | UpdateGigPayload): FormDat
       continue;
     }
 
-    if (typeof value === "object") {
-      // recurrence_pattern and preferences are nested objects — flatten with bracket notation.
-      for (const [innerKey, innerValue] of Object.entries(value as Record<string, unknown>)) {
-        if (innerValue === undefined || innerValue === null) continue;
-
-        if (Array.isArray(innerValue)) {
-          innerValue.forEach((item) => {
-            fd.append(`${key}[${innerKey}][]`, String(item));
-          });
-        } else {
-          fd.append(`${key}[${innerKey}]`, String(innerValue));
-        }
-      }
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        fd.append(`${key}[]`, String(item));
+      });
       continue;
     }
 
@@ -119,10 +93,17 @@ export async function createGig(payload: CreateGigPayload): Promise<Gig> {
   return res.data.data;
 }
 
-export async function listGigs(status?: GigStatus): Promise<Gig[]> {
+/** Family-side marketplace browse. Caller can filter by category slug. */
+export async function listGigs(category?: string): Promise<Gig[]> {
   const res = await api.get<GigListResponse>("/api/gigs", {
-    params: status ? { status } : undefined,
+    params: category ? { category } : undefined,
   });
+  return res.data.data;
+}
+
+/** Caregiver dashboard — own listings across every status. */
+export async function listMyGigs(): Promise<Gig[]> {
+  const res = await api.get<GigListResponse>("/api/me/gigs");
   return res.data.data;
 }
 
@@ -132,7 +113,6 @@ export async function getGig(id: number): Promise<Gig> {
 }
 
 export async function updateGig(id: number, payload: UpdateGigPayload): Promise<Gig> {
-  // Laravel accepts _method=PATCH as a work-around for multipart form posts.
   const fd = buildGigFormData(payload);
   fd.append("_method", "PATCH");
   const res = await api.post<SingleGigResponse>(`/api/gigs/${id}`, fd, {
@@ -141,49 +121,6 @@ export async function updateGig(id: number, payload: UpdateGigPayload): Promise<
   return res.data.data;
 }
 
-export async function cancelGig(id: number): Promise<Gig> {
-  const res = await api.patch<SingleGigResponse>(`/api/gigs/${id}/cancel`);
-  return res.data.data;
-}
-
 export async function deleteGig(id: number): Promise<void> {
   await api.delete(`/api/gigs/${id}`);
-}
-
-export interface CaregiverMatch {
-  id: number;
-  user_id: number;
-  display_name: string;
-  photo_url: string | null;
-  bio: string | null;
-  hourly_rate: number;
-  years_of_experience: number;
-  languages: string[];
-  interests: string[];
-  travel_radius_km: number;
-  distance_km: number;
-  match_score: number;
-  match_components: {
-    distance: number;
-    trust: number;
-    overlap: number;
-    availability: number;
-    rate: number;
-  };
-  trust_score: number;
-  trust_is_new: boolean;
-}
-
-export interface MatchesResponse {
-  data: CaregiverMatch[];
-  meta: {
-    pool_size: number;
-    qualifying: number;
-    returned: number;
-  };
-}
-
-export async function fetchGigMatches(id: number): Promise<MatchesResponse> {
-  const res = await api.post<MatchesResponse>(`/api/gigs/${id}/matches`);
-  return res.data;
 }

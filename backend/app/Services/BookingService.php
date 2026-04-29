@@ -5,20 +5,17 @@ namespace App\Services;
 use App\Http\Resources\CaregiverGigResource;
 use App\Models\Booking;
 use App\Models\BookingDispute;
-use App\Models\CaregiverProfile;
 use App\Models\FamilyProfile;
 use App\Models\Gig;
 use App\Models\User;
 use App\Notifications\BookingCancelled;
 use App\Notifications\BookingCheckedIn;
 use App\Notifications\BookingConfirmed;
-use App\Notifications\BookingDeclined;
 use App\Notifications\BookingExpired;
 use App\Notifications\BookingOffered;
 use App\Notifications\VisitCompleted;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -47,38 +44,46 @@ class BookingService
     public function __construct(private readonly StripePaymentService $stripe) {}
 
     /**
-     * Create the first booking in a cascade from the Phase 6 matches list.
-     *
-     * @param  array<int, int>  $rankedCaregiverIds  user_ids in rank order,
-     *                                               starting with the one being booked first.
+     * Family books a chosen gig. Visit specifics (date/time, address,
+     * recipient, notes) come from the family at booking time; the rate
+     * is locked from the gig at this moment so later edits to the gig
+     * don't change the price the family agreed to.
      *
      * @throws ValidationException
      */
-    public function createFromMatch(
+    public function createFromGig(
         Gig $gig,
         FamilyProfile $family,
-        int $caregiverUserId,
-        array $rankedCaregiverIds,
+        int $careRecipientId,
+        CarbonImmutable $scheduledStart,
+        int $durationMinutes,
+        string $addressFull,
+        string $addressNeighbourhood,
+        ?string $notesFromFamily = null,
     ): Booking {
-        $this->assertFamilyOwnsGig($gig, $family);
         $this->assertGigIsBookable($gig);
-        $this->assertNoActiveBookingForGig($gig);
 
-        $rank = $this->rankOf($caregiverUserId, $rankedCaregiverIds);
-        $remainingQueue = $this->queueAfter($caregiverUserId, $rankedCaregiverIds);
-
-        return DB::transaction(function () use ($gig, $family, $caregiverUserId, $rank, $remainingQueue) {
+        return DB::transaction(function () use (
+            $gig,
+            $family,
+            $careRecipientId,
+            $scheduledStart,
+            $durationMinutes,
+            $addressFull,
+            $addressNeighbourhood,
+            $notesFromFamily,
+        ) {
             $booking = $this->spawnOffer(
                 gig: $gig,
                 family: $family,
-                caregiverUserId: $caregiverUserId,
-                matchRank: $rank,
-                fallbackQueue: $remainingQueue,
+                caregiverUserId: $gig->caregiverProfile->user_id,
+                careRecipientId: $careRecipientId,
+                scheduledStart: $scheduledStart,
+                durationMinutes: $durationMinutes,
+                addressFull: $addressFull,
+                addressNeighbourhood: $addressNeighbourhood,
+                notesFromFamily: $notesFromFamily,
             );
-
-            if ($gig->status === Gig::STATUS_OPEN) {
-                $gig->update(['status' => Gig::STATUS_MATCHED]);
-            }
 
             $this->notifyCaregiverOfOffer($booking);
 
@@ -118,7 +123,9 @@ class BookingService
                 'responded_at' => now(),
             ]);
 
-            $booking->gig->update(['status' => Gig::STATUS_BOOKED]);
+            // Gig listing status is independent of any individual booking
+            // (multiple families may book the same gig at different times).
+            // The gig stays "published" regardless.
 
             $this->notifyFamilyOfConfirmation($booking->fresh(['gig.serviceCategory', 'caregiver']));
 
@@ -297,9 +304,9 @@ class BookingService
                 'cancellation_reason' => 'Caregiver did not check in within '.Booking::NO_SHOW_THRESHOLD_MINUTES.' minutes of the scheduled start.',
             ]);
 
-            if (in_array($booking->gig->status, [Gig::STATUS_MATCHED, Gig::STATUS_BOOKED], true)) {
-                $booking->gig->update(['status' => Gig::STATUS_OPEN]);
-            }
+            // No gig-status mutation under the Fiverr direction — the
+            // gig listing remains published; only the booking moves to
+            // no-show.
 
             // Phase 12 will add real notifications for no-show; for now
             // we just lean on the existing cancelled notification so both
@@ -447,13 +454,9 @@ class BookingService
                 'payment_status' => $this->cancelledPaymentStatus($booking, $feeRetained),
             ]);
 
-            // Returning the gig to OPEN lets the family re-run matching or
-            // book a different caregiver. MVP keeps the gig around so all
-            // history is visible in the family dashboard.
-            $gig = $booking->gig;
-            if (in_array($gig->status, [Gig::STATUS_MATCHED, Gig::STATUS_BOOKED], true)) {
-                $gig->update(['status' => Gig::STATUS_OPEN]);
-            }
+            // Gig listing status is independent of bookings under the
+            // Fiverr direction — the listing stays "published" so other
+            // families can still book it.
 
             $this->notifyCancellation($booking->fresh(['gig.serviceCategory', 'caregiver', 'familyProfile.user']), $by);
 
@@ -463,40 +466,46 @@ class BookingService
 
     /* ──────────── helpers ──────────── */
 
-    /**
-     * @param  array<int, int>  $fallbackQueue
-     */
     private function spawnOffer(
         Gig $gig,
         FamilyProfile $family,
         int $caregiverUserId,
-        int $matchRank,
-        array $fallbackQueue,
+        int $careRecipientId,
+        CarbonImmutable $scheduledStart,
+        int $durationMinutes,
+        string $addressFull,
+        string $addressNeighbourhood,
+        ?string $notesFromFamily,
     ): Booking {
-        $caregiver = $this->loadCaregiver($caregiverUserId);
-        $rateCents = $this->centsFromRate($caregiver->hourly_rate);
-        $minutes = $this->durationMinutes($gig);
-        [$subtotal, $fee, $payout] = $this->priceBreakdown($rateCents, $minutes);
+        $rateCents = (int) $gig->hourly_rate_cents;
+        [$subtotal, $fee, $payout] = $this->priceBreakdown($rateCents, $durationMinutes);
+        $scheduledEnd = $scheduledStart->addMinutes($durationMinutes);
 
         /** @var Booking $booking */
         $booking = Booking::create([
             'gig_id' => $gig->id,
             'caregiver_user_id' => $caregiverUserId,
             'family_profile_id' => $family->id,
-            'match_rank' => $matchRank,
-            'fallback_queue' => $fallbackQueue,
+            'care_recipient_id' => $careRecipientId,
+            'notes_from_family' => $notesFromFamily,
+            // Match rank + fallback queue are legacy fields from the
+            // shortlist flow. Nothing populates them under the Fiverr
+            // direction; default to rank 1 with an empty queue so the
+            // existing decline/expire path doesn't try to cascade.
+            'match_rank' => 1,
+            'fallback_queue' => [],
             'status' => Booking::STATUS_PENDING_CAREGIVER,
             'payment_status' => Booking::PAYMENT_NOT_REQUIRED,
             'hourly_rate_cents' => $rateCents,
-            'duration_minutes' => $minutes,
+            'duration_minutes' => $durationMinutes,
             'subtotal_cents' => $subtotal,
             'platform_fee_cents' => $fee,
             'caregiver_payout_cents' => $payout,
-            'scheduled_start' => $gig->scheduled_start,
-            'scheduled_end' => $gig->scheduled_end,
-            'address_full' => $gig->location_address,
-            'address_neighbourhood' => $this->neighbourhoodFor($gig),
-            'response_deadline_at' => $this->computeResponseDeadline($gig),
+            'scheduled_start' => $scheduledStart,
+            'scheduled_end' => $scheduledEnd,
+            'address_full' => $addressFull,
+            'address_neighbourhood' => $addressNeighbourhood,
+            'response_deadline_at' => $this->computeResponseDeadline($scheduledStart),
         ]);
 
         return $booking;
@@ -504,45 +513,14 @@ class BookingService
 
     private function cascadeToNext(Booking $closed, string $previousOutcome): ?Booking
     {
-        $queue = $closed->fallback_queue ?? [];
-
-        while ($queue !== []) {
-            $next = (int) array_shift($queue);
-
-            if ($next === $closed->caregiver_user_id) {
-                continue;
-            }
-
-            try {
-                $caregiver = $this->loadCaregiver($next);
-            } catch (ModelNotFoundException) {
-                continue;
-            }
-
-            $newBooking = $this->spawnOffer(
-                gig: $closed->gig,
-                family: $closed->familyProfile,
-                caregiverUserId: $caregiver->user_id,
-                matchRank: $closed->match_rank + 1,
-                fallbackQueue: $queue,
-            );
-
-            if ($closed->gig->status === Gig::STATUS_OPEN) {
-                $closed->gig->update(['status' => Gig::STATUS_MATCHED]);
-            }
-
-            $this->notifyCaregiverOfOffer($newBooking);
-            $this->notifyFamilyOfDecline($closed->fresh(['gig.serviceCategory', 'caregiver']), $previousOutcome, $newBooking);
-
-            return $newBooking;
-        }
-
-        // Nothing left to try — unwind gig state and tell the family.
-        if ($closed->gig->status === Gig::STATUS_MATCHED) {
-            $closed->gig->update(['status' => Gig::STATUS_OPEN]);
-        }
-
-        $this->notifyFamilyOfExhaustion($closed->fresh(['gig.serviceCategory', 'caregiver']), $previousOutcome);
+        // Under the Fiverr direction the marketplace browse doesn't
+        // produce a ranked queue, so a declined or expired booking
+        // doesn't cascade to a fallback caregiver — the family simply
+        // picks a different gig from the marketplace. Notify and stop.
+        $this->notifyFamilyOfExhaustion(
+            $closed->fresh(['gig.serviceCategory', 'caregiver']),
+            $previousOutcome,
+        );
 
         return null;
     }
@@ -556,10 +534,10 @@ class BookingService
         ]);
     }
 
-    private function computeResponseDeadline(Gig $gig): CarbonImmutable
+    private function computeResponseDeadline(CarbonImmutable $scheduledStart): CarbonImmutable
     {
         $now = CarbonImmutable::now();
-        $hoursUntilStart = $now->diffInHours($gig->scheduled_start, absolute: false);
+        $hoursUntilStart = $now->diffInHours($scheduledStart, absolute: false);
 
         if ($hoursUntilStart <= Booking::ON_DEMAND_THRESHOLD_HOURS) {
             return $now->addMinutes(Booking::RESPONSE_WINDOW_ON_DEMAND_MINUTES);
@@ -567,20 +545,8 @@ class BookingService
 
         $scheduledDeadline = $now->addHours(Booking::RESPONSE_WINDOW_SCHEDULED_HOURS);
 
-        // Never extend past the gig start itself.
-        return $scheduledDeadline->greaterThan($gig->scheduled_start)
-            ? CarbonImmutable::instance($gig->scheduled_start)
-            : $scheduledDeadline;
-    }
-
-    private function durationMinutes(Gig $gig): int
-    {
-        return (int) max(0, $gig->scheduled_start->diffInMinutes($gig->scheduled_end, absolute: true));
-    }
-
-    private function centsFromRate(string|float|int $rate): int
-    {
-        return (int) round(((float) $rate) * 100);
+        // Never extend past the visit start itself.
+        return $scheduledDeadline->greaterThan($scheduledStart) ? $scheduledStart : $scheduledDeadline;
     }
 
     /**
@@ -593,51 +559,6 @@ class BookingService
         $payout = $subtotal - $fee;
 
         return [$subtotal, $fee, $payout];
-    }
-
-    private function neighbourhoodFor(Gig $gig): string
-    {
-        // MVP: the location_address already includes the city; for the
-        // caregiver-facing placeholder we just strip the street. Anything
-        // beyond this is Mapbox reverse-geocoding territory (v1.1).
-        $parts = array_map('trim', explode(',', $gig->location_address));
-        if (count($parts) >= 2) {
-            return implode(', ', array_slice($parts, 1));
-        }
-
-        return 'Durham Region';
-    }
-
-    private function loadCaregiver(int $userId): CaregiverProfile
-    {
-        return CaregiverProfile::query()
-            ->where('user_id', $userId)
-            ->with('user')
-            ->firstOrFail();
-    }
-
-    /**
-     * @param  array<int, int>  $rankedCaregiverIds
-     */
-    private function rankOf(int $caregiverUserId, array $rankedCaregiverIds): int
-    {
-        $idx = array_search($caregiverUserId, $rankedCaregiverIds, true);
-
-        return $idx === false ? 1 : ($idx + 1);
-    }
-
-    /**
-     * @param  array<int, int>  $rankedCaregiverIds
-     * @return array<int, int>
-     */
-    private function queueAfter(int $caregiverUserId, array $rankedCaregiverIds): array
-    {
-        $idx = array_search($caregiverUserId, $rankedCaregiverIds, true);
-        if ($idx === false) {
-            return [];
-        }
-
-        return array_slice($rankedCaregiverIds, $idx + 1);
     }
 
     private function insideFreeCancelWindow(Booking $booking): bool
@@ -728,40 +649,11 @@ class BookingService
         return $realStripe ? Booking::PAYMENT_RELEASED : Booking::PAYMENT_RELEASED_STUB;
     }
 
-    private function assertFamilyOwnsGig(Gig $gig, FamilyProfile $family): void
-    {
-        if ($gig->family_profile_id !== $family->id) {
-            throw ValidationException::withMessages([
-                'gig_id' => 'This gig does not belong to your family profile.',
-            ]);
-        }
-    }
-
     private function assertGigIsBookable(Gig $gig): void
     {
-        if (! in_array($gig->status, [Gig::STATUS_OPEN, Gig::STATUS_MATCHED], true)) {
+        if (! $gig->isPublished()) {
             throw ValidationException::withMessages([
-                'gig_id' => 'This gig is no longer open for booking.',
-            ]);
-        }
-
-        if ($gig->scheduled_start->isPast()) {
-            throw ValidationException::withMessages([
-                'gig_id' => 'This gig has already started or finished.',
-            ]);
-        }
-    }
-
-    private function assertNoActiveBookingForGig(Gig $gig): void
-    {
-        $exists = Booking::query()
-            ->where('gig_id', $gig->id)
-            ->active()
-            ->exists();
-
-        if ($exists) {
-            throw ValidationException::withMessages([
-                'gig_id' => 'This gig already has a booking in progress.',
+                'gig_id' => 'This gig isn\'t available for booking right now.',
             ]);
         }
     }
@@ -792,11 +684,6 @@ class BookingService
     private function notifyFamilyOfConfirmation(Booking $booking): void
     {
         $this->familyUserFor($booking)->notify(new BookingConfirmed($booking));
-    }
-
-    private function notifyFamilyOfDecline(Booking $closed, string $outcome, Booking $nextBooking): void
-    {
-        $this->familyUserFor($closed)->notify(new BookingDeclined($closed, $outcome, $nextBooking));
     }
 
     private function notifyFamilyOfExhaustion(Booking $closed, string $outcome): void
