@@ -73,10 +73,31 @@ class BookingService
             $addressNeighbourhood,
             $notesFromFamily,
         ) {
+            $caregiverUserId = $gig->caregiverProfile->user_id;
+            $scheduledEnd = $scheduledStart->addMinutes($durationMinutes);
+
+            // Race-safe overlap check. Two overlapping requests for the same
+            // caregiver can both pass the StoreBookingRequest's pre-check; the
+            // lockForUpdate inside this transaction is what guarantees one
+            // wins and the other gets a clean ValidationException.
+            $conflict = Booking::query()
+                ->where('caregiver_user_id', $caregiverUserId)
+                ->active()
+                ->where('scheduled_start', '<', $scheduledEnd)
+                ->where('scheduled_end', '>', $scheduledStart)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($conflict) {
+                throw ValidationException::withMessages([
+                    'scheduled_start' => 'This caregiver is already booked at that time. Pick a different window.',
+                ]);
+            }
+
             $booking = $this->spawnOffer(
                 gig: $gig,
                 family: $family,
-                caregiverUserId: $gig->caregiverProfile->user_id,
+                caregiverUserId: $caregiverUserId,
                 careRecipientId: $careRecipientId,
                 scheduledStart: $scheduledStart,
                 durationMinutes: $durationMinutes,

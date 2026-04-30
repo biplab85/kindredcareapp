@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Booking;
 
+use App\Models\Booking;
+use App\Models\Gig;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
@@ -52,14 +54,48 @@ class StoreBookingRequest extends FormRequest
                 );
             }
 
-            if ($start) {
-                // Sanity check on the date itself — `after:now` covers the same
-                // ground but with a clearer error if the parser fails.
-                try {
-                    CarbonImmutable::parse((string) $start);
-                } catch (\Throwable $e) {
-                    $validator->errors()->add('scheduled_start', 'Invalid start time.');
-                }
+            if (! $start) {
+                return;
+            }
+
+            try {
+                $startDt = CarbonImmutable::parse((string) $start);
+            } catch (\Throwable) {
+                $validator->errors()->add('scheduled_start', 'Invalid start time.');
+
+                return;
+            }
+
+            // Friendly pre-check for overlapping bookings on this caregiver.
+            // No row-level lock here — this is just to surface a clean 422
+            // before the request hits BookingService. The transaction-level
+            // `lockForUpdate` in createFromGig is the source of truth for
+            // races; this check is the user-facing path.
+            $gigId = $this->integer('gig_id');
+            if ($gigId <= 0 || $minutes <= 0) {
+                return;
+            }
+
+            $gig = Gig::with('caregiverProfile')->find($gigId);
+            $caregiverUserId = $gig?->caregiverProfile?->user_id;
+            if ($caregiverUserId === null) {
+                return;
+            }
+
+            $endDt = $startDt->addMinutes($minutes);
+
+            $conflict = Booking::query()
+                ->where('caregiver_user_id', $caregiverUserId)
+                ->active()
+                ->where('scheduled_start', '<', $endDt)
+                ->where('scheduled_end', '>', $startDt)
+                ->exists();
+
+            if ($conflict) {
+                $validator->errors()->add(
+                    'scheduled_start',
+                    'This caregiver is already booked at that time. Pick a different window.',
+                );
             }
         });
     }

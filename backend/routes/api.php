@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CaregiverAvailabilityController;
 use App\Http\Controllers\CaregiverConnectController;
 use App\Http\Controllers\CaregiverController;
 use App\Http\Controllers\ConsentController;
@@ -115,6 +116,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // ─── CAREGIVERS (browsing) ───
     Route::get('/caregivers', [CaregiverController::class, 'index']);
+    Route::get(
+        '/caregivers/{user}/booked-windows',
+        [CaregiverAvailabilityController::class, 'bookedWindows'],
+    );
     Route::get('/caregivers/{caregiver}', [CaregiverController::class, 'show']);
 
     // ─── VERIFICATION (caregiver) ───
