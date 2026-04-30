@@ -112,4 +112,12 @@ class CaregiverProfile extends Model
     {
         return $this->hasMany(Gig::class);
     }
+
+    /**
+     * @return HasMany<CaregiverAvailabilityOverride, $this>
+     */
+    public function availabilityOverrides(): HasMany
+    {
+        return $this->hasMany(CaregiverAvailabilityOverride::class);
+    }
 }

@@ -26,6 +26,7 @@ use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\FamilyProfileController;
 use App\Http\Controllers\GigController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\MyAvailabilityOverridesController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
@@ -106,6 +107,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/me/logout-all', [ProfileController::class, 'logoutAll']);
     Route::patch('/me/caregiver-profile', [ProfileController::class, 'updateCaregiverProfile']);
     Route::post('/me/photo', [ProfileController::class, 'uploadPhoto']);
+    // Caregiver-side per-date "off" overrides on top of the weekly template.
+    Route::get('/me/availability-overrides', [MyAvailabilityOverridesController::class, 'index']);
+    Route::post('/me/availability-overrides', [MyAvailabilityOverridesController::class, 'store']);
+    Route::delete(
+        '/me/availability-overrides/{override}',
+        [MyAvailabilityOverridesController::class, 'destroy'],
+    );
 
     // ─── FAMILY PROFILE ───
     Route::patch('/me/family-profile', [FamilyProfileController::class, 'update']);
