@@ -34,14 +34,6 @@ interface Recipient {
   language: string | null;
 }
 
-const NEIGHBOURHOODS = [
-  { slug: "oshawa", name: "Oshawa" },
-  { slug: "whitby", name: "Whitby" },
-  { slug: "ajax", name: "Ajax" },
-  { slug: "pickering", name: "Pickering" },
-  { slug: "clarington", name: "Clarington" },
-] as const;
-
 const DURATION_OPTIONS = [1, 2, 3, 4, 6, 8] as const;
 
 export default function BookGigPage({ params }: { params: Promise<{ id: string }> }) {
@@ -103,7 +95,6 @@ function BookGigView({ gigId }: { gigId: number }) {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("14:00");
   const [duration, setDuration] = useState(2);
-  const [neighbourhood, setNeighbourhood] = useState<string>("oshawa");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -186,7 +177,6 @@ function BookGigView({ gigId }: { gigId: number }) {
     time.length >= 5 &&
     duration >= 1 &&
     address.trim().length >= 3 &&
-    neighbourhood.length > 0 &&
     !submitting &&
     !isHardBlocked;
 
@@ -208,7 +198,6 @@ function BookGigView({ gigId }: { gigId: number }) {
         scheduled_start: start.toISOString(),
         duration_minutes: duration * 60,
         address_full: address.trim(),
-        address_neighbourhood: NEIGHBOURHOODS.find((n) => n.slug === neighbourhood)?.name ?? "",
         notes_from_family: notes.trim() || undefined,
       });
       toast.success(`Booking sent to ${gig.caregiver?.display_name ?? "the caregiver"}.`);
@@ -377,40 +366,17 @@ function BookGigView({ gigId }: { gigId: number }) {
 
           {/* Address */}
           <Section number="03" eyebrow="Where" title="The visit address.">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="address" className="text-sm">
-                  Street address
-                </Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="123 King Street West"
-                  className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"
-                />
-              </div>
-              <fieldset>
-                <legend className="text-sm font-medium">Neighbourhood</legend>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {NEIGHBOURHOODS.map((n) => (
-                    <button
-                      key={n.slug}
-                      type="button"
-                      onClick={() => setNeighbourhood(n.slug)}
-                      className={cn(
-                        "rounded-xl border-2 px-3 py-2.5 text-left text-sm font-medium transition-all",
-                        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                        neighbourhood === n.slug
-                          ? "border-primary bg-primary/5"
-                          : "border-border/60 bg-card hover:border-foreground/30",
-                      )}
-                    >
-                      {n.name}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+            <div>
+              <Label htmlFor="address" className="text-sm">
+                Street address
+              </Label>
+              <Input
+                id="address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="123 King Street West, Whitby ON"
+                className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"
+              />
             </div>
           </Section>
 

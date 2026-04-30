@@ -25,7 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $scheduled_start
  * @property Carbon $scheduled_end
  * @property string $address_full
- * @property string $address_neighbourhood
+ * @property string|null $address_neighbourhood
  * @property Carbon $response_deadline_at
  * @property Carbon|null $responded_at
  * @property Carbon|null $cancelled_at
