@@ -143,3 +143,29 @@ export async function updateGig(id: number, payload: UpdateGigPayload): Promise<
 export async function deleteGig(id: number): Promise<void> {
   await api.delete(`/api/gigs/${id}`);
 }
+
+/** A live booking slot on a caregiver's calendar — used to hard-block conflicts in the booking form. */
+export interface BookedWindow {
+  scheduled_start: string;
+  scheduled_end: string;
+  status: string;
+}
+
+interface BookedWindowsResponse {
+  windows: BookedWindow[];
+}
+
+/** Fetch the caregiver's already-taken booking windows. Defaults to today..+90 days; backend caps at 180. */
+export async function listCaregiverBookedWindows(
+  userId: number,
+  options: { from?: string; to?: string } = {},
+): Promise<BookedWindow[]> {
+  const params: Record<string, string> = {};
+  if (options.from) params.from = options.from;
+  if (options.to) params.to = options.to;
+
+  const res = await api.get<BookedWindowsResponse>(`/api/caregivers/${userId}/booked-windows`, {
+    params,
+  });
+  return res.data.windows;
+}

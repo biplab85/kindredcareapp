@@ -11,7 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
-import { getGig, type AvailabilityRange, type Gig } from "@/lib/gigs";
+import {
+  getGig,
+  listCaregiverBookedWindows,
+  type AvailabilityRange,
+  type BookedWindow,
+  type Gig,
+} from "@/lib/gigs";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +58,7 @@ function BookGigView({ gigId }: { gigId: number }) {
   const router = useRouter();
   const [gig, setGig] = useState<Gig | null>(null);
   const [recipients, setRecipients] = useState<Recipient[] | null>(null);
+  const [bookedWindows, setBookedWindows] = useState<BookedWindow[]>([]);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -59,9 +66,27 @@ function BookGigView({ gigId }: { gigId: number }) {
       .then(([g, r]) => {
         setGig(g);
         setRecipients(r.data.recipients);
+        // Fire-and-forget: empty windows just means we won't preempt the conflict;
+        // BookingService still hard-blocks at the transaction level.
+        const caregiverUserId = g.caregiver?.user_id;
+        if (caregiverUserId) {
+          listCaregiverBookedWindows(caregiverUserId)
+            .then(setBookedWindows)
+            .catch(() => undefined);
+        }
       })
       .catch(() => setLoadError(true));
   }, [gigId]);
+
+  // Re-fetch the booked windows after a 422-on-submit so the page state
+  // catches up (someone else likely just claimed the same slot).
+  const refreshBookedWindows = () => {
+    const caregiverUserId = gig?.caregiver?.user_id;
+    if (!caregiverUserId) return;
+    listCaregiverBookedWindows(caregiverUserId)
+      .then(setBookedWindows)
+      .catch(() => undefined);
+  };
 
   const [recipientId, setRecipientId] = useState<number | null>(null);
   const [date, setDate] = useState("");
@@ -79,17 +104,34 @@ function BookGigView({ gigId }: { gigId: number }) {
     return { subtotal, fee, total: subtotal + fee };
   }, [gig, duration]);
 
-  // Soft availability check: warn (don't block) when the requested window
-  // falls outside the caregiver's published hours. Empty/missing
-  // availability means "always available" — no warning.
+  // Three flavours, in priority order:
+  //  - "already-booked" (HARD block): the requested window collides with a
+  //    pending/confirmed/in-progress booking the caregiver already has
+  //  - "day-off" (soft warning): caregiver works other days but not this one
+  //  - "outside-window" (soft warning): caregiver works that day but not those hours
   const availabilityHint = useMemo(() => {
     if (!gig || !date || !time) return null;
-    const weekly = gig.caregiver?.availability?.weekly;
-    if (!weekly) return null;
 
     const start = new Date(`${date}T${time}`);
     if (Number.isNaN(start.getTime())) return null;
     const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
+
+    // Hard block first — a real existing booking trumps the soft hours hint.
+    const conflict = bookedWindows.find((w) => {
+      const ws = new Date(w.scheduled_start);
+      const we = new Date(w.scheduled_end);
+      return start < we && end > ws;
+    });
+    if (conflict) {
+      return {
+        kind: "already-booked" as const,
+        conflictStart: conflict.scheduled_start,
+        conflictEnd: conflict.scheduled_end,
+      };
+    }
+
+    const weekly = gig.caregiver?.availability?.weekly;
+    if (!weekly) return null;
 
     const dayKey = WEEKDAY_KEYS[start.getDay()];
     const ranges = (weekly[dayKey] ?? []) as AvailabilityRange[];
@@ -116,7 +158,9 @@ function BookGigView({ gigId }: { gigId: number }) {
       kind: "outside-window" as const,
       ranges,
     };
-  }, [gig, date, time, duration]);
+  }, [gig, date, time, duration, bookedWindows]);
+
+  const isHardBlocked = availabilityHint?.kind === "already-booked";
 
   const canSubmit =
     !!gig &&
@@ -126,7 +170,8 @@ function BookGigView({ gigId }: { gigId: number }) {
     duration >= 1 &&
     address.trim().length >= 3 &&
     neighbourhood.length > 0 &&
-    !submitting;
+    !submitting &&
+    !isHardBlocked;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,10 +197,13 @@ function BookGigView({ gigId }: { gigId: number }) {
       toast.success(`Booking sent to ${gig.caregiver?.display_name ?? "the caregiver"}.`);
       router.push("/bookings");
     } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         "Couldn't send the booking right now.";
       toast.error(message);
+      // Lost the race: pull the latest booked windows so the conflict surfaces inline.
+      if (status === 422) refreshBookedWindows();
       setSubmitting(false);
     }
   };
@@ -364,36 +412,72 @@ function BookGigView({ gigId }: { gigId: number }) {
             </p>
           </Section>
 
-          {/* Availability warning — soft-blocking, doesn't disable submit */}
+          {/* Availability hint — soft warnings (day-off / outside-window) keep
+              Submit enabled; "already-booked" is a hard block (Submit disabled). */}
           {availabilityHint && (
-            <div className="rounded-2xl bg-accent/[0.08] px-5 py-4 ring-1 ring-accent/25">
+            <div
+              className={cn(
+                "rounded-2xl px-5 py-4 ring-1",
+                availabilityHint.kind === "already-booked"
+                  ? "bg-destructive/10 ring-destructive/30"
+                  : "bg-accent/[0.08] ring-accent/25",
+              )}
+            >
               <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={1.75} />
+                <AlertTriangle
+                  className={cn(
+                    "mt-0.5 size-5 shrink-0",
+                    availabilityHint.kind === "already-booked" ? "text-destructive" : "text-accent",
+                  )}
+                  strokeWidth={1.75}
+                />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-accent">
-                    {gig.caregiver?.display_name ?? "This caregiver"} may not be free at that time.
-                  </p>
-                  {availabilityHint.kind === "day-off" ? (
-                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                      They&rsquo;ve published hours for{" "}
-                      <span className="font-medium">
-                        {availabilityHint.liveDays
-                          .map((d) => DAY_LABELS[d as WeekdayKey])
-                          .join(", ")}
-                      </span>
-                      , but not the day you picked. The booking will still go through — they can
-                      accept or decline.
-                    </p>
+                  {availabilityHint.kind === "already-booked" ? (
+                    <>
+                      <p className="text-sm font-semibold text-destructive">
+                        {gig.caregiver?.display_name ?? "This caregiver"} is already booked then.
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                        They&rsquo;ve got a visit from{" "}
+                        <span className="font-medium">
+                          {formatLocalDateTime(availabilityHint.conflictStart)}
+                        </span>{" "}
+                        to{" "}
+                        <span className="font-medium">
+                          {formatLocalDateTime(availabilityHint.conflictEnd)}
+                        </span>
+                        . Pick a different window — that one&rsquo;s spoken for.
+                      </p>
+                    </>
                   ) : (
-                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                      Their published windows that day are{" "}
-                      <span className="font-medium">
-                        {availabilityHint.ranges
-                          .map((r) => `${formatHHMM(r.start)} – ${formatHHMM(r.end)}`)
-                          .join(" · ")}
-                      </span>
-                      . You can still send the request — they&rsquo;ll accept or decline.
-                    </p>
+                    <>
+                      <p className="text-sm font-semibold text-accent">
+                        {gig.caregiver?.display_name ?? "This caregiver"} may not be free at that
+                        time.
+                      </p>
+                      {availabilityHint.kind === "day-off" ? (
+                        <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                          They&rsquo;ve published hours for{" "}
+                          <span className="font-medium">
+                            {availabilityHint.liveDays
+                              .map((d) => DAY_LABELS[d as WeekdayKey])
+                              .join(", ")}
+                          </span>
+                          , but not the day you picked. The booking will still go through — they can
+                          accept or decline.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                          Their published windows that day are{" "}
+                          <span className="font-medium">
+                            {availabilityHint.ranges
+                              .map((r) => `${formatHHMM(r.start)} – ${formatHHMM(r.end)}`)
+                              .join(" · ")}
+                          </span>
+                          . You can still send the request — they&rsquo;ll accept or decline.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -522,4 +606,13 @@ function formatHHMM(s: string): string {
   const d = new Date();
   d.setHours(Math.floor(min / 60), min % 60, 0, 0);
   return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+}
+
+/** ISO-8601 datetime → "Tue May 5, 2:00 p.m." for the conflict callout. */
+function formatLocalDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const date = d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  return `${date}, ${time}`;
 }
