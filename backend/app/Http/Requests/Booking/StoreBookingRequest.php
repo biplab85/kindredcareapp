@@ -36,7 +36,7 @@ class StoreBookingRequest extends FormRequest
             // 1h–8h gig windows — matches the chip set in the booking UI.
             'duration_minutes' => ['required', 'integer', 'min:60', 'max:480'],
             'address_full' => ['required', 'string', 'max:255'],
-            'address_neighbourhood' => ['required', 'string', 'max:100'],
+            'address_neighbourhood' => ['sometimes', 'nullable', 'string', 'max:100'],
             'notes_from_family' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }

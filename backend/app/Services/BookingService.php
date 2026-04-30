@@ -58,7 +58,7 @@ class BookingService
         CarbonImmutable $scheduledStart,
         int $durationMinutes,
         string $addressFull,
-        string $addressNeighbourhood,
+        ?string $addressNeighbourhood = null,
         ?string $notesFromFamily = null,
     ): Booking {
         $this->assertGigIsBookable($gig);
@@ -495,7 +495,7 @@ class BookingService
         CarbonImmutable $scheduledStart,
         int $durationMinutes,
         string $addressFull,
-        string $addressNeighbourhood,
+        ?string $addressNeighbourhood,
         ?string $notesFromFamily,
     ): Booking {
         $rateCents = (int) $gig->hourly_rate_cents;

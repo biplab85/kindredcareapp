@@ -79,7 +79,9 @@ class BookingController extends Controller
             scheduledStart: CarbonImmutable::parse((string) $request->input('scheduled_start')),
             durationMinutes: $request->integer('duration_minutes'),
             addressFull: (string) $request->string('address_full'),
-            addressNeighbourhood: (string) $request->string('address_neighbourhood'),
+            addressNeighbourhood: $request->filled('address_neighbourhood')
+                ? (string) $request->string('address_neighbourhood')
+                : null,
             notesFromFamily: $request->input('notes_from_family'),
         );
 

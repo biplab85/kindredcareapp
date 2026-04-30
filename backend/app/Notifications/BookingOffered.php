@@ -37,7 +37,7 @@ class BookingOffered extends Notification
             ->subject('New booking offer on KindredCare')
             ->greeting('A family would like to book you.')
             ->line("When: {$start}")
-            ->line("Where: {$b->address_neighbourhood}")
+            ->line("Where: {$b->address_full}")
             ->line('Duration: '.($b->duration_minutes / 60).' hours')
             ->line("Client total: \${$total}")
             ->line("Your earnings after the 7.5% platform fee: \${$payout}")
