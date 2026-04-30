@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\CaregiverAvailabilityOverride;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
  * Read-only window of a caregiver's "live" booking slots so the family
@@ -46,12 +48,26 @@ class CaregiverAvailabilityController extends Controller
             ->orderBy('scheduled_start')
             ->get(['scheduled_start', 'scheduled_end', 'status']);
 
+        // Per-date "off" overrides — caregiver explicitly marked these days
+        // unavailable (Eid, vacation, etc.) on top of their weekly template.
+        $offDates = collect();
+        $profileId = $user->caregiverProfile?->id;
+        if ($profileId) {
+            $offDates = CaregiverAvailabilityOverride::query()
+                ->where('caregiver_profile_id', $profileId)
+                ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+                ->orderBy('date')
+                ->pluck('date')
+                ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d);
+        }
+
         return response()->json([
             'windows' => $windows->map(fn (Booking $b) => [
                 'scheduled_start' => $b->scheduled_start->toIso8601String(),
                 'scheduled_end' => $b->scheduled_end->toIso8601String(),
                 'status' => $b->status,
             ])->all(),
+            'off_dates' => $offDates->values()->all(),
         ]);
     }
 

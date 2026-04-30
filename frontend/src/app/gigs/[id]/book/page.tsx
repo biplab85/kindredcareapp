@@ -21,6 +21,9 @@ import {
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+/** Stable empty array so the off-dates state's identity doesn't churn each render. */
+const NEVER_OFF: string[] = [];
+
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
 
@@ -59,6 +62,7 @@ function BookGigView({ gigId }: { gigId: number }) {
   const [gig, setGig] = useState<Gig | null>(null);
   const [recipients, setRecipients] = useState<Recipient[] | null>(null);
   const [bookedWindows, setBookedWindows] = useState<BookedWindow[]>([]);
+  const [offDates, setOffDates] = useState<string[]>(NEVER_OFF);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -71,20 +75,27 @@ function BookGigView({ gigId }: { gigId: number }) {
         const caregiverUserId = g.caregiver?.user_id;
         if (caregiverUserId) {
           listCaregiverBookedWindows(caregiverUserId)
-            .then(setBookedWindows)
+            .then((snapshot) => {
+              setBookedWindows(snapshot.windows);
+              setOffDates(snapshot.off_dates);
+            })
             .catch(() => undefined);
         }
       })
       .catch(() => setLoadError(true));
   }, [gigId]);
 
-  // Re-fetch the booked windows after a 422-on-submit so the page state
-  // catches up (someone else likely just claimed the same slot).
+  // Re-fetch the snapshot after a 422-on-submit so the page state
+  // catches up (someone else likely just claimed the same slot, or the
+  // caregiver just marked the date off).
   const refreshBookedWindows = () => {
     const caregiverUserId = gig?.caregiver?.user_id;
     if (!caregiverUserId) return;
     listCaregiverBookedWindows(caregiverUserId)
-      .then(setBookedWindows)
+      .then((snapshot) => {
+        setBookedWindows(snapshot.windows);
+        setOffDates(snapshot.off_dates);
+      })
       .catch(() => undefined);
   };
 
@@ -104,9 +115,9 @@ function BookGigView({ gigId }: { gigId: number }) {
     return { subtotal, fee, total: subtotal + fee };
   }, [gig, duration]);
 
-  // Three flavours, in priority order:
-  //  - "already-booked" (HARD block): the requested window collides with a
-  //    pending/confirmed/in-progress booking the caregiver already has
+  // Four flavours, in priority order (top wins):
+  //  - "already-booked" (HARD block): collides with an existing pending/confirmed/in-progress booking
+  //  - "date-off" (HARD block): caregiver explicitly marked this date off (Eid, vacation)
   //  - "day-off" (soft warning): caregiver works other days but not this one
   //  - "outside-window" (soft warning): caregiver works that day but not those hours
   const availabilityHint = useMemo(() => {
@@ -116,7 +127,7 @@ function BookGigView({ gigId }: { gigId: number }) {
     if (Number.isNaN(start.getTime())) return null;
     const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
 
-    // Hard block first — a real existing booking trumps the soft hours hint.
+    // Hard block #1 — a real existing booking trumps everything else.
     const conflict = bookedWindows.find((w) => {
       const ws = new Date(w.scheduled_start);
       const we = new Date(w.scheduled_end);
@@ -128,6 +139,11 @@ function BookGigView({ gigId }: { gigId: number }) {
         conflictStart: conflict.scheduled_start,
         conflictEnd: conflict.scheduled_end,
       };
+    }
+
+    // Hard block #2 — caregiver explicitly marked this date off.
+    if (offDates.includes(date)) {
+      return { kind: "date-off" as const, date };
     }
 
     const weekly = gig.caregiver?.availability?.weekly;
@@ -158,9 +174,10 @@ function BookGigView({ gigId }: { gigId: number }) {
       kind: "outside-window" as const,
       ranges,
     };
-  }, [gig, date, time, duration, bookedWindows]);
+  }, [gig, date, time, duration, bookedWindows, offDates]);
 
-  const isHardBlocked = availabilityHint?.kind === "already-booked";
+  const isHardBlocked =
+    availabilityHint?.kind === "already-booked" || availabilityHint?.kind === "date-off";
 
   const canSubmit =
     !!gig &&
@@ -413,12 +430,13 @@ function BookGigView({ gigId }: { gigId: number }) {
           </Section>
 
           {/* Availability hint — soft warnings (day-off / outside-window) keep
-              Submit enabled; "already-booked" is a hard block (Submit disabled). */}
+              Submit enabled; "already-booked" and "date-off" are hard blocks
+              (Submit disabled). */}
           {availabilityHint && (
             <div
               className={cn(
                 "rounded-2xl px-5 py-4 ring-1",
-                availabilityHint.kind === "already-booked"
+                isHardBlocked
                   ? "bg-destructive/10 ring-destructive/30"
                   : "bg-accent/[0.08] ring-accent/25",
               )}
@@ -427,7 +445,7 @@ function BookGigView({ gigId }: { gigId: number }) {
                 <AlertTriangle
                   className={cn(
                     "mt-0.5 size-5 shrink-0",
-                    availabilityHint.kind === "already-booked" ? "text-destructive" : "text-accent",
+                    isHardBlocked ? "text-destructive" : "text-accent",
                   )}
                   strokeWidth={1.75}
                 />
@@ -447,6 +465,19 @@ function BookGigView({ gigId }: { gigId: number }) {
                           {formatLocalDateTime(availabilityHint.conflictEnd)}
                         </span>
                         . Pick a different window — that one&rsquo;s spoken for.
+                      </p>
+                    </>
+                  ) : availabilityHint.kind === "date-off" ? (
+                    <>
+                      <p className="text-sm font-semibold text-destructive">
+                        {gig.caregiver?.display_name ?? "This caregiver"} is taking that day off.
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                        They&rsquo;ve marked{" "}
+                        <span className="font-medium">
+                          {formatLocalDate(availabilityHint.date)}
+                        </span>{" "}
+                        as unavailable (vacation, holiday, or personal day). Pick another date.
                       </p>
                     </>
                   ) : (
@@ -615,4 +646,17 @@ function formatLocalDateTime(iso: string): string {
   const date = d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" });
   const time = d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
   return `${date}, ${time}`;
+}
+
+/** YYYY-MM-DD → "Tue May 5, 2026" for the date-off callout. */
+function formatLocalDate(ymd: string): string {
+  // Parse as a local-date noon to dodge any DST/UTC drift on the boundary.
+  const d = new Date(`${ymd}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return d.toLocaleDateString("en-CA", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }

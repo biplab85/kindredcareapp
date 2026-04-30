@@ -151,21 +151,30 @@ export interface BookedWindow {
   status: string;
 }
 
-interface BookedWindowsResponse {
+export interface CaregiverAvailabilitySnapshot {
   windows: BookedWindow[];
+  /** ISO date strings (YYYY-MM-DD) — caregiver-marked off days. */
+  off_dates: string[];
 }
 
-/** Fetch the caregiver's already-taken booking windows. Defaults to today..+90 days; backend caps at 180. */
+/**
+ * Fetch the caregiver's already-taken booking windows AND per-date off
+ * overrides. Defaults to today..+90 days; backend caps at 180.
+ */
 export async function listCaregiverBookedWindows(
   userId: number,
   options: { from?: string; to?: string } = {},
-): Promise<BookedWindow[]> {
+): Promise<CaregiverAvailabilitySnapshot> {
   const params: Record<string, string> = {};
   if (options.from) params.from = options.from;
   if (options.to) params.to = options.to;
 
-  const res = await api.get<BookedWindowsResponse>(`/api/caregivers/${userId}/booked-windows`, {
-    params,
-  });
-  return res.data.windows;
+  const res = await api.get<CaregiverAvailabilitySnapshot>(
+    `/api/caregivers/${userId}/booked-windows`,
+    { params },
+  );
+  return {
+    windows: res.data.windows ?? [],
+    off_dates: res.data.off_dates ?? [],
+  };
 }
