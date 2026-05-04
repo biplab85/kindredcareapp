@@ -231,7 +231,7 @@ function CaregiverDashboard() {
 
   return (
     <DashboardShell pageTitle="Dashboard" navBadges={navBadges}>
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome back, ${firstName}.`}
           meta={
@@ -620,7 +620,7 @@ function FamilyDashboard() {
 
   return (
     <DashboardShell pageTitle="Dashboard" navBadges={navBadges}>
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome, ${firstName}.`}
           meta="Post a gig, run matches, and track your bookings."
@@ -939,7 +939,7 @@ function AdminDashboard() {
           }}
         />
 
-        <div className="mx-auto max-w-5xl px-4 pt-8 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
           <AdminHeader asOf={data?.as_of ?? null} />
 
           {state === "loading" && <AdminLoading />}
