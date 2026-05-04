@@ -89,8 +89,7 @@ function SettingsView() {
       <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <div>
           <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-            Your account,{" "}
-            <span className="font-normal italic text-primary">in one place</span>.
+            Your account, <span className="font-normal italic text-primary">in one place</span>.
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Manage your session, export your data, or close your account.

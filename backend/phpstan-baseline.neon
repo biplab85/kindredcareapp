@@ -1,0 +1,79 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\User\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Resources/GigResource.php
+
+		-
+			message: '#^Method App\\Services\\BookingService\:\:cascadeToNext\(\) never returns App\\Models\\Booking so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Services/BookingService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Gig\:\:\$careRecipient\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Cannot call method copy\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Left side of && is always false\.$#'
+			identifier: booleanAnd.leftAlwaysFalse
+			count: 1
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Offset ''gender'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Offset ''language'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Offset ''rate_max'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Result of \|\| is always true\.$#'
+			identifier: booleanOr.alwaysTrue
+			count: 1
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between \*NEVER\* and ''any'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and null will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 3
+			path: app/Services/MatchingEngine.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 4
+			path: app/Services/MatchingEngine.php
