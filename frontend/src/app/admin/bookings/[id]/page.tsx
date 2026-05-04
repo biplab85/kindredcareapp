@@ -199,7 +199,7 @@ function BookingHeader({ data }: { data: BookingDetail }) {
         <span className="text-foreground/30">— § 38</span>
       </div>
 
-      <h1 className="text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl">
+      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         {data.family?.name ?? "Family"}{" "}
         <span className="font-normal italic text-muted-foreground">to</span>{" "}
         {data.caregiver?.name ?? "Caregiver"}

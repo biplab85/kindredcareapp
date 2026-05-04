@@ -166,7 +166,7 @@ function ProfileHeader({ user }: { user: AdminUserDetail }) {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
             <span className={cn(user.status === "deleted" && "text-muted-foreground line-through")}>
               {user.name}
             </span>

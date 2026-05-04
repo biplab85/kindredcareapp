@@ -242,7 +242,7 @@ function BookGigView({ gigId }: { gigId: number }) {
     <div className="relative">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
 
-      <div className="mx-auto max-w-3xl px-4 pt-12 pb-24 sm:px-6">
+      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6">
         <Link
           href={`/gigs/${gig.id}`}
           className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -252,20 +252,19 @@ function BookGigView({ gigId }: { gigId: number }) {
         </Link>
 
         {/* Header */}
-        <div className="mb-10">
-          <div className="mb-4 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <div className="mb-6">
+          <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
             <span className="h-px w-8 bg-foreground/30" />
             Booking slip · No. {String(gig.id).padStart(4, "0")}
           </div>
-          <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl">
-            Book a visit with
-            <br />
+          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+            Book a visit with{" "}
             <span className="italic font-normal text-primary">
               {gig.caregiver?.display_name ?? "this caregiver"}
             </span>
             .
           </h1>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground italic">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground italic">
             &ldquo;{gig.title}&rdquo; · ${gig.hourly_rate_dollars.toFixed(0)}/hr
           </p>
         </div>

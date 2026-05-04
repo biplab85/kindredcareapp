@@ -128,29 +128,27 @@ function BookingsView() {
 function BookingsHeader({ role, count }: { role?: "family" | "caregiver"; count: number | null }) {
   return (
     <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
+      <div className="mb-2 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
         <span className="h-px w-8 bg-foreground/30" />
         {role === "caregiver" ? "Your visits" : "Your bookings"}
         <span className="text-foreground/30">— § 09</span>
       </div>
 
-      <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-[3.5rem]">
+      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         {role === "caregiver" ? (
           <>
-            Offers, visits,
-            <br />
+            Offers, visits,{" "}
             <span className="font-normal italic text-accent">and the record of it all.</span>
           </>
         ) : (
           <>
-            The bookings
-            <br />
+            The bookings{" "}
             <span className="font-normal italic text-primary">you&rsquo;ve sent out.</span>
           </>
         )}
       </h1>
 
-      <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
         {role === "caregiver"
           ? "New offers arrive with a response window. Accept to confirm, decline to pass the offer to the next-ranked caregiver."
           : "Every offer you send appears here. If the caregiver declines, the cascade moves on automatically."}
