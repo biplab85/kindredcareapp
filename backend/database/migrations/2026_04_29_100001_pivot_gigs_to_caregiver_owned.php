@@ -36,10 +36,13 @@ return new class extends Migration
                 $table->dropIndex(['scheduled_start']);
             });
         }
+        if (Schema::hasIndex('gigs', 'gigs_posting_mode_index')) {
+            Schema::table('gigs', function (Blueprint $table) {
+                $table->dropIndex(['posting_mode']);
+            });
+        }
         // The legacy `status` enum had a single-column index too.
-        $legacyStatusIndex = collect(DB::select("SHOW INDEX FROM gigs WHERE Key_name = 'gigs_status_index'"))
-            ->isNotEmpty();
-        if ($legacyStatusIndex) {
+        if (Schema::hasIndex('gigs', 'gigs_status_index')) {
             Schema::table('gigs', function (Blueprint $table) {
                 $table->dropIndex(['status']);
             });
@@ -75,10 +78,10 @@ return new class extends Migration
             });
         }
 
-        // Legacy `status` was an ENUM; replacing with a plain string so we
-        // don't fight Doctrine over enum modifications.
-        if (Schema::hasColumn('gigs', 'status')) {
-            // Detect whether it's still the legacy enum vs already a string.
+        // Legacy `status` was an ENUM on MySQL; replacing with a plain string
+        // so we don't fight Doctrine over enum modifications. Only MySQL ever
+        // had the enum form — SQLite (test env) was already a TEXT column.
+        if (Schema::hasColumn('gigs', 'status') && DB::connection()->getDriverName() === 'mysql') {
             $col = collect(DB::select("SHOW COLUMNS FROM gigs LIKE 'status'"))->first();
             $isLegacyEnum = $col && str_starts_with(strtolower($col->Type ?? ''), 'enum(');
             if ($isLegacyEnum) {
@@ -119,12 +122,11 @@ return new class extends Migration
         });
 
         // Indexes (idempotent — guard each).
-        $idx = fn (string $name) => collect(DB::select('SHOW INDEX FROM gigs WHERE Key_name = ?', [$name]))->isNotEmpty();
-        Schema::table('gigs', function (Blueprint $table) use ($idx) {
-            if (! $idx('gigs_status_index')) {
+        if (! Schema::hasIndex('gigs', 'gigs_status_index')) {
+            Schema::table('gigs', function (Blueprint $table) {
                 $table->index('status');
-            }
-        });
+            });
+        }
     }
 
     public function down(): void
