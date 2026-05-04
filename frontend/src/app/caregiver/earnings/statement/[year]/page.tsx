@@ -95,7 +95,7 @@ function StatementView({ year }: { year: number }) {
         }
       `}</style>
 
-      <div className="mx-auto max-w-3xl px-4 pt-8 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <div
           className="flex items-center justify-between gap-4 print:hidden"
           data-print-hide="true"

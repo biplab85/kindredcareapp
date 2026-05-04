@@ -167,7 +167,7 @@ function VerificationView() {
 
   return (
     <DashboardShell pageTitle="Verification">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[1.625rem] font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
