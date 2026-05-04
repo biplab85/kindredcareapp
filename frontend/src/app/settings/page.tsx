@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Loader2, LogOut, Shield, Trash2 } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  CreditCard,
+  Download,
+  Landmark,
+  Loader2,
+  LogOut,
+  Shield,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
@@ -109,6 +119,24 @@ function SettingsView() {
             </dl>
           </section>
 
+          {user?.role === "family" && (
+            <MoneyLinkCard
+              icon={<CreditCard className="size-5" strokeWidth={1.75} />}
+              title="Payment methods"
+              description="The card we charge when a visit ends. You can change it anytime."
+              href="/settings/payment-methods"
+            />
+          )}
+
+          {user?.role === "caregiver" && (
+            <MoneyLinkCard
+              icon={<Landmark className="size-5" strokeWidth={1.75} />}
+              title="Payouts"
+              description="Where your earnings land. Connect your bank through Stripe."
+              href="/settings/payouts"
+            />
+          )}
+
           <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6">
             <h2 className="text-base font-semibold tracking-tight">Sessions</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -187,6 +215,41 @@ function SettingsView() {
         </div>
       </div>
     </DashboardShell>
+  );
+}
+
+function MoneyLinkCard({
+  icon,
+  title,
+  description,
+  href,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group block rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-colors hover:border-primary/40 hover:bg-primary/[0.02] sm:p-6"
+    >
+      <div className="flex items-start gap-4">
+        <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          {icon}
+        </span>
+        <div className="flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+            <ArrowRight
+              className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+              strokeWidth={1.75}
+            />
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </Link>
   );
 }
 
