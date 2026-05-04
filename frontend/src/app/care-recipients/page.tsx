@@ -178,9 +178,12 @@ function CareRecipientsContent() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Care Recipients</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage the people you&apos;re arranging care for.
+          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+            Care recipients,{" "}
+            <span className="font-normal italic text-primary">on file</span>.
+          </h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            The people you&apos;re arranging care for. Add or update anyone anytime.
           </p>
         </div>
         {!showForm && (
