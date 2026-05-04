@@ -184,7 +184,7 @@ function ProfileHeader({ data, tone }: { data: VerificationDetail; tone: StatusT
         <span className="text-foreground/30">— § 32</span>
       </div>
 
-      <h1 className="text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl">
+      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         {data.user.name}
       </h1>
 

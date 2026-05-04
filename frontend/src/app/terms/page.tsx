@@ -28,14 +28,14 @@ export default function TermsOfServicePage() {
         }}
       />
 
-      <div className="mx-auto max-w-3xl px-4 pt-12 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <header>
           <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
             <span className="h-px w-8 bg-foreground/30" />
             Legal
             <span className="text-foreground/30">— § 02</span>
           </div>
-          <h1 className="text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
             <span className="font-normal italic text-primary">Terms</span> of service.
           </h1>
           <p className="mt-4 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase tabular-nums">

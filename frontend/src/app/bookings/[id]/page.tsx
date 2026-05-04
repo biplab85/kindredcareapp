@@ -197,7 +197,7 @@ function DetailHeader({
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-        <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-5xl">
+        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
           <span className={cn("font-normal italic", accentClass[tone])}>
             {statusLabel(booking.status)}.
           </span>
@@ -1457,7 +1457,7 @@ function ReasonForm({
 
 function LoadingScreen() {
   return (
-    <div className="mx-auto max-w-5xl px-4 pt-16 pb-24 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
         <span className="h-px w-8 bg-foreground/30" />
         Loading booking

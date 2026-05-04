@@ -101,7 +101,7 @@ function GigDetailView({ gigId }: { gigId: number }) {
     <div className="relative">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
 
-      <div className="mx-auto max-w-5xl px-4 pt-12 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <Link
           href={backHref}
           className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"

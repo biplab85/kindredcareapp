@@ -233,7 +233,7 @@ function PageHeader({
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-        <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-5xl">
+        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
           <span className={cn("font-normal italic", calm ? "text-success" : "text-accent")}>
             {calm ? "All clear." : "Safety queue."}
           </span>

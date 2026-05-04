@@ -977,7 +977,7 @@ function AdminHeader({ asOf }: { asOf: string | null }) {
         <span className="text-foreground/30">— § 19</span>
       </div>
 
-      <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-5xl">
+      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         <span className="font-normal italic text-primary">The pulse,</span> at a glance.
       </h1>
 

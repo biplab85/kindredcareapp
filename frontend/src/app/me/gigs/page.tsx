@@ -94,19 +94,18 @@ function MyGigsView() {
     <div className="relative">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
 
-      <div className="mx-auto max-w-5xl px-4 pt-12 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+            <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
               <span className="h-px w-8 bg-foreground/30" />
               Your gigs
             </div>
-            <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
-              The shop, <br />
-              <span className="italic font-normal text-primary">at a glance</span>.
+            <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+              The shop, <span className="italic font-normal text-primary">at a glance</span>.
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
               Each gig is one of your services. Families find them in the marketplace and book
               directly.
             </p>

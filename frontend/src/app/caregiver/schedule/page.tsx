@@ -123,7 +123,7 @@ function ScheduleView() {
 function ScheduleHeader({ weekLabel }: { weekLabel: string }) {
   return (
     <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
+      <div className="mb-2 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
         <span className="h-px w-8 bg-foreground/30" />
         Appointment book
         <span className="text-foreground/30">— § 11</span>
@@ -131,18 +131,17 @@ function ScheduleHeader({ weekLabel }: { weekLabel: string }) {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <h1 className="text-4xl leading-[1.02] font-semibold tracking-tight sm:text-[3.25rem]">
-            Your week,
-            <br />
+          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+            Your week,{" "}
             <span className="font-normal italic text-primary">ink-stamped and pencilled in.</span>
           </h1>
 
-          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Confirmed visits are inked. Pending offers are in pencil — they&rsquo;ll firm up once
             you accept. Cancelled and declined visits stay here for the record.
           </p>
 
-          <p className="mt-4 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          <p className="mt-2 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             {weekLabel}
           </p>
         </div>
