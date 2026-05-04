@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -13,6 +13,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,19 @@ import {
   setDefaultPaymentMethod,
 } from "@/lib/payments";
 import { cn } from "@/lib/utils";
+
+/**
+ * Memo the Stripe.js promise once per page-load. Calling loadStripe more
+ * than once is safe but wasteful — the SDK warns about repeated calls.
+ */
+let stripeJsPromise: Promise<Stripe | null> | null = null;
+function getStripeJs(): Promise<Stripe | null> {
+  if (!stripeJsPromise) {
+    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    stripeJsPromise = key ? loadStripe(key) : Promise.resolve(null);
+  }
+  return stripeJsPromise;
+}
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell
@@ -254,7 +269,11 @@ function ConfiguredView({
   return (
     <>
       {adding ? (
-        <AddCardForm onCancel={() => setAdding(false)} onAdded={onChanged} />
+        <AddCardForm
+          onCancel={() => setAdding(false)}
+          onAdded={onChanged}
+          hasExistingDefault={methods.some((m) => m.is_default)}
+        />
       ) : (
         <AddCardCta emptyState={methods.length === 0} onOpen={() => setAdding(true)} />
       )}
@@ -326,39 +345,37 @@ function AddCardCta({ emptyState, onOpen }: { emptyState: boolean; onOpen: () =>
 /* ─────────────────────────────────────────────────────────────
  * Add-card form
  *
- * TODO: Install the Stripe web SDKs before this form can actually
- * tokenize a card:
+ * Two-step async dance:
+ *   1. POST /api/payments/setup-intent → backend returns client_secret
+ *   2. <Elements> + <PaymentElement> + stripe.confirmSetup() →
+ *      Stripe tokenizes the card client-side (PCI scope stays with them)
  *
- *   npm install @stripe/stripe-js @stripe/react-stripe-js
- *
- * Once installed, swap the placeholder body below for:
- *   - <Elements stripe={loadStripe(PUBLISHABLE_KEY)} options={{ clientSecret }}>
- *   - <CardElement /> (or <PaymentElement />)
- *   - stripe.confirmCardSetup(clientSecret, { payment_method: { card } })
- *   - On success → setDefaultPaymentMethod(paymentMethod.id) if no default yet
- *   - Then onAdded() to reload
- *
- * The SetupIntent call below already works; only the Elements half is
- * blocked on that install.
+ * On success we (a) call setDefaultPaymentMethod for the freshly minted
+ * payment_method when the family had no default before, and (b) reload
+ * the list via onAdded(). Stripe's redirect-based 3DS flow is in scope:
+ * `redirect: 'if_required'` means the page only navigates away when the
+ * issuer demands a challenge.
  * ───────────────────────────────────────────────────────────── */
 
 function AddCardForm({
   onCancel,
   onAdded,
+  hasExistingDefault,
 }: {
   onCancel: () => void;
   onAdded: () => Promise<void>;
+  hasExistingDefault: boolean;
 }) {
-  const [phase, setPhase] = useState<"idle" | "fetching" | "ready" | "error">("fetching");
+  const [phase, setPhase] = useState<"fetching" | "ready" | "error">("fetching");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const primeSetupIntent = useCallback(async () => {
     setPhase("fetching");
     setErrorMsg(null);
     try {
-      // This round-trip works today; only the Elements tokenization below
-      // is waiting on the @stripe/* install.
-      await createSetupIntent();
+      const { client_secret } = await createSetupIntent();
+      setClientSecret(client_secret);
       setPhase("ready");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Could not start card setup right now.");
@@ -366,14 +383,13 @@ function AddCardForm({
     }
   }, []);
 
-  // Prime the SetupIntent on mount. Same pattern as the reference file's
-  // initial getBooking load — async fetch, guard against unmount, setState.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        await createSetupIntent();
+        const { client_secret } = await createSetupIntent();
         if (!alive) return;
+        setClientSecret(client_secret);
         setPhase("ready");
       } catch (err) {
         if (!alive) return;
@@ -435,53 +451,145 @@ function AddCardForm({
         </div>
       )}
 
-      {phase === "ready" && (
-        <div className="space-y-6">
-          {/* Placeholder until @stripe/stripe-js + @stripe/react-stripe-js are
-              installed. The box is drawn to match the aesthetic so nothing
-              looks broken — the card form will slot in here unchanged. */}
-          <div
-            aria-hidden
-            className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-6 text-center"
-          >
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Card form slot
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
-              Stripe Elements renders here once{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                @stripe/stripe-js
-              </code>{" "}
-              and{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                @stripe/react-stripe-js
-              </code>{" "}
-              are installed. The backend SetupIntent round-trip already succeeded — the tokenization
-              half is the only piece waiting.
-            </p>
-          </div>
+      {phase === "ready" && clientSecret && (
+        <ElementsCardSetup
+          clientSecret={clientSecret}
+          hasExistingDefault={hasExistingDefault}
+          onCancel={onCancel}
+          onAdded={onAdded}
+        />
+      )}
+    </section>
+  );
+}
 
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Your card is charged by KindredCare — 7.5% platform fee, the rest goes to the
-              caregiver after the visit ends.
-            </p>
-            <div className="flex items-center gap-2">
-              <Button onClick={onCancel} variant="outline">
-                Cancel
-              </Button>
-              <Button disabled title="Add @stripe/stripe-js to enable">
-                Save card
-              </Button>
-            </div>
-          </div>
+function ElementsCardSetup({
+  clientSecret,
+  hasExistingDefault,
+  onCancel,
+  onAdded,
+}: {
+  clientSecret: string;
+  hasExistingDefault: boolean;
+  onCancel: () => void;
+  onAdded: () => Promise<void>;
+}) {
+  const stripePromise = useMemo(() => getStripeJs(), []);
+
+  return (
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret,
+        appearance: {
+          theme: "stripe",
+          variables: {
+            colorPrimary: "oklch(0.56 0.13 240)",
+            fontFamily: "var(--font-sans), system-ui, sans-serif",
+            borderRadius: "12px",
+          },
+        },
+      }}
+    >
+      <CardSetupBody
+        hasExistingDefault={hasExistingDefault}
+        onCancel={onCancel}
+        onAdded={onAdded}
+      />
+    </Elements>
+  );
+}
+
+function CardSetupBody({
+  hasExistingDefault,
+  onCancel,
+  onAdded,
+}: {
+  hasExistingDefault: boolean;
+  onCancel: () => void;
+  onAdded: () => Promise<void>;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements || submitting) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    // confirmSetup tokenizes the card and confirms the SetupIntent. On 3DS
+    // challenges Stripe redirects to the return_url; we ask for redirect
+    // only-if-required so the happy path stays on-page.
+    const { error, setupIntent } = await stripe.confirmSetup({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/settings/payment-methods`,
+      },
+      redirect: "if_required",
+    });
+
+    if (error) {
+      setSubmitError(error.message ?? "We couldn't save that card. Try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!setupIntent || setupIntent.status !== "succeeded" || !setupIntent.payment_method) {
+      setSubmitError("The setup didn't complete. Try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    // First card on file → make it the default automatically. The user
+    // can change defaults later, but a no-default state breaks booking.
+    const newPmId = setupIntent.payment_method as string;
+    if (!hasExistingDefault) {
+      try {
+        await setDefaultPaymentMethod(newPmId);
+      } catch {
+        // Non-fatal — the card is saved; default just didn't flip.
+      }
+    }
+
+    try {
+      await onAdded();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <PaymentElement options={{ layout: "tabs" }} />
+
+      {submitError && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <p className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            {submitError}
+          </p>
         </div>
       )}
 
-      {/* Silence the unused-import lint for onAdded while Elements is deferred.
-          The real confirmCardSetup flow calls onAdded() to reload the list. */}
-      <span className="hidden" aria-hidden data-onadded={typeof onAdded} />
-    </section>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Your card is charged by KindredCare — 7.5% platform fee, the rest goes to the caregiver
+          after the visit ends.
+        </p>
+        <div className="flex items-center gap-2">
+          <Button type="button" onClick={onCancel} variant="outline" disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!stripe || !elements || submitting}>
+            {submitting ? "Saving…" : "Save card"}
+          </Button>
+        </div>
+      </div>
+    </form>
   );
 }
 
