@@ -971,23 +971,17 @@ function AdminDashboard() {
 function AdminHeader({ asOf }: { asOf: string | null }) {
   return (
     <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Dashboard
-        <span className="text-foreground/30">— § 19</span>
-      </div>
-
       <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         <span className="font-normal italic text-primary">The pulse,</span> at a glance.
       </h1>
 
-      <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         Live counts across the platform, ranked by what an admin most often opens. Numbers refresh
         every page load — the stamp below is the moment this snapshot was taken.
       </p>
 
       {asOf && (
-        <p className="mt-4 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
+        <p className="mt-2 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
           As of{" "}
           {new Date(asOf).toLocaleString("en-CA", {
             month: "short",

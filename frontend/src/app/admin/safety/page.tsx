@@ -226,12 +226,6 @@ function PageHeader({
 
   return (
     <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Safety desk
-        <span className="text-foreground/30">— § 00</span>
-      </div>
-
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
         <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
           <span className={cn("font-normal italic", calm ? "text-success" : "text-accent")}>

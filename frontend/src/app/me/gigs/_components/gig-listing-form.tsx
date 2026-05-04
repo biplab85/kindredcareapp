@@ -182,10 +182,6 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
       <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-8 bg-foreground/30" />
-            {isEdit ? "Edit a gig" : "Post a gig"}
-          </div>
           <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
             {isEdit ? "Refine your" : "Tell families what"}{" "}
             <span className="italic font-normal text-primary">{isEdit ? "gig" : "you offer"}</span>.

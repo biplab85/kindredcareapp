@@ -100,10 +100,6 @@ function MarketplaceView() {
       <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 max-w-3xl">
-          <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-8 bg-foreground/30" />
-            The marketplace
-          </div>
           <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
             Verified neighbours,{" "}
             <span className="italic font-normal text-primary">ready to help</span>.

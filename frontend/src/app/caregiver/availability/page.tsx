@@ -229,10 +229,6 @@ function AvailabilityView() {
 
         {/* Header */}
         <div className="mb-6">
-          <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-8 bg-foreground/30" />
-            Availability · § 12
-          </div>
           <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
             When you&rsquo;re{" "}
             <span className="font-normal italic text-primary">open for visits</span>.

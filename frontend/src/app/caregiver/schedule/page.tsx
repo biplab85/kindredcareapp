@@ -123,12 +123,6 @@ function ScheduleView() {
 function ScheduleHeader({ weekLabel }: { weekLabel: string }) {
   return (
     <header>
-      <div className="mb-2 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Appointment book
-        <span className="text-foreground/30">— § 11</span>
-      </div>
-
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
           <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">

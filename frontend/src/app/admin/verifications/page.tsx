@@ -135,17 +135,11 @@ function VerificationsView() {
 function Header() {
   return (
     <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Verifications
-        <span className="text-foreground/30">— § 30</span>
-      </div>
-
       <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         <span className="font-normal italic text-primary">Clear the queue,</span> earn the badge.
       </h1>
 
-      <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         Each pending row is a caregiver waiting on a human decision. Approve clears the check.
         Reject sends them back with a specific reason. Both land on the audit trail.
       </p>
