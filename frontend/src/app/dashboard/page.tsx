@@ -72,9 +72,7 @@ function DashboardRouter() {
 function DashboardTitle({ title, meta }: { title: React.ReactNode; meta?: React.ReactNode }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        {title}
-      </h1>
+      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">{title}</h1>
       {meta && <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{meta}</p>}
     </div>
   );
