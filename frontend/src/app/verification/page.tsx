@@ -170,10 +170,10 @@ function VerificationView() {
       <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-[1.625rem] font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+            <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
               {isFullyVerified ? "You're Basic Verified" : "Verification"}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {isFullyVerified
                 ? "Every check is cleared. Your badge is live on the shortlist and families can book you."
                 : "Complete each step below. The admin team reviews manually today; once all four clear, your profile becomes matchable."}
