@@ -98,10 +98,6 @@ function MyGigsView() {
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-              <span className="h-px w-8 bg-foreground/30" />
-              Your gigs
-            </div>
             <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
               The shop, <span className="italic font-normal text-primary">at a glance</span>.
             </h1>

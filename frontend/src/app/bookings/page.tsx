@@ -128,12 +128,6 @@ function BookingsView() {
 function BookingsHeader({ role, count }: { role?: "family" | "caregiver"; count: number | null }) {
   return (
     <header>
-      <div className="mb-2 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        {role === "caregiver" ? "Your visits" : "Your bookings"}
-        <span className="text-foreground/30">— § 09</span>
-      </div>
-
       <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         {role === "caregiver" ? (
           <>

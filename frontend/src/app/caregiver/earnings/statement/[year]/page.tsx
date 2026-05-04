@@ -140,12 +140,6 @@ function StatementView({ year }: { year: number }) {
 function Header({ year }: { year: number }) {
   return (
     <header className="print:mt-0">
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Annual statement
-        <span className="text-foreground/30">— § 19</span>
-      </div>
-
       <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         Your{" "}
         <span className="font-normal italic text-primary">
@@ -153,7 +147,7 @@ function Header({ year }: { year: number }) {
         </span>
       </h1>
 
-      <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
         A receipt of every completed visit in {year}, formatted for your T4A filing. Keep a copy for
         your records — the CRA doesn&rsquo;t receive a slip from us unless you cross the $500
         threshold.

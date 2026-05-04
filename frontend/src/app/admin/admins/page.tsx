@@ -147,17 +147,11 @@ function AdminsView() {
 function Header() {
   return (
     <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Admins
-        <span className="text-foreground/30">— § 45</span>
-      </div>
-
       <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
         <span className="font-normal italic text-primary">The roster</span> behind the desk.
       </h1>
 
-      <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         Add new admins, rename existing ones, or deactivate when someone leaves the team. New
         accounts get a randomized password — they claim it via the password-reset flow. TOTP
         enforcement ships with Phase 15 hardening.
