@@ -10,6 +10,26 @@ interface User {
   email_verified_at: string | null;
   phone_verified_at: string | null;
   status: string;
+  // Eager-loaded by /api/me (ProfileController::show). Exposed here so
+  // the post-login redirect can route incomplete users to onboarding.
+  family_profile?: { onboarding_complete: boolean } | null;
+  caregiver_profile?: { onboarding_complete: boolean } | null;
+}
+
+/**
+ * Where should this user land after authenticating? Family + caregiver
+ * users with no profile (fresh signup) or an incomplete profile get
+ * pushed into their respective onboarding flow; everyone else goes to
+ * the dashboard.
+ */
+export function postLoginRoute(user: User): string {
+  if (user.role === "family" && !user.family_profile?.onboarding_complete) {
+    return "/family-onboarding";
+  }
+  if (user.role === "caregiver" && !user.caregiver_profile?.onboarding_complete) {
+    return "/onboarding";
+  }
+  return "/dashboard";
 }
 
 interface AuthState {

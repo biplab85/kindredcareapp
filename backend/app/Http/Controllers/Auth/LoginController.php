@@ -36,6 +36,15 @@ class LoginController extends Controller
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Eager-load the role-specific profile so the frontend can decide
+        // whether to send the user into the onboarding flow vs straight
+        // to the dashboard, without an extra round-trip to /api/me.
+        if ($user->isFamily()) {
+            $user->load('familyProfile');
+        } elseif ($user->isCaregiver()) {
+            $user->load('caregiverProfile');
+        }
+
         return response()->json([
             'user' => $user,
             'token' => $token,
