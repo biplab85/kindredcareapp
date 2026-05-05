@@ -112,6 +112,11 @@ function FamilyOnboardingForm() {
       };
 
       await api.patch("/api/me/family-profile", data);
+      // Refresh the auth store so AuthGuard sees the new
+      // family_profile.onboarding_complete=true. Without this, the
+      // dashboard redirect bounces straight back to /family-onboarding
+      // because the cached user still has the stale flag.
+      await useAuthStore.getState().fetchUser();
       toast.success("Profile complete! You can now find caregivers.");
       router.push("/dashboard");
     } catch {
