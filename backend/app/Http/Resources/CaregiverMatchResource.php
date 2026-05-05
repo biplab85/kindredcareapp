@@ -34,9 +34,7 @@ class CaregiverMatchResource extends JsonResource
             'id' => $profile->id,
             'user_id' => $user->id,
             'display_name' => $user->name,
-            'photo_url' => $profile->photo_path
-                ? Storage::disk('public')->url($profile->photo_path)
-                : null,
+            'photo_url' => $this->resolvePhotoUrl($profile->photo_path),
             'bio' => $profile->bio,
             'hourly_rate' => (float) $profile->hourly_rate,
             'years_of_experience' => (int) ($profile->years_of_experience ?? 0),
@@ -59,5 +57,21 @@ class CaregiverMatchResource extends JsonResource
         $weighted = $c['verification'] * 40 + $c['reviews'] * 30 + $c['reliability'] * 20 + $c['tenure'] * 10;
 
         return (int) round($weighted / 100);
+    }
+
+    /**
+     * Pass through fully-qualified URLs (seeded placeholders) and resolve
+     * relative paths through the public disk (uploaded files).
+     */
+    private function resolvePhotoUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }
