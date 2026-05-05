@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { EmailVerifyBanner } from "@/components/dashboard/email-verify-banner";
+import { useAuthStore } from "@/lib/auth";
 import { DashboardShell } from "@/components/layouts";
 import {
   getGig,
@@ -197,6 +199,10 @@ function BookGigView({ gigId }: { gigId: number }) {
   const isHardBlocked =
     availabilityHint?.kind === "already-booked" || availabilityHint?.kind === "date-off";
 
+  // Reactive subscription so the banner + Submit gate flips the
+  // moment the user verifies their email and AuthStore re-fetches.
+  const isEmailUnverified = !useAuthStore((s) => s.user?.email_verified_at);
+
   const canSubmit =
     !!gig &&
     recipientId !== null &&
@@ -206,7 +212,8 @@ function BookGigView({ gigId }: { gigId: number }) {
     address.trim().length >= 3 &&
     !submitting &&
     !isHardBlocked &&
-    hasCardOnFile !== false;
+    hasCardOnFile !== false &&
+    !isEmailUnverified;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -547,6 +554,11 @@ function BookGigView({ gigId }: { gigId: number }) {
               Authorized when the caregiver accepts. Captured after the visit.
             </p>
           </div>
+
+          {/* Email-verify gate — hard-block before any other check. The
+              backend validator rejects too, but a callout up front
+              beats a 422 surprise on submit. */}
+          {isEmailUnverified && <EmailVerifyBanner context="booking" />}
 
           {/* Card-on-file gate — hard-block when Stripe is configured but
               the family has no default payment method. The backend

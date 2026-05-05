@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { EmailVerifyBanner } from "@/components/dashboard/email-verify-banner";
 import { DashboardMetric, DashboardShell, type DashboardNavBadges } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
 import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
@@ -238,6 +239,10 @@ function CaregiverDashboard() {
               : "Your overview and next actions."
           }
         />
+
+        <div className="mt-6">
+          <EmailVerifyBanner context="gig" />
+        </div>
 
         {isLoading ? (
           <LoadingRows />
@@ -623,6 +628,10 @@ function FamilyDashboard() {
           title={`Welcome, ${firstName}.`}
           meta="Browse the marketplace, book a visit, and track it through to completion."
         />
+
+        <div className="mt-6">
+          <EmailVerifyBanner context="booking" />
+        </div>
 
         {isLoading ? (
           <LoadingRows />

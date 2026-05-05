@@ -25,6 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { fetchServiceCategories, type ServiceCategory } from "@/lib/service-categories";
 import { createGig, updateGig, type Gig } from "@/lib/gigs";
+import { EmailVerifyBanner } from "@/components/dashboard/email-verify-banner";
+import { useAuthStore } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -82,12 +84,15 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
     [categories, categoryId],
   );
 
+  const isEmailUnverified = !useAuthStore((s) => s.user?.email_verified_at);
+
   const canSubmit =
     categoryId !== null &&
     title.trim().length >= 8 &&
     description.trim().length >= 20 &&
     hourlyRate >= 18 &&
-    hourlyRate <= 50;
+    hourlyRate <= 50 &&
+    !isEmailUnverified;
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,6 +194,8 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-12">
+          {isEmailUnverified && <EmailVerifyBanner context="gig" />}
+
           {/* Step 1 — category */}
           <Section number="01" eyebrow="A service" title="Which service is this gig for?">
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
