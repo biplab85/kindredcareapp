@@ -32,36 +32,36 @@ import { FaqSection } from "@/components/landing/faq-section";
 const familySteps = [
   {
     icon: FileText,
-    title: "Post What You Need",
-    desc: "Describe the help you're looking for — companionship, errands, tech support, or anything else.",
+    title: "Browse the Marketplace",
+    desc: "Verified caregivers list their services with rates, what's included, and a real photo. Filter by what you need.",
   },
   {
     icon: Sparkles,
-    title: "Get AI-Matched",
-    desc: "Our matching engine finds caregivers by skill, proximity, availability, and personality fit.",
+    title: "Pick a Gig That Fits",
+    desc: "Review the rate, the tasks included, and the caregiver's profile — then send a booking request for the date and time you need.",
   },
   {
     icon: CreditCard,
-    title: "Book & Pay Securely",
-    desc: "Confirm your booking, track the visit with GPS, and pay automatically through the platform.",
+    title: "Pay Only After the Visit",
+    desc: "A hold goes on your card when the caregiver accepts. We charge it only at check-out — and pro-rate if the visit runs short.",
   },
 ];
 
 const caregiverSteps = [
   {
     icon: UserPlus,
-    title: "Create Your Profile",
-    desc: "Set your services, availability, hourly rate, and tell families about your experience.",
+    title: "Set Up Your Profile",
+    desc: "Tell families who you are, set your weekly availability, and complete ID verification + a criminal record check to earn your Verified badge.",
   },
   {
     icon: ShieldCheck,
-    title: "Get Verified",
-    desc: "Complete identity verification and a criminal record check to earn your Verified badge.",
+    title: "Publish Your Gigs",
+    desc: "Each gig is one productized service — a title, a rate, what's included. Families browse them and book the one that fits.",
   },
   {
     icon: Briefcase,
-    title: "Start Earning",
-    desc: "Accept gigs that match your skills and schedule. Get paid automatically after every visit.",
+    title: "Accept Bookings, Get Paid",
+    desc: "Review every booking offer before you accept. Payouts transfer to your bank 24 hours after each visit ends.",
   },
 ];
 
@@ -139,8 +139,8 @@ const caregiverBenefits = [
   },
   {
     icon: CheckCircle2,
-    title: "Pick Your Gigs",
-    desc: "See the details before you accept. Location, service type, duration — your choice.",
+    title: "Review Every Offer",
+    desc: "Before you accept a booking you see the address, time, recipient, and any notes. Take the offers that fit; pass on the ones that don't.",
   },
 ];
 
@@ -160,8 +160,8 @@ export default function HomePage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl leading-relaxed text-muted-foreground">
-            Find verified, AI-matched caregivers for companionship, errands, and everyday help —
-            right in Durham Region.
+            Find verified caregivers for companionship, errands, and everyday help — right in
+            Durham Region.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
