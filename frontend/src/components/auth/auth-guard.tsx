@@ -1,17 +1,25 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { useAuthStore } from "@/lib/auth";
+import { postLoginRoute, useAuthStore } from "@/lib/auth";
 
 interface AuthGuardProps {
   children: React.ReactNode;
   roles?: ("family" | "caregiver" | "admin")[];
 }
 
+/**
+ * Paths that bypass the onboarding-incomplete redirect — the user has
+ * to be allowed to *reach* their onboarding page (and adjacent flows
+ * like email verification) without being bounced.
+ */
+const ONBOARDING_ALLOWED_PATHS = ["/family-onboarding", "/onboarding", "/verify-email"];
+
 export function AuthGuard({ children, roles }: AuthGuardProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, token, isLoading, fetchUser } = useAuthStore();
   const fetchedRef = useRef(false);
 
@@ -37,6 +45,16 @@ export function AuthGuard({ children, roles }: AuthGuardProps) {
 
   if (roles && !roles.includes(user.role)) {
     router.replace("/dashboard");
+    return null;
+  }
+
+  // Defensive onboarding redirect: an incomplete family/caregiver user
+  // landing on /dashboard (or any other guarded surface) gets bounced to
+  // their onboarding flow. Skipped when they're already on the
+  // onboarding page itself, otherwise we'd redirect-loop.
+  const intendedRoute = postLoginRoute(user);
+  if (intendedRoute !== "/dashboard" && !ONBOARDING_ALLOWED_PATHS.includes(pathname ?? "")) {
+    router.replace(intendedRoute);
     return null;
   }
 

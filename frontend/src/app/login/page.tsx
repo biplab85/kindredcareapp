@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { GuestGuard } from "@/components/auth/guest-guard";
-import { useAuthStore } from "@/lib/auth";
+import { postLoginRoute, useAuthStore } from "@/lib/auth";
 
 const loginSchema = z.object({
   email: z.email("Please enter a valid email"),
@@ -47,8 +47,9 @@ function LoginView() {
     setIsSubmitting(true);
     try {
       await login(data);
+      const user = useAuthStore.getState().user;
       toast.success("Welcome back!");
-      router.push("/dashboard");
+      router.push(user ? postLoginRoute(user) : "/dashboard");
     } catch {
       toast.error("Invalid email or password.");
     } finally {
