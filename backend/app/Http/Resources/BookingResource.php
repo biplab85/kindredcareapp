@@ -147,11 +147,25 @@ class BookingResource extends JsonResource
         return [
             'id' => $caregiver->id,
             'name' => $caregiver->name,
-            'photo_url' => $profile?->photo_path
-                ? Storage::disk('public')->url($profile->photo_path)
-                : null,
+            'photo_url' => $this->resolvePhotoUrl($profile?->photo_path),
             'hourly_rate' => $profile ? (float) $profile->hourly_rate : null,
         ];
+    }
+
+    /**
+     * Pass through fully-qualified URLs (seeded placeholders) and resolve
+     * relative paths through the public disk (uploaded files).
+     */
+    private function resolvePhotoUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     /**

@@ -25,7 +25,7 @@ class GigResource extends JsonResource
             'tasks_included' => $this->tasks_included ?? [],
             'hourly_rate_cents' => (int) $this->hourly_rate_cents,
             'hourly_rate_dollars' => round($this->hourly_rate_cents / 100, 2),
-            'photo_url' => $this->photo_path ? Storage::disk('public')->url($this->photo_path) : null,
+            'photo_url' => $this->resolvePhotoUrl($this->photo_path),
             'published_at' => $this->published_at?->toIso8601String(),
             'service_category' => $this->whenLoaded(
                 'serviceCategory',
@@ -38,6 +38,24 @@ class GigResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Photo paths can be either a relative key under the public disk
+     * (uploaded files) or a fully-qualified URL (seeded placeholder
+     * images). Disk URL resolution would prefix the latter with
+     * `/storage/` and break it, so check the protocol first.
+     */
+    private function resolvePhotoUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     /**
@@ -55,9 +73,7 @@ class GigResource extends JsonResource
             'user_id' => $user?->id,
             'profile_id' => $profile->id,
             'display_name' => $user?->name,
-            'photo_url' => $profile->photo_path
-                ? Storage::disk('public')->url($profile->photo_path)
-                : null,
+            'photo_url' => $this->resolvePhotoUrl($profile->photo_path),
             'years_of_experience' => $profile->years_of_experience,
             'languages' => $profile->languages ?? [],
             // The booking page uses this to soft-warn when the family's
