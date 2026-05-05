@@ -61,6 +61,18 @@ function BookGigView({ gigId }: { gigId: number }) {
   // null = unknown (still loading or stub mode); false = configured but no card; true = ready.
   const [hasCardOnFile, setHasCardOnFile] = useState<boolean | null>(null);
 
+  // Booking-form fields. Declared up here (above the load effect) so the
+  // sole-recipient autoselect can write into them via setRecipientId /
+  // setAddress without the React 19 `immutability` lint rule flagging
+  // out-of-order hook references.
+  const [recipientId, setRecipientId] = useState<number | null>(null);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("14:00");
+  const [duration, setDuration] = useState(2);
+  const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   useEffect(() => {
     Promise.all([
       getGig(gigId),
@@ -70,6 +82,16 @@ function BookGigView({ gigId }: { gigId: number }) {
       .then(([g, r, pm]) => {
         setGig(g);
         setRecipients(r.data.recipients);
+        // Auto-select when there's exactly one recipient — the user
+        // would only have one option to click anyway. Also pre-fills
+        // the visit address from that recipient's saved street_address.
+        if (r.data.recipients.length === 1) {
+          const sole = r.data.recipients[0];
+          setRecipientId(sole.id);
+          if (sole.street_address) {
+            setAddress(sole.street_address);
+          }
+        }
         // Stub mode (Stripe not configured) keeps the dev fallback open;
         // we only gate when real Stripe is wired up.
         setHasCardOnFile(
@@ -103,14 +125,6 @@ function BookGigView({ gigId }: { gigId: number }) {
       })
       .catch(() => undefined);
   };
-
-  const [recipientId, setRecipientId] = useState<number | null>(null);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("14:00");
-  const [duration, setDuration] = useState(2);
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const totals = useMemo(() => {
     if (!gig) return { subtotal: 0, fee: 0, total: 0 };
