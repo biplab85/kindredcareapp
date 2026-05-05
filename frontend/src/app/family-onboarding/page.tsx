@@ -61,6 +61,7 @@ function FamilyOnboardingForm() {
   const [city, setCity] = useState("");
 
   const [recipientName, setRecipientName] = useState("");
+  const [recipientStreetAddress, setRecipientStreetAddress] = useState("");
   const [recipientAge, setRecipientAge] = useState("");
   const [recipientLanguage, setRecipientLanguage] = useState("English");
   const [recipientInterests, setRecipientInterests] = useState<string[]>([]);
@@ -68,16 +69,29 @@ function FamilyOnboardingForm() {
   const [accessibilityNotes, setAccessibilityNotes] = useState("");
 
   const isSelf = relationship === "self";
-  const totalSteps = isSelf ? 1 : 2;
-  const steps = isSelf
-    ? [{ label: "Your Info", description: "Tell us about you" }]
-    : [
-        { label: "Your Info", description: "About you" },
-        { label: "Care Recipient", description: "Who needs care" },
-      ];
+
+  // Self-flow: the input shows the user's name as a placeholder. Submit
+  // falls back to user.name if recipientName is empty, so the user can
+  // accept the prefill by leaving the field as-is. We don't programmatically
+  // setState because React 19 flags set-state-in-effect; deriving via
+  // placeholder + submit-time fallback keeps the rule happy and the UX
+  // identical for the typical flow.
+  const recipientNamePlaceholder = isSelf
+    ? (user?.name ?? "Your name")
+    : "First name is fine";
+
+  const steps = [
+    { label: "Your Info", description: "About you" },
+    {
+      label: isSelf ? "About You" : "Care Recipient",
+      description: isSelf ? "Your details" : "Who needs care",
+    },
+  ];
+  const totalSteps = 2;
 
   const canProceedStep1 = postalCode.length >= 6 && city.length > 0;
-  const canProceedStep2 = isSelf || recipientName.length >= 2;
+  // Self users can leave the name blank — submit falls back to user.name.
+  const canProceedStep2 = isSelf ? Boolean(user?.name) : recipientName.length >= 2;
 
   const addInterest = () => {
     const trimmed = interestInput.trim();
@@ -96,22 +110,16 @@ function FamilyOnboardingForm() {
         city,
       };
 
-      if (isSelf) {
-        data.care_recipient = {
-          name: user?.name || "Self",
-          language: recipientLanguage,
-          interests: recipientInterests,
-          accessibility_notes: accessibilityNotes || null,
-        };
-      } else {
-        data.care_recipient = {
-          name: recipientName,
-          age: recipientAge ? parseInt(recipientAge) : null,
-          language: recipientLanguage,
-          interests: recipientInterests,
-          accessibility_notes: accessibilityNotes || null,
-        };
-      }
+      // Same payload shape for both flows now — self users have already
+      // had their name pre-filled via useEffect, family users typed it.
+      data.care_recipient = {
+        name: recipientName.trim() || user?.name || "Self",
+        street_address: recipientStreetAddress.trim() || null,
+        age: recipientAge ? parseInt(recipientAge) : null,
+        language: recipientLanguage,
+        interests: recipientInterests,
+        accessibility_notes: accessibilityNotes || null,
+      };
 
       await api.patch("/api/me/family-profile", data);
       toast.success("Profile complete! You can now find caregivers.");
@@ -141,11 +149,9 @@ function FamilyOnboardingForm() {
           </p>
         </div>
 
-        {totalSteps > 1 && (
-          <div className="mb-8">
-            <StepIndicator steps={steps} currentStep={step} />
-          </div>
-        )}
+        <div className="mb-8">
+          <StepIndicator steps={steps} currentStep={step} />
+        </div>
 
         <Card>
           <CardContent className="p-6 sm:p-8">
@@ -213,26 +219,48 @@ function FamilyOnboardingForm() {
               </div>
             )}
 
-            {/* Step 2 — Care recipient details */}
-            {step === 2 && !isSelf && (
+            {/* Step 2 — Recipient details (about them, or about you in the self flow) */}
+            {step === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3 rounded-xl bg-primary/5 p-4">
                   <Heart className="size-5 text-primary" />
                   <p className="text-sm text-muted-foreground">
-                    Tell us a bit about the person who needs care. This helps us find the right
-                    match.
+                    {isSelf
+                      ? "Tell us a little about yourself so caregivers can prepare. The address is where visits will happen — you can override it per booking."
+                      : "Tell us a bit about the person who needs care. This helps caregivers prepare and bookings auto-fill the address."}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="rname">Their Name</Label>
+                  <Label htmlFor="rname">{isSelf ? "Your Name" : "Their Name"}</Label>
                   <Input
                     id="rname"
                     className="h-12"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder="First name is fine"
+                    placeholder={recipientNamePlaceholder}
                   />
+                  {isSelf && recipientName.length === 0 && user?.name && (
+                    <p className="text-xs text-muted-foreground">
+                      Leave blank to use {user.name}.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="rstreet">
+                    {isSelf ? "Your Street Address" : "Their Street Address"}
+                  </Label>
+                  <Input
+                    id="rstreet"
+                    className="h-12"
+                    value={recipientStreetAddress}
+                    onChange={(e) => setRecipientStreetAddress(e.target.value)}
+                    placeholder="123 Main Street"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Where visits will usually happen. You can override this on any single booking.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -330,16 +358,13 @@ function FamilyOnboardingForm() {
                   Next <ArrowRight className="ml-1 size-4" />
                 </Button>
               ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || (step === 1 ? !canProceedStep1 : !canProceedStep2)}
-                >
+                <Button onClick={handleSubmit} disabled={isSubmitting || !canProceedStep2}>
                   {isSubmitting ? (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   ) : (
                     <CheckCircle2 className="mr-1 size-4" />
                   )}
-                  {isSelf ? "Complete Setup" : "Find Caregivers"}
+                  Find Caregivers
                 </Button>
               )}
             </div>

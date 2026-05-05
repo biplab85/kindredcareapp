@@ -31,6 +31,7 @@ type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
 interface Recipient {
   id: number;
   name: string;
+  street_address: string | null;
   age: number | null;
   language: string | null;
 }
@@ -301,7 +302,16 @@ function BookGigView({ gigId }: { gigId: number }) {
                     <li key={r.id}>
                       <button
                         type="button"
-                        onClick={() => setRecipientId(r.id)}
+                        onClick={() => {
+                          setRecipientId(r.id);
+                          // Pre-fill the visit address from the recipient's
+                          // saved address. If they don't have one on file,
+                          // leave whatever's already typed alone (could be
+                          // mid-edit). User can still override per booking.
+                          if (r.street_address) {
+                            setAddress(r.street_address);
+                          }
+                        }}
                         className={cn(
                           "w-full rounded-xl border-2 px-4 py-3 text-left transition-all",
                           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
