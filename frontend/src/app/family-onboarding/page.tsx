@@ -70,16 +70,6 @@ function FamilyOnboardingForm() {
 
   const isSelf = relationship === "self";
 
-  // Self-flow: the input shows the user's name as a placeholder. Submit
-  // falls back to user.name if recipientName is empty, so the user can
-  // accept the prefill by leaving the field as-is. We don't programmatically
-  // setState because React 19 flags set-state-in-effect; deriving via
-  // placeholder + submit-time fallback keeps the rule happy and the UX
-  // identical for the typical flow.
-  const recipientNamePlaceholder = isSelf
-    ? (user?.name ?? "Your name")
-    : "First name is fine";
-
   const steps = [
     { label: "Your Info", description: "About you" },
     {
@@ -231,21 +221,22 @@ function FamilyOnboardingForm() {
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="rname">{isSelf ? "Your Name" : "Their Name"}</Label>
-                  <Input
-                    id="rname"
-                    className="h-12"
-                    value={recipientName}
-                    onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder={recipientNamePlaceholder}
-                  />
-                  {isSelf && recipientName.length === 0 && user?.name && (
-                    <p className="text-xs text-muted-foreground">
-                      Leave blank to use {user.name}.
-                    </p>
-                  )}
-                </div>
+                {/* Family flow asks for the recipient's name. Self flow
+                    skips it entirely — the user's name from signup is
+                    already on file and the submit handler falls back to
+                    user.name when recipientName is empty. */}
+                {!isSelf && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rname">Their Name</Label>
+                    <Input
+                      id="rname"
+                      className="h-12"
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      placeholder="First name is fine"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <Label htmlFor="rstreet">
