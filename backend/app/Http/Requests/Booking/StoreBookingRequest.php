@@ -45,6 +45,22 @@ class StoreBookingRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            /** @var User|null $user */
+            $user = $this->user();
+
+            // Email verification is a hard precondition for booking. We
+            // also gate the Submit button frontend-side, but families
+            // can post directly to /api/bookings — this is the source
+            // of truth.
+            if ($user !== null && $user->email_verified_at === null) {
+                $validator->errors()->add(
+                    'email_verification',
+                    'Verify your email before booking a visit. Check your inbox or resend the link from /verify-email.',
+                );
+
+                return;
+            }
+
             // Card-on-file gate — only when Stripe is actually wired up.
             // In dev (no STRIPE_SECRET) the stub channel is the documented
             // fallback, so we let the booking through. Once real Stripe is
@@ -52,8 +68,6 @@ class StoreBookingRequest extends FormRequest
             // booking; the alternative is a silent free-visit if the
             // authorize call later returns null.
             $stripe = app(StripePaymentService::class);
-            /** @var User|null $user */
-            $user = $this->user();
             $family = $user?->familyProfile;
             if (
                 $stripe->isConfigured()

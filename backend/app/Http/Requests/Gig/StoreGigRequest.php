@@ -4,6 +4,7 @@ namespace App\Http\Requests\Gig;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Caregiver creates a productized service listing. Hourly rate is in
@@ -34,5 +35,21 @@ class StoreGigRequest extends FormRequest
             'photo' => ['sometimes', 'nullable', 'image', 'max:5120'],
             'status' => ['sometimes', 'in:draft,published,paused'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            // Email verification is a hard precondition for publishing
+            // gigs — families need to know the inbox on the listing
+            // is real before they reach out. Frontend gates Submit too,
+            // but this is the source of truth.
+            if ($this->user() !== null && $this->user()->email_verified_at === null) {
+                $validator->errors()->add(
+                    'email_verification',
+                    'Verify your email before publishing a gig. Check your inbox or resend the link from /verify-email.',
+                );
+            }
+        });
     }
 }
