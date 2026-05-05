@@ -56,6 +56,7 @@ class FamilyProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:100'],
+            'street_address' => ['nullable', 'string', 'max:255'],
             'age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'postal_code' => ['nullable', 'string', 'regex:/^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/'],
             'language' => ['nullable', 'string', 'max:50'],
@@ -82,6 +83,7 @@ class FamilyProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'min:2', 'max:100'],
+            'street_address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'age' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:120'],
             'postal_code' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/'],
             'language' => ['sometimes', 'nullable', 'string', 'max:50'],

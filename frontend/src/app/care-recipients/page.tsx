@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, User, Languages, Accessibility } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  User,
+  Languages,
+  Accessibility,
+  MapPin,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +33,7 @@ import api from "@/lib/api";
 interface Recipient {
   id: number;
   name: string;
+  street_address: string | null;
   age: number | null;
   language: string | null;
   interests: string[] | null;
@@ -68,6 +78,7 @@ function CareRecipientsContent() {
   const fetchedRef = useRef(false);
 
   const [name, setName] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
   const [age, setAge] = useState("");
   const [language, setLanguage] = useState("English");
   const [interests, setInterests] = useState<string[]>([]);
@@ -94,6 +105,7 @@ function CareRecipientsContent() {
 
   const resetForm = () => {
     setName("");
+    setStreetAddress("");
     setAge("");
     setLanguage("English");
     setInterests([]);
@@ -105,6 +117,7 @@ function CareRecipientsContent() {
 
   const startEdit = (r: Recipient) => {
     setName(r.name);
+    setStreetAddress(r.street_address || "");
     setAge(r.age?.toString() || "");
     setLanguage(r.language || "English");
     setInterests(r.interests || []);
@@ -131,6 +144,7 @@ function CareRecipientsContent() {
     try {
       const data = {
         name,
+        street_address: streetAddress.trim() || null,
         age: age ? parseInt(age) : null,
         language,
         interests,
@@ -223,6 +237,21 @@ function CareRecipientsContent() {
                   placeholder="78"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="rstreet">Street Address (optional)</Label>
+              <Input
+                id="rstreet"
+                className="h-12"
+                value={streetAddress}
+                onChange={(e) => setStreetAddress(e.target.value)}
+                placeholder="123 Main Street"
+              />
+              <p className="text-xs text-muted-foreground">
+                Where visits happen. The booking form pre-fills from this; you can override per
+                visit.
+              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -326,6 +355,11 @@ function CareRecipientsContent() {
                   </div>
 
                   <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    {r.street_address && (
+                      <div className="flex items-start gap-1.5">
+                        <MapPin className="mt-0.5 size-3.5 shrink-0" /> {r.street_address}
+                      </div>
+                    )}
                     {r.language && (
                       <div className="flex items-center gap-1.5">
                         <Languages className="size-3.5" /> {r.language}

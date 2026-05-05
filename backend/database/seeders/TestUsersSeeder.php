@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\CaregiverProfile;
+use App\Models\CareRecipient;
 use App\Models\FamilyProfile;
 use App\Models\Gig;
 use App\Models\ServiceCategory;
@@ -299,9 +300,44 @@ class TestUsersSeeder extends Seeder
         }
 
         // ──────── Families ────────
+        // family1 represents the family-arranges-care flow (one parent recipient)
+        // family2 represents the senior-self flow (recipient = the user themselves)
         $families = [
-            ['email' => 'family1@kindredcare.ca', 'name' => 'Mohammad Rahman', 'phone' => '+1 905 555 0201'],
-            ['email' => 'family2@kindredcare.ca', 'name' => 'Priya Patel', 'phone' => '+1 905 555 0202'],
+            [
+                'email' => 'family1@kindredcare.ca',
+                'name' => 'Mohammad Rahman',
+                'phone' => '+1 905 555 0201',
+                'relationship' => 'parent',
+                'recipients' => [
+                    [
+                        'name' => 'Salma Rahman',
+                        'street_address' => '42 Maple Crescent, Oshawa',
+                        'postal_code' => 'L1J 5K2',
+                        'age' => 78,
+                        'language' => 'Bengali',
+                        'interests' => ['gardening', 'morning walks', 'tea'],
+                        'accessibility_notes' => 'Uses a walker; arthritis in both knees.',
+                    ],
+                ],
+            ],
+            [
+                'email' => 'family2@kindredcare.ca',
+                'name' => 'Priya Patel',
+                'phone' => '+1 905 555 0202',
+                'relationship' => 'self',
+                'recipients' => [
+                    [
+                        // Self-flow: recipient name matches user.name.
+                        'name' => 'Priya Patel',
+                        'street_address' => '108 Stevenson Rd N, Oshawa',
+                        'postal_code' => 'L1H 7K4',
+                        'age' => 71,
+                        'language' => 'English',
+                        'interests' => ['reading', 'cards', 'CBC radio'],
+                        'accessibility_notes' => 'Mild hearing loss in the left ear.',
+                    ],
+                ],
+            ],
         ];
 
         foreach ($families as $fam) {
@@ -318,15 +354,29 @@ class TestUsersSeeder extends Seeder
                 ],
             );
 
-            FamilyProfile::updateOrCreate(
+            $profile = FamilyProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'relationship' => 'child',
+                    'relationship' => $fam['relationship'],
                     'postal_code' => 'L1H 7K4',
                     'city' => 'Oshawa',
                     'onboarding_complete' => true,
                 ],
             );
+
+            foreach ($fam['recipients'] as $r) {
+                CareRecipient::updateOrCreate(
+                    ['family_profile_id' => $profile->id, 'name' => $r['name']],
+                    [
+                        'street_address' => $r['street_address'],
+                        'postal_code' => $r['postal_code'],
+                        'age' => $r['age'],
+                        'language' => $r['language'],
+                        'interests' => $r['interests'],
+                        'accessibility_notes' => $r['accessibility_notes'],
+                    ],
+                );
+            }
         }
     }
 }
