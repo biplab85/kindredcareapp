@@ -244,8 +244,8 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={
                     selectedCategory
-                      ? `Patient ${selectedCategory.name.toLowerCase()} visits in Oshawa`
-                      : "e.g., Patient companionship visits in Oshawa"
+                      ? `Patient ${selectedCategory.name.toLowerCase()} visits in your area`
+                      : "e.g., Patient companionship visits in your area"
                   }
                   maxLength={120}
                   className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"

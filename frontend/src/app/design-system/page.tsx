@@ -197,7 +197,7 @@ export default function DesignSystemPage() {
             </Badge>
             <Badge variant="secondary">Companionship</Badge>
             <Badge variant="outline">
-              <MapPin className="size-3 mr-1" /> Durham Region
+              <MapPin className="size-3 mr-1" /> Canada
             </Badge>
             <Badge variant="destructive">Flagged</Badge>
             <Badge className="bg-success text-success-foreground hover:bg-success/80">

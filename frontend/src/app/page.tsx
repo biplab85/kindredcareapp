@@ -160,8 +160,8 @@ export default function HomePage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl leading-relaxed text-muted-foreground">
-            Find verified caregivers for companionship, errands, and everyday help — right in
-            Durham Region.
+            Find verified caregivers for companionship, errands, and everyday help — across
+            Canada.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
@@ -391,7 +391,7 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-2xl px-4 text-center">
           <h2>Ready to Get Started?</h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Join families and caregivers across Durham Region who are already using KindredCare.
+            Join families and caregivers across Canada who are already using KindredCare.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">

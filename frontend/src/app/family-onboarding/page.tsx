@@ -195,7 +195,7 @@ function FamilyOnboardingForm() {
                     className="h-12"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="Oshawa"
+                    placeholder="Your city"
                   />
                 </div>
 

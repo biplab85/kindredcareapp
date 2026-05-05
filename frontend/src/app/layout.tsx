@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | KindredCare",
   },
   description:
-    "Find verified, AI-matched caregivers for companionship, errands, and everyday help for seniors in Durham Region, Ontario.",
+    "Find verified caregivers for companionship, errands, and everyday help for seniors across Canada.",
 };
 
 export default function RootLayout({

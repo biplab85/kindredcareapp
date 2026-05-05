@@ -193,7 +193,7 @@ function StatementCard({ statement }: { statement: Statement }) {
           <span className="text-foreground/30">·</span>
           <p className="flex items-center gap-1 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             <MapPin className="size-3" strokeWidth={2} />
-            Durham Region, Ontario
+            Canada
           </p>
         </div>
       </div>
@@ -327,7 +327,7 @@ function StatementCard({ statement }: { statement: Statement }) {
             minute: "2-digit",
           })}
         </p>
-        <p className="font-mono">KindredCare · Durham Region, Ontario</p>
+        <p className="font-mono">KindredCare · Canada</p>
       </div>
     </section>
   );

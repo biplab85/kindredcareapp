@@ -38,7 +38,7 @@ const faqs: FaqItem[] = [
   {
     question: "Is KindredCare available in my area?",
     answer:
-      "KindredCare is currently available in Durham Region, Ontario — including Oshawa, Whitby, Ajax, Pickering, and Clarington. We're expanding to the Greater Toronto Area soon. Sign up to be notified when we launch in your area.",
+      "KindredCare is available across Canada. Caregivers list their services on the marketplace and families book locally — pick whichever province you're in.",
   },
 ];
 
