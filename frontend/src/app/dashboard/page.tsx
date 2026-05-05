@@ -621,7 +621,7 @@ function FamilyDashboard() {
       <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome, ${firstName}.`}
-          meta="Post a gig, run matches, and track your bookings."
+          meta="Browse the marketplace, book a visit, and track it through to completion."
         />
 
         {isLoading ? (
@@ -682,11 +682,6 @@ function FamilyDashboard() {
             <QuickRoutes
               routes={[
                 {
-                  href: "/gigs",
-                  label: "Manage your gigs",
-                  hint: "All posted gigs with their matching state.",
-                },
-                {
                   href: "/bookings",
                   label: "Live bookings",
                   hint: "Track offers as they go out and come back.",
@@ -695,6 +690,11 @@ function FamilyDashboard() {
                   href: "/care-recipients",
                   label: "Care recipients",
                   hint: "Profiles for the people you're arranging care for.",
+                },
+                {
+                  href: "/settings/payment-methods",
+                  label: "Payment methods",
+                  hint: "The card we charge after a visit ends.",
                 },
               ]}
             />
