@@ -150,7 +150,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
           <div className="space-y-6">
-            <ReceiptBlock booking={booking} />
+            <ReceiptBlock booking={booking} role={role} />
             <VisitBlock booking={booking} role={role} onChanged={reload} />
             <MessagesBlock bookingId={booking.id} />
             <RatingPromptBlock booking={booking} />
@@ -278,7 +278,13 @@ function ArrivalBanner({ booking, role }: { booking: Booking; role: string }) {
  * Receipt block
  * ───────────────────────────────────────────────────────────── */
 
-function ReceiptBlock({ booking }: { booking: Booking }) {
+function ReceiptBlock({
+  booking,
+  role,
+}: {
+  booking: Booking;
+  role: "family" | "caregiver" | "admin";
+}) {
   return (
     <section
       aria-label="Receipt"
@@ -330,13 +336,100 @@ function ReceiptBlock({ booking }: { booking: Booking }) {
         <p className="text-3xl font-semibold">{formatCents(booking.caregiver_payout_cents)}</p>
       </div>
 
-      <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground italic">
-        Payment status:{" "}
-        <span className="not-italic">{booking.payment_status.replaceAll("_", " ")}</span>. Real
-        Stripe capture lands in Phase 9; this booking is running on the stub channel.
-      </p>
+      <PaymentStatusNote booking={booking} role={role} />
     </section>
   );
+}
+
+function PaymentStatusNote({
+  booking,
+  role,
+}: {
+  booking: Booking;
+  role: "family" | "caregiver" | "admin";
+}) {
+  const message = paymentStatusMessage(booking, role);
+  if (!message) return null;
+
+  const tone = paymentStatusTone(booking.payment_status);
+  const toneClass = {
+    info: "border-primary/25 bg-primary/[0.04] text-foreground/80",
+    warning: "border-accent/30 bg-accent/[0.06] text-accent",
+    success: "border-success/30 bg-success/[0.06] text-success",
+    muted: "border-border/60 bg-muted/30 text-muted-foreground",
+  }[tone];
+
+  return (
+    <p
+      className={cn(
+        "mt-5 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed",
+        toneClass,
+      )}
+    >
+      {message}
+    </p>
+  );
+}
+
+function paymentStatusMessage(
+  booking: Booking,
+  role: "family" | "caregiver" | "admin",
+): string | null {
+  const total = `$${(booking.subtotal_cents / 100).toFixed(2)}`;
+  const isFamily = role === "family";
+  const isCaregiver = role === "caregiver";
+
+  switch (booking.payment_status) {
+    case "not_required":
+      return isFamily
+        ? "No charge yet. Your card will be authorized when the caregiver accepts."
+        : null;
+
+    case "authorized":
+      return isFamily
+        ? `${total} hold placed on your card. We charge it when the visit ends.`
+        : isCaregiver
+          ? "The family's card is authorized. Funds release at check-out."
+          : null;
+
+    case "captured":
+      return isFamily
+        ? `${total} charged to your card.`
+        : isCaregiver
+          ? "Visit captured. Payout transfers after the 24-hour hold."
+          : null;
+
+    case "released":
+      return isFamily ? "Hold released — no charge." : null;
+
+    case "refunded":
+      return isFamily
+        ? `${total} was charged and refunded.`
+        : "This visit was refunded to the family.";
+
+    case "held_pending_dispute":
+      return isFamily
+        ? `${total} charged. Funds are held while we review a dispute.`
+        : "Funds held pending dispute resolution.";
+
+    // Stub statuses appear when STRIPE_SECRET isn't configured. The state
+    // machine ran but no real money moved; surface that honestly.
+    case "authorized_stub":
+    case "captured_stub":
+    case "released_stub":
+    case "refunded_stub":
+      return "Stripe is not configured — this booking is running on the dev stub channel, no real card was used.";
+
+    default:
+      return null;
+  }
+}
+
+function paymentStatusTone(status: string): "info" | "warning" | "success" | "muted" {
+  if (status === "captured" || status === "released") return "success";
+  if (status === "held_pending_dispute" || status === "refunded") return "warning";
+  if (status.endsWith("_stub")) return "muted";
+  return "info";
 }
 
 function Line({

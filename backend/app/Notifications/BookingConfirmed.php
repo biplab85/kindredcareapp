@@ -30,12 +30,22 @@ class BookingConfirmed extends Notification
         $b = $this->booking;
         $caregiverName = $b->caregiver->name;
         $start = $b->scheduled_start->format('l F j, Y @ g:i A');
+        $total = number_format($b->subtotal_cents / 100, 2);
 
-        return (new MailMessage)
+        $msg = (new MailMessage)
             ->subject("{$caregiverName} accepted your booking")
             ->greeting("{$caregiverName} is confirmed.")
             ->line("When: {$start}")
-            ->line("They'll arrive at {$b->address_full}.")
+            ->line("They'll arrive at {$b->address_full}.");
+
+        // Only mention the hold when Stripe actually placed one. The stub
+        // channel kept the legacy state machine working before we wired
+        // real Stripe; surfacing it as a hold to the family would be a lie.
+        if ($b->payment_status === Booking::PAYMENT_AUTHORIZED) {
+            $msg->line("We've placed a \${$total} hold on your card on file. You won't be charged until the visit ends.");
+        }
+
+        return $msg
             ->line('You can message them through the booking page to share any last details.')
             ->action('View booking', url("/bookings/{$b->id}"));
     }

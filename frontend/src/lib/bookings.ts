@@ -13,6 +13,13 @@ export type BookingStatus =
 
 export type BookingPaymentStatus =
   | "not_required"
+  // Real Stripe states once STRIPE_SECRET is configured.
+  | "authorized"
+  | "captured"
+  | "released"
+  | "refunded"
+  | "held_pending_dispute"
+  // Stub equivalents — same state machine, no real money moved.
   | "authorized_stub"
   | "captured_stub"
   | "released_stub"

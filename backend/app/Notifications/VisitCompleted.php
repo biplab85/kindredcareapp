@@ -44,6 +44,16 @@ class VisitCompleted extends Notification
             ->line("Duration: {$duration}");
 
         if ($this->forFamily) {
+            // Show the actual captured amount, not the original subtotal —
+            // partial captures (short visits) charge less than booked.
+            // PaymentIntent IDs are absent on stub bookings; gate the
+            // receipt line on real Stripe so we don't promise a charge
+            // that didn't happen.
+            if ($b->payment_status === Booking::PAYMENT_CAPTURED) {
+                $charged = number_format($b->subtotal_cents / 100, 2);
+                $msg->line("We charged \${$charged} to your card on file.");
+            }
+
             return $msg
                 ->line('We\'d love your rating and any notes while it\'s fresh.')
                 ->action('Rate this visit', url("/bookings/{$b->id}"));
