@@ -197,7 +197,7 @@ function CategoryGrid({ categories }: { categories: ServiceCategory[] }) {
           </h2>
         </div>
         <p className="hidden max-w-xs text-right text-sm leading-relaxed text-muted-foreground sm:block">
-          Pick one to post a specific gig, or mix and match — caregivers often offer several.
+          Pick one to see caregivers in that category, or mix and match — caregivers often offer several.
         </p>
       </div>
 
@@ -335,7 +335,7 @@ function CategoryCard({
 
       {/* CTA footer */}
       <div className="relative mt-auto flex items-center justify-between gap-2 border-t border-border/50 px-6 py-4 pt-5">
-        <span className="text-sm font-medium text-foreground">Post a gig</span>
+        <span className="text-sm font-medium text-foreground">Browse caregivers</span>
         <span
           className={cn(
             "inline-flex size-8 items-center justify-center rounded-full transition-all duration-300",
@@ -410,8 +410,8 @@ function FinalCta() {
           Seen one you&rsquo;d like <span className="italic font-normal">some help with?</span>
         </h2>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-          Tell us what you need, and we&rsquo;ll show you the neighbours best placed to help —
-          ranked by skill, nearness, and fit.
+          Browse the marketplace and pick the caregiver who fits — every listing carries the rate,
+          what&rsquo;s included, and a verified profile.
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
