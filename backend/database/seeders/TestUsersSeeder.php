@@ -17,8 +17,9 @@ use Illuminate\Support\Facades\Hash;
  *
  * Each caregiver also lands fully-onboarded for marketplace browsing:
  * profile photo, attached service categories, weekly availability, and
- * 1–2 published gigs. Resources passthrough fully-qualified photo URLs
- * (i.pravatar.cc) without going through the public disk.
+ * exactly four published gigs (16 total across the cast). Resources
+ * passthrough fully-qualified photo URLs (i.pravatar.cc) without going
+ * through the public disk.
  */
 class TestUsersSeeder extends Seeder
 {
@@ -60,8 +61,10 @@ class TestUsersSeeder extends Seeder
         );
 
         // ──────── Caregivers ────────
-        // Each row carries the matched service slugs (1–2 per caregiver) and
-        // a couple of gig templates that get published with status=published.
+        // Each row carries the matched service slugs and exactly four gig
+        // templates per caregiver, all published. Variety within each set
+        // (different time slots, audiences, focus) so the marketplace
+        // doesn't feel cookie-cutter even though the cast is small.
         $caregivers = [
             [
                 'email' => 'caregiver1@kindredcare.ca',
@@ -80,6 +83,27 @@ class TestUsersSeeder extends Seeder
                         'rate' => 25.00,
                         'description' => "I sit with your loved one — chat, share a tea, take a slow walk if they're up for it. Patient with memory loss; happy to read aloud or do simple crafts. Two-hour minimum.",
                         'tasks' => ['Conversation & light social engagement', 'Tea / light snack', 'Reading aloud', 'Simple crafts or board games'],
+                    ],
+                    [
+                        'category' => 'companionship',
+                        'title' => 'Weekend afternoons at the family home',
+                        'rate' => 25.00,
+                        'description' => "Saturday or Sunday 2–6 PM block. Great for families who want regular respite without midweek juggling. I'll bring a deck of cards or a movie if your loved one's up for it.",
+                        'tasks' => ['Four-hour afternoon block', 'Card games or movies', 'Light snack & drinks', 'Wellness check at the end'],
+                    ],
+                    [
+                        'category' => 'companionship',
+                        'title' => 'Evening conversation visits — dementia-aware',
+                        'rate' => 25.00,
+                        'description' => "Late afternoon to early evening, when sundowning anxiety can spike. I'm trained in redirection and validation. We keep a calm room, soft lighting, and a familiar routine.",
+                        'tasks' => ['Calming routine setup', 'Sundowning redirection', 'Bedtime prep prompt', 'Notes for the family group chat'],
+                    ],
+                    [
+                        'category' => 'walking-companion',
+                        'title' => 'Gentle weekday strolls — Lakeview Park',
+                        'rate' => 25.00,
+                        'description' => "Lakeview Park's flat paved loop is perfect for walkers and rollators. We go at your loved one's pace, with built-in benches every 200 m. Rain plan: indoor mall walk instead.",
+                        'tasks' => ['Pre-walk hydration', '20–45 min flat-path walk', 'Bench rest stops as needed', 'Rain backup at the mall'],
                     ],
                 ],
             ],
@@ -102,11 +126,25 @@ class TestUsersSeeder extends Seeder
                         'tasks' => ['Pharmacy pickup', 'Grocery shopping with list', 'Drop-off & put-away', 'Receipts handed over'],
                     ],
                     [
+                        'category' => 'errands-shopping',
+                        'title' => 'On-demand errand runs — same-day',
+                        'rate' => 28.00,
+                        'description' => 'One-off pickups when something runs out. Bank deposit, dry-cleaning, gift shop, anything within Durham. Text me by 10 AM, done by dinner.',
+                        'tasks' => ['Single-store / single-stop pickup', 'Bank or post office stops', 'Door-to-door delivery', 'Photo confirmation on text'],
+                    ],
+                    [
                         'category' => 'meal-preparation',
                         'title' => 'Two-hour meal prep — three days of meals',
                         'rate' => 28.00,
                         'description' => 'I cook three days of fresh, simple meals from your favourite cuisine. Diabetic-friendly and low-sodium options available. I leave the kitchen cleaner than I found it.',
                         'tasks' => ['Meal planning around dietary needs', 'Cooking 3 days of meals', 'Portioning and labelling', 'Kitchen cleanup'],
+                    ],
+                    [
+                        'category' => 'meal-preparation',
+                        'title' => 'Single hot-meal visit — eat together',
+                        'rate' => 28.00,
+                        'description' => 'Sometimes the company matters as much as the meal. I cook a fresh hot lunch or dinner, plate it nicely, and we eat together. Two hours, including dishes.',
+                        'tasks' => ['Single fresh meal cooked on-site', 'Eat together at the table', 'Conversation & companionship', 'Dishes done before I leave'],
                     ],
                 ],
             ],
@@ -127,6 +165,27 @@ class TestUsersSeeder extends Seeder
                         'rate' => 30.00,
                         'description' => 'Patient, jargon-free setup of iPad/iPhone/Alexa/Google Home. I leave a printed cheat-sheet of every step we did so they can do it again on their own.',
                         'tasks' => ['Device setup & account login', 'Video-call walkthrough with family', 'Smart-home device pairing', 'Printed cheat-sheet'],
+                    ],
+                    [
+                        'category' => 'tech-help',
+                        'title' => 'Online banking & scam-spotting — one-on-one',
+                        'rate' => 30.00,
+                        'description' => "I walk through their bank's app together, set up alerts and limits, and we role-play five common scams (the CRA call, the grandkid emergency, the gift-card pay) so they recognize them.",
+                        'tasks' => ['Banking-app setup with alerts', 'Two-factor login walkthrough', 'Five common-scam roleplays', 'Quick-reference fridge magnet'],
+                    ],
+                    [
+                        'category' => 'tech-help',
+                        'title' => 'Photos & video calls with the grandkids',
+                        'rate' => 30.00,
+                        'description' => "Get FaceTime / WhatsApp / Google Meet set up for the kid line, with the grandkids' contacts pinned to the home screen. We do a real call together so they see it work end-to-end.",
+                        'tasks' => ['Pinned contacts for grandkids', 'Test call together with the family', 'Photo gallery sync setup', 'Cheat-sheet by the phone'],
+                    ],
+                    [
+                        'category' => 'tech-help',
+                        'title' => 'Tech anxiety calm-down — first-time setup',
+                        'rate' => 30.00,
+                        'description' => "For someone who's avoided their new device because it feels overwhelming. We go slow. Start with one button. Build up. By the end of two hours they'll have done a video call themselves.",
+                        'tasks' => ['Confidence-building first steps', 'Single-task milestones', 'Plain-English glossary', 'No-jargon next-steps list'],
                     ],
                 ],
             ],
@@ -149,11 +208,25 @@ class TestUsersSeeder extends Seeder
                         'tasks' => ['Pre-walk check-in', '30–60 min walk at their pace', 'Hydration & rest stops', 'Photo of the route on text after'],
                     ],
                     [
+                        'category' => 'walking-companion',
+                        'title' => 'Evening reflective-vest walks — winter-ready',
+                        'rate' => 22.00,
+                        'description' => "After-dark walks aren't off the table. I bring two reflective vests and a flashlight. Routes stay on lit residential streets. Safer than skipping the walk altogether.",
+                        'tasks' => ['Reflective gear for both of us', 'Lit-street route only', 'Headlamp for tricky sections', 'Phone share-location with family'],
+                    ],
+                    [
                         'category' => 'gardening',
                         'title' => 'Light garden tidy-up — weekly visit',
                         'rate' => 22.00,
                         'description' => 'Weeding, deadheading, watering, light pruning. I bring my own gloves and shears. Yard waste bagged and curbside.',
                         'tasks' => ['Weeding flowerbeds', 'Deadheading & light pruning', 'Watering pots & beds', 'Yard waste bagging'],
+                    ],
+                    [
+                        'category' => 'gardening',
+                        'title' => 'Patio container watering — drop-in visits',
+                        'rate' => 22.00,
+                        'description' => "For loved ones who care about their patio pots but can't kneel any more. I do a 30-minute drop-in: water, deadhead, prune, and send a photo of the patio when I leave.",
+                        'tasks' => ['Watering all containers', 'Deadheading spent blooms', 'Quick weed pull', 'Photo update on text'],
                     ],
                 ],
             ],
