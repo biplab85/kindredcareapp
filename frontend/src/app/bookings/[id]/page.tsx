@@ -360,12 +360,7 @@ function PaymentStatusNote({
   }[tone];
 
   return (
-    <p
-      className={cn(
-        "mt-5 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed",
-        toneClass,
-      )}
-    >
+    <p className={cn("mt-5 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed", toneClass)}>
       {message}
     </p>
   );

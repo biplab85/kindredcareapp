@@ -542,7 +542,11 @@ function BookGigView({ gigId }: { gigId: number }) {
                 </span>
               </p>
               <Link href="/settings/payment-methods" className="mt-4 inline-block">
-                <Button variant="outline" size="sm" className="h-10 border-destructive/40 text-destructive hover:bg-destructive/5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 border-destructive/40 text-destructive hover:bg-destructive/5"
+                >
                   Add a payment method
                 </Button>
               </Link>
