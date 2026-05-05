@@ -18,6 +18,7 @@ import {
   type BookedWindow,
   type Gig,
 } from "@/lib/gigs";
+import { listPaymentMethods } from "@/lib/payments";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -56,12 +57,23 @@ function BookGigView({ gigId }: { gigId: number }) {
   const [bookedWindows, setBookedWindows] = useState<BookedWindow[]>([]);
   const [offDates, setOffDates] = useState<string[]>(NEVER_OFF);
   const [loadError, setLoadError] = useState(false);
+  // null = unknown (still loading or stub mode); false = configured but no card; true = ready.
+  const [hasCardOnFile, setHasCardOnFile] = useState<boolean | null>(null);
 
   useEffect(() => {
-    Promise.all([getGig(gigId), api.get<{ recipients: Recipient[] }>("/api/me/care-recipients")])
-      .then(([g, r]) => {
+    Promise.all([
+      getGig(gigId),
+      api.get<{ recipients: Recipient[] }>("/api/me/care-recipients"),
+      listPaymentMethods(),
+    ])
+      .then(([g, r, pm]) => {
         setGig(g);
         setRecipients(r.data.recipients);
+        // Stub mode (Stripe not configured) keeps the dev fallback open;
+        // we only gate when real Stripe is wired up.
+        setHasCardOnFile(
+          pm.meta.stripe_configured ? Boolean(pm.meta.default_payment_method_id) : true,
+        );
         // Fire-and-forget: empty windows just means we won't preempt the conflict;
         // BookingService still hard-blocks at the transaction level.
         const caregiverUserId = g.caregiver?.user_id;
@@ -178,7 +190,8 @@ function BookGigView({ gigId }: { gigId: number }) {
     duration >= 1 &&
     address.trim().length >= 3 &&
     !submitting &&
-    !isHardBlocked;
+    !isHardBlocked &&
+    hasCardOnFile !== false;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -510,6 +523,31 @@ function BookGigView({ gigId }: { gigId: number }) {
               Authorized when the caregiver accepts. Captured after the visit.
             </p>
           </div>
+
+          {/* Card-on-file gate — hard-block when Stripe is configured but
+              the family has no default payment method. The backend
+              validator will also reject, but failing the user at submit
+              time is worse UX than telling them upfront. */}
+          {hasCardOnFile === false && (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/[0.04] p-5 ring-1 ring-destructive/20">
+              <p className="flex items-start gap-3 text-sm">
+                <AlertTriangle
+                  className="mt-0.5 size-4 shrink-0 text-destructive"
+                  strokeWidth={2.25}
+                />
+                <span className="leading-relaxed">
+                  <span className="font-semibold text-destructive">Add a card before booking.</span>{" "}
+                  We hold the visit total on your card the moment the caregiver accepts. Set one up
+                  once and every future booking auto-charges at check-out.
+                </span>
+              </p>
+              <Link href="/settings/payment-methods" className="mt-4 inline-block">
+                <Button variant="outline" size="sm" className="h-10 border-destructive/40 text-destructive hover:bg-destructive/5">
+                  Add a payment method
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="flex items-center justify-end gap-4 border-t border-border/60 pt-6">

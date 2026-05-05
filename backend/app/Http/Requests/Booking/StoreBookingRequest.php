@@ -5,6 +5,7 @@ namespace App\Http\Requests\Booking;
 use App\Models\Booking;
 use App\Models\Gig;
 use App\Models\User;
+use App\Services\StripePaymentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -44,6 +45,29 @@ class StoreBookingRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            // Card-on-file gate — only when Stripe is actually wired up.
+            // In dev (no STRIPE_SECRET) the stub channel is the documented
+            // fallback, so we let the booking through. Once real Stripe is
+            // configured, requiring a card is a hard precondition for
+            // booking; the alternative is a silent free-visit if the
+            // authorize call later returns null.
+            $stripe = app(StripePaymentService::class);
+            /** @var User|null $user */
+            $user = $this->user();
+            $family = $user?->familyProfile;
+            if (
+                $stripe->isConfigured()
+                && $family
+                && (! $family->stripe_customer_id || ! $family->default_payment_method_id)
+            ) {
+                $validator->errors()->add(
+                    'payment_method',
+                    'Add a payment method before booking. Settings → Payment methods.',
+                );
+
+                return;
+            }
+
             $start = $this->input('scheduled_start');
             $minutes = $this->integer('duration_minutes');
 

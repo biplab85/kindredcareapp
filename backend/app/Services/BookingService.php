@@ -130,10 +130,20 @@ class BookingService
         }
 
         return DB::transaction(function () use ($booking) {
-            // Try the real authorization. If Stripe isn't configured, or the
-            // family hasn't attached a method yet, authorize() returns null
-            // and we fall through to the stub channel — same shape as Phase 7.
+            // Try the real authorization. Two distinct null-cases here:
+            //  - Stripe isn't configured at all (dev) → fall back to the
+            //    documented stub channel so local flows keep working.
+            //  - Stripe IS configured but the call returned null (no card
+            //    on file, expired card, decline, network blip) → fail
+            //    loudly. The previous fall-through silently made the
+            //    visit "free", which is catastrophic in production.
             $intent = $this->stripe->authorizeForBooking($booking->loadMissing('familyProfile.user'));
+
+            if (! $intent && $this->stripe->isConfigured()) {
+                throw ValidationException::withMessages([
+                    'payment' => "Couldn't authorize the family's payment method. They've been asked to update it before this offer can be accepted.",
+                ]);
+            }
 
             $booking->update([
                 'status' => Booking::STATUS_CONFIRMED,
