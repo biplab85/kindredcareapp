@@ -49,7 +49,7 @@ class TestUsersSeeder extends Seeder
 
         // ──────── Admin ────────
         User::updateOrCreate(
-            ['email' => 'admin@kindredcare.test'],
+            ['email' => 'admin@kindredcare.ca'],
             [
                 'name' => 'Admin User',
                 'password' => $hashed,
@@ -64,7 +64,7 @@ class TestUsersSeeder extends Seeder
         // a couple of gig templates that get published with status=published.
         $caregivers = [
             [
-                'email' => 'caregiver1@kindredcare.test',
+                'email' => 'caregiver1@kindredcare.ca',
                 'name' => 'Sarah Mitchell',
                 'phone' => '+1 905 555 0101',
                 'photo' => 'https://i.pravatar.cc/300?img=47',
@@ -84,7 +84,7 @@ class TestUsersSeeder extends Seeder
                 ],
             ],
             [
-                'email' => 'caregiver2@kindredcare.test',
+                'email' => 'caregiver2@kindredcare.ca',
                 'name' => 'Aisha Khan',
                 'phone' => '+1 905 555 0102',
                 'photo' => 'https://i.pravatar.cc/300?img=44',
@@ -111,7 +111,7 @@ class TestUsersSeeder extends Seeder
                 ],
             ],
             [
-                'email' => 'caregiver3@kindredcare.test',
+                'email' => 'caregiver3@kindredcare.ca',
                 'name' => 'Daniel Singh',
                 'phone' => '+1 905 555 0103',
                 'photo' => 'https://i.pravatar.cc/300?img=33',
@@ -131,7 +131,7 @@ class TestUsersSeeder extends Seeder
                 ],
             ],
             [
-                'email' => 'caregiver4@kindredcare.test',
+                'email' => 'caregiver4@kindredcare.ca',
                 'name' => 'Emily Chen',
                 'phone' => '+1 905 555 0104',
                 'photo' => 'https://i.pravatar.cc/300?img=20',
@@ -227,8 +227,8 @@ class TestUsersSeeder extends Seeder
 
         // ──────── Families ────────
         $families = [
-            ['email' => 'family1@kindredcare.test', 'name' => 'Mohammad Rahman', 'phone' => '+1 905 555 0201'],
-            ['email' => 'family2@kindredcare.test', 'name' => 'Priya Patel', 'phone' => '+1 905 555 0202'],
+            ['email' => 'family1@kindredcare.ca', 'name' => 'Mohammad Rahman', 'phone' => '+1 905 555 0201'],
+            ['email' => 'family2@kindredcare.ca', 'name' => 'Priya Patel', 'phone' => '+1 905 555 0202'],
         ];
 
         foreach ($families as $fam) {
