@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Every way KindredCare helps seniors in Durham Region — from companionship and errands to gardening, tech help, and transportation.",
+    "Every way KindredCare helps seniors across Canada — from companionship and errands to gardening, tech help, and transportation.",
 };
 
 // Controlled revalidation. The taxonomy rarely changes but we want fresh copy if it does.
@@ -166,7 +166,7 @@ function Hero() {
           </span>
           <span className="flex items-center gap-2">
             <MapPin className="size-4 text-primary" strokeWidth={2.2} />
-            Durham Region, Ontario
+            Across Canada
           </span>
           <span className="flex items-center gap-2">
             <Sparkles className="size-4 text-accent" strokeWidth={2.2} />

@@ -32,12 +32,12 @@ export function Footer() {
               className="mb-4"
             />
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-              Connecting Canadian seniors with verified, AI-matched caregivers for companionship,
-              errands, and everyday help.
+              Connecting Canadian seniors with verified caregivers for companionship, errands, and
+              everyday help.
             </p>
             <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Heart className="size-3 text-accent" />
-              Based in Oshawa, Ontario — Proudly Canadian
+              Serving families across Canada — Proudly Canadian
             </p>
           </div>
 

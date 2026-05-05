@@ -386,7 +386,7 @@ function BookGigView({ gigId }: { gigId: number }) {
                 id="address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="123 King Street West, Whitby ON"
+                placeholder="123 King Street West, City, Province"
                 className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"
               />
             </div>

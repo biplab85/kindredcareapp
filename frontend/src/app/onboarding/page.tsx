@@ -448,7 +448,7 @@ function OnboardingForm() {
                     className="h-12"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="123 Main St, Oshawa, ON"
+                    placeholder="123 Main St, City, Province"
                   />
                 </div>
 
