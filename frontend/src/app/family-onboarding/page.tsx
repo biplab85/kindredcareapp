@@ -119,8 +119,22 @@ function FamilyOnboardingForm() {
       await useAuthStore.getState().fetchUser();
       toast.success("Profile complete! You can now find caregivers.");
       router.push("/dashboard");
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      // Surface Laravel's 422 field errors instead of a generic
+      // "something went wrong". If the response carries a structured
+      // errors object, toast each field message; otherwise fall back
+      // to the top-level message or a default.
+      const error = err as {
+        response?: { data?: { message?: string; errors?: Record<string, string[]> } };
+      };
+      const fieldErrors = error.response?.data?.errors;
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        Object.values(fieldErrors)
+          .flat()
+          .forEach((msg) => toast.error(msg));
+      } else {
+        toast.error(error.response?.data?.message ?? "Something went wrong. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
