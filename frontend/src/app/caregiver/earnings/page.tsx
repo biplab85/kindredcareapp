@@ -295,12 +295,18 @@ function HistoryRow({ row }: { row: EarningsHistoryRow }) {
           )}
         </div>
 
-        {/* Money column */}
+        {/* Money column — fee-on-top so the caregiver receives the base
+            in full; the family-paid total just adds the platform's cut
+            on top. Shown for transparency, not as a deduction. */}
         <dl className="border-t border-dashed border-border/60 pt-4 sm:border-0 sm:pt-0 sm:text-right">
-          <MoneyLine label="Gross" value={formatCents(row.subtotal_cents)} />
-          <MoneyLine label="Fee (7.5%)" value={`− ${formatCents(row.platform_fee_cents)}`} muted />
+          <MoneyLine label="Family paid" value={formatCents(row.subtotal_cents)} muted />
+          <MoneyLine label="Platform fee" value={formatCents(row.platform_fee_cents)} muted />
           <div className="mt-2 border-t border-dashed border-border/60 pt-2">
-            <MoneyLine label="Net" value={formatCents(row.caregiver_payout_cents)} emphasized />
+            <MoneyLine
+              label="You received"
+              value={formatCents(row.caregiver_payout_cents)}
+              emphasized
+            />
           </div>
         </dl>
       </div>

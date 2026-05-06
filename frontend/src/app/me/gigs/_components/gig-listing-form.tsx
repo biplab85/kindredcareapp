@@ -331,7 +331,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                 />
               </div>
               <p className="mt-4 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-                Platform fee: 7.5% · You keep ${(hourlyRate * 0.925).toFixed(2)} / hour
+                You keep ${hourlyRate.toFixed(2)} / hour · Family pays ${(hourlyRate * 1.075).toFixed(2)}
               </p>
             </div>
           </Section>

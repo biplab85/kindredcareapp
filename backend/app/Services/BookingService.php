@@ -581,15 +581,27 @@ class BookingService
     }
 
     /**
+     * Fee-on-top model: caregiver keeps the full hourly rate they listed,
+     * the platform fee is added on top of what the family pays.
+     *
+     *   base     = rate × hours              ← caregiver's earnings
+     *   fee      = base × PLATFORM_FEE_BPS   ← platform's cut
+     *   subtotal = base + fee                ← what Stripe authorizes / captures
+     *
+     * Field semantics post-rewrite:
+     *   subtotal_cents         — total amount charged to the family
+     *   platform_fee_cents     — what the platform keeps
+     *   caregiver_payout_cents — what the caregiver receives (= base, full rate)
+     *
      * @return array{0:int,1:int,2:int} [subtotal, platform_fee, caregiver_payout]
      */
     private function priceBreakdown(int $rateCents, int $minutes): array
     {
-        $subtotal = (int) round($rateCents * $minutes / 60);
-        $fee = (int) round($subtotal * Booking::PLATFORM_FEE_BPS / 10000);
-        $payout = $subtotal - $fee;
+        $base = (int) round($rateCents * $minutes / 60);
+        $fee = (int) round($base * Booking::PLATFORM_FEE_BPS / 10000);
+        $subtotal = $base + $fee;
 
-        return [$subtotal, $fee, $payout];
+        return [$subtotal, $fee, $base];
     }
 
     private function insideFreeCancelWindow(Booking $booking): bool
@@ -602,6 +614,10 @@ class BookingService
      * cases (mvp-reqs §4.9) capture less than the full authorization.
      * Longer-than-booked is capped at subtotal_cents — we don't charge
      * families for over-stay without re-authorization.
+     *
+     * Under the fee-on-top model the pro-rated amount has to include both
+     * the pro-rated base (caregiver's portion) AND the pro-rated platform
+     * fee, otherwise short visits would silently waive the platform's cut.
      */
     private function computeCaptureAmount(Booking $booking, CarbonInterface $completedAt): int
     {
@@ -614,7 +630,10 @@ class BookingService
             return $booking->subtotal_cents;
         }
 
-        return (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
+        $proRatedBase = (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
+        $proRatedFee = (int) round($proRatedBase * Booking::PLATFORM_FEE_BPS / 10000);
+
+        return $proRatedBase + $proRatedFee;
     }
 
     private function metersFromGig(Booking $booking, float $lat, float $lng): int

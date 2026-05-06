@@ -335,9 +335,11 @@ function OnboardingForm() {
     }
   };
 
+  // Fee-on-top model: caregiver gets the full hourly rate, fee is added
+  // on top of what the family pays.
   const platformFee = +(hourlyRate * 0.075).toFixed(2);
   const familyPays = +(hourlyRate + platformFee).toFixed(2);
-  const youKeep = +(hourlyRate - platformFee).toFixed(2);
+  const youKeep = hourlyRate;
 
   return (
     <div className="min-h-screen bg-background">
