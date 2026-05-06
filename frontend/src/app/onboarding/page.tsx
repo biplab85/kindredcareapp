@@ -328,8 +328,21 @@ function OnboardingForm() {
 
       toast.success("Profile complete! You're ready to receive gigs.");
       router.push("/dashboard");
-    } catch {
-      toast.error("Failed to save profile. Please try again.");
+    } catch (err: unknown) {
+      // Surface the actual server message (validation errors, 500s, etc)
+      // instead of swallowing into a generic "failed to save". 422 field
+      // errors fan out into one toast each.
+      const error = err as {
+        response?: { data?: { message?: string; errors?: Record<string, string[]> } };
+      };
+      const fieldErrors = error.response?.data?.errors;
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        Object.values(fieldErrors)
+          .flat()
+          .forEach((msg) => toast.error(msg));
+      } else {
+        toast.error(error.response?.data?.message ?? "Failed to save profile. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
