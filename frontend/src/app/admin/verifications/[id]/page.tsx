@@ -17,12 +17,21 @@ import {
   RefreshCw,
   ShieldCheck,
   ShieldX,
+  X,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   approveVerification,
   checkTypeLabel,
@@ -497,31 +506,93 @@ function DocumentsPanel({ urls }: { urls: Record<string, string> }) {
       ) : (
         <ul className="space-y-2">
           {entries.map(([key, url]) => (
-            <li key={key}>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-4 py-3 transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium tracking-tight capitalize">
-                    {key.replace(/_/g, " ")}
-                  </p>
-                  <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-                    Open in new tab
-                  </p>
-                </div>
-                <ExternalLink
-                  className="size-4 text-muted-foreground/60 transition-colors group-hover:text-primary"
-                  strokeWidth={2}
-                />
-              </a>
-            </li>
+            <DocumentRow key={key} docKey={key} url={url} />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
+  const label = docKey.replace(/_/g, " ");
+
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
+      {/* Thumbnail — clicking opens the preview modal */}
+      <Dialog>
+        <DialogTrigger
+          render={
+            <button
+              type="button"
+              aria-label={`Preview ${label}`}
+              className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/40 transition-all hover:border-primary/50 hover:shadow-[0_4px_12px_rgba(10,14,40,0.08)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={label}
+                className="size-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          }
+        />
+        <DialogContent className="max-w-3xl p-0">
+          <DialogTitle className="px-6 pt-6 capitalize">{label}</DialogTitle>
+          <DialogDescription className="px-6 pb-3 text-xs text-muted-foreground">
+            Signed link expires in 15 minutes from page load.
+          </DialogDescription>
+          <div className="px-6 pb-6">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={label}
+                className="block w-full h-auto object-contain"
+              />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ExternalLink className="size-3.5" strokeWidth={2} />
+                Open in new tab
+              </a>
+              <DialogClose
+                render={
+                  <Button variant="outline" size="sm">
+                    <X className="size-3.5" strokeWidth={2} />
+                    Close
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Label + actions */}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium tracking-tight capitalize">{label}</p>
+        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+          Click thumbnail to preview
+        </p>
+      </div>
+
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Open ${label} in new tab`}
+        className="rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-primary/10 hover:text-primary"
+      >
+        <ExternalLink className="size-4" strokeWidth={2} />
+      </a>
+    </li>
   );
 }
 

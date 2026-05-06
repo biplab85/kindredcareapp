@@ -153,6 +153,14 @@ class VerificationController extends Controller
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('private')->response($paths[$document]);
+        // Override the global CORP header so the admin frontend (different
+        // origin in dev: :3000 vs :8000) can render the doc inline via
+        // <img>. The signed-URL middleware is the authorization gate;
+        // dropping CORP doesn't change who can fetch, just whether a
+        // browser embedded on a different origin will accept the bytes.
+        $response = Storage::disk('private')->response($paths[$document]);
+        $response->headers->set('Cross-Origin-Resource-Policy', 'cross-origin');
+
+        return $response;
     }
 }
