@@ -243,10 +243,27 @@ function OnboardingForm() {
         if (Array.isArray(p.languages)) setSelectedLanguages(p.languages);
         if (Array.isArray(p.interests)) setInterests(p.interests);
         if (Array.isArray(p.personality_tags)) setPersonalityTags(p.personality_tags);
-        if (Array.isArray(p.certifications)) setCertifications(p.certifications);
+        if (Array.isArray(p.certifications)) {
+          // Coerce nulls in optional fields to "" so controlled <Input>
+          // doesn't warn ("value prop on input should not be null").
+          setCertifications(
+            p.certifications.map((c) => ({
+              ...c,
+              name: c.name ?? "",
+              issuer: c.issuer ?? "",
+              year: c.year ?? "",
+            })),
+          );
+        }
         if (Array.isArray(p.references) && p.references.length > 0) {
-          // Pad with blanks so the form always shows two reference rows.
-          const refs = [...p.references];
+          // Pad with blanks so the form always shows two reference rows;
+          // coerce nullable fields so controlled <Input>s don't warn.
+          const refs = p.references.map((r) => ({
+            name: r.name ?? "",
+            email: r.email ?? "",
+            phone: r.phone ?? "",
+            relationship: r.relationship ?? "",
+          }));
           while (refs.length < 2) refs.push({ name: "", email: "", phone: "", relationship: "" });
           setReferences(refs);
         }
