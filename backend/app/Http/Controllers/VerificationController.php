@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\VerificationRecord;
+use App\Notifications\VerificationDocumentsSubmitted;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class VerificationController extends Controller
 {
@@ -51,6 +53,13 @@ class VerificationController extends Controller
                 'retry_count' => \DB::raw('retry_count + 1'),
             ],
         );
+
+        // Drop the submission into the admin notification bell + inbox so
+        // the queue isn't dependent on someone refreshing /admin/verifications.
+        $admins = User::where('role', 'admin')->where('status', 'active')->get();
+        if ($admins->isNotEmpty()) {
+            Notification::send($admins, new VerificationDocumentsSubmitted($user, $record->fresh()));
+        }
 
         return response()->json([
             'message' => 'ID documents uploaded. Pending admin review.',
