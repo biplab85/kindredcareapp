@@ -13,7 +13,7 @@ const faqs: FaqItem[] = [
   {
     question: "How much does KindredCare cost?",
     answer:
-      "There are no subscription fees or upfront costs. KindredCare charges a 7.5% platform fee on each completed booking — that's it. If a caregiver's rate is $25/hour, the family pays $26.88 and the caregiver takes home $23.12. This is significantly less than the 10–15% markup traditional agencies charge.",
+      "There are no subscription fees or upfront costs. KindredCare adds a 7.5% platform fee on top of the caregiver's rate when the family books — that's it. If a caregiver's rate is $25/hour, the family pays $26.88 and the caregiver takes home the full $25.00. Traditional agencies charge a 10–15% markup AND deduct another cut from the caregiver, so the same $25 rate often nets the worker $17–$18.",
   },
   {
     question: "How are caregivers verified?",

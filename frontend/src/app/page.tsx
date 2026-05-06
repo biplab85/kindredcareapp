@@ -326,13 +326,14 @@ export default function HomePage() {
                 <span className="text-accent">Work on Your Terms</span>
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
-                Traditional agencies take 30–40% of what families pay. On KindredCare, you keep{" "}
-                <span className="font-semibold text-foreground">92.5%</span>.
+                Traditional agencies take 30–40% off what you charge. On KindredCare, you keep{" "}
+                <span className="font-semibold text-foreground">100%</span> of your hourly rate —
+                the platform fee is added on top of what the family pays.
               </p>
 
               <div className="mt-8 flex items-center gap-6 rounded-2xl bg-muted/60 p-5">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-accent">92.5%</p>
+                  <p className="text-3xl font-bold text-accent">100%</p>
                   <p className="text-xs text-muted-foreground">KindredCare</p>
                 </div>
                 <div className="h-12 w-px bg-border" />
@@ -343,7 +344,7 @@ export default function HomePage() {
                 <p className="ml-auto text-xs text-muted-foreground">
                   Your take-home
                   <br />
-                  per dollar earned
+                  per dollar you charge
                 </p>
               </div>
 
