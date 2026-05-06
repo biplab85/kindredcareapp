@@ -387,6 +387,33 @@ function StatusStrip({
     );
   }
 
+  // Identity is cleared but the other admin-side checks (CPIC, AML,
+  // references) aren't done yet. The caregiver has done their part —
+  // no upload-CTA nag; just inform that remaining checks are running.
+  if (identityStatus === "cleared") {
+    return (
+      <aside className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-success/30 bg-success/[0.05] px-5 py-4 text-sm">
+        <div className="grid size-10 place-items-center rounded-xl bg-success/15 text-success">
+          <ShieldCheck className="size-5" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-foreground">Identity confirmed.</p>
+          <p className="text-muted-foreground">
+            Background check and references are still running on the admin side. You&rsquo;ll
+            appear in family shortlists once every check is cleared.
+          </p>
+        </div>
+        <Link
+          href="/verification"
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-success hover:text-success/80"
+        >
+          View status
+          <ChevronRight className="size-3.5" />
+        </Link>
+      </aside>
+    );
+  }
+
   // Admin rejected — caregiver needs to act. Same destructive tone as a
   // hard error, but with a clear "try again" CTA.
   if (identityStatus === "rejected") {
