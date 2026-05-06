@@ -73,6 +73,12 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
 
+  images: {
+    // Seeded test users carry pravatar URLs as photo placeholders until
+    // real uploads land — next/image refuses unknown hosts otherwise.
+    remotePatterns: [{ protocol: "https", hostname: "i.pravatar.cc" }],
+  },
+
   async headers() {
     return [
       {
