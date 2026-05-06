@@ -529,12 +529,7 @@ function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
               className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/40 transition-all hover:border-primary/50 hover:shadow-[0_4px_12px_rgba(10,14,40,0.08)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={label}
-                className="size-full object-cover"
-                loading="lazy"
-              />
+              <img src={url} alt={label} className="size-full object-cover" loading="lazy" />
             </button>
           }
         />
@@ -546,11 +541,7 @@ function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
           <div className="px-6 pb-6">
             <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={label}
-                className="block w-full h-auto object-contain"
-              />
+              <img src={url} alt={label} className="block w-full h-auto object-contain" />
             </div>
             <div className="mt-4 flex items-center justify-between gap-2">
               <a

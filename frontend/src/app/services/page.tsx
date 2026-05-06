@@ -197,7 +197,8 @@ function CategoryGrid({ categories }: { categories: ServiceCategory[] }) {
           </h2>
         </div>
         <p className="hidden max-w-xs text-right text-sm leading-relaxed text-muted-foreground sm:block">
-          Pick one to see caregivers in that category, or mix and match — caregivers often offer several.
+          Pick one to see caregivers in that category, or mix and match — caregivers often offer
+          several.
         </p>
       </div>
 

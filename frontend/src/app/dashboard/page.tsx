@@ -372,8 +372,8 @@ function StatusStrip({
         <div className="flex-1">
           <p className="font-semibold text-foreground">Documents submitted — pending review.</p>
           <p className="text-muted-foreground">
-            Our admin team is checking your ID and selfie. Most reviews land within a business
-            day; you&rsquo;ll get an email when it&rsquo;s done.
+            Our admin team is checking your ID and selfie. Most reviews land within a business day;
+            you&rsquo;ll get an email when it&rsquo;s done.
           </p>
         </div>
         <Link
@@ -399,8 +399,8 @@ function StatusStrip({
         <div className="flex-1">
           <p className="font-semibold text-foreground">Identity confirmed.</p>
           <p className="text-muted-foreground">
-            Background check and references are still running on the admin side. You&rsquo;ll
-            appear in family shortlists once every check is cleared.
+            Background check and references are still running on the admin side. You&rsquo;ll appear
+            in family shortlists once every check is cleared.
           </p>
         </div>
         <Link

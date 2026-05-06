@@ -160,8 +160,7 @@ export default function HomePage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl leading-relaxed text-muted-foreground">
-            Find verified caregivers for companionship, errands, and everyday help — across
-            Canada.
+            Find verified caregivers for companionship, errands, and everyday help — across Canada.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
