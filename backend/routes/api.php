@@ -195,6 +195,17 @@ Route::prefix('webhooks')->middleware('throttle:webhooks')->group(function () {
     Route::post('/stripe', [StripeWebhookController::class, 'handle']);
 });
 
+// ─── ADMIN VERIFICATION DOCUMENT VIEWER (signed URLs) ───
+// Lives outside the auth:sanctum group so an admin can open the doc in a
+// new tab or paste it into <img src=...> without needing the bearer
+// token. Time-limited signature (15 min) provides authorization;
+// admin/verifications/{id} is the only place those signed URLs are
+// generated, and that route is admin-gated.
+Route::get(
+    '/admin/verifications/{verification}/document/{document}',
+    [App\Http\Controllers\Admin\VerificationController::class, 'document'],
+)->middleware(['signed', 'throttle:api'])->name('admin.verification.document');
+
 // ─── ADMIN ───
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->group(function () {
     Route::get('/users', [UserController::class, 'index']);
@@ -207,7 +218,6 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::get('/verifications/{verification}', [App\Http\Controllers\Admin\VerificationController::class, 'show']);
     Route::post('/verifications/{verification}/approve', [App\Http\Controllers\Admin\VerificationController::class, 'approve']);
     Route::post('/verifications/{verification}/reject', [App\Http\Controllers\Admin\VerificationController::class, 'reject']);
-    Route::get('/verifications/{verification}/document/{document}', [App\Http\Controllers\Admin\VerificationController::class, 'document'])->name('admin.verification.document');
 
     Route::get('/bookings', [App\Http\Controllers\Admin\BookingController::class, 'index']);
     Route::get('/bookings/{booking}', [App\Http\Controllers\Admin\BookingController::class, 'show']);

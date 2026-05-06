@@ -10,6 +10,7 @@ use App\Services\AdminAuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 class VerificationController extends Controller
 {
@@ -41,10 +42,19 @@ class VerificationController extends Controller
         if (is_array($paths)) {
             foreach ($paths as $key => $path) {
                 if (Storage::disk('private')->exists($path)) {
-                    $documentUrls[$key] = route('admin.verification.document', [
-                        'verification' => $verification->id,
-                        'document' => $key,
-                    ]);
+                    // Time-limited signed URL — admin can paste it into
+                    // <img src=...> or open it in a new tab; the signature
+                    // is the authorization. 15 minutes is enough for a
+                    // single review session without leaving long-lived
+                    // links sitting in browser history.
+                    $documentUrls[$key] = URL::temporarySignedRoute(
+                        'admin.verification.document',
+                        now()->addMinutes(15),
+                        [
+                            'verification' => $verification->id,
+                            'document' => $key,
+                        ],
+                    );
                 }
             }
         }
