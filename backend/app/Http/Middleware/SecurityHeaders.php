@@ -46,8 +46,14 @@ class SecurityHeaders
             'camera=(), microphone=(), geolocation=(), usb=(), payment=(), midi=(), magnetometer=(), gyroscope=()',
         );
 
-        // Cross-origin protections — JSON is same-origin only.
-        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        // Cross-origin protections — JSON is same-origin only. Controllers
+        // serving files that need to be embedded cross-origin (signed
+        // verification documents, signed gig photos, etc.) can opt out by
+        // setting Cross-Origin-Resource-Policy themselves; we only apply
+        // the strict default when the response doesn't already carry one.
+        if (! $response->headers->has('Cross-Origin-Resource-Policy')) {
+            $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        }
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
         // Don't leak Laravel/PHP server identity to attackers.
