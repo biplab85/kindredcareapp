@@ -23,6 +23,18 @@ export function AuthGuard({ children, roles }: AuthGuardProps) {
   const { user, token, isLoading, fetchUser } = useAuthStore();
   const fetchedRef = useRef(false);
 
+  // Compute the redirect target during render but issue navigation in
+  // an effect. React 19 + Next 16 disallow router.replace() in render
+  // bodies — it triggers "Cannot update a component while rendering a
+  // different component."
+  const wrongRole = user && roles && !roles.includes(user.role);
+  const intendedRoute = user ? postLoginRoute(user) : null;
+  const needsOnboardingRedirect =
+    user &&
+    intendedRoute !== "/dashboard" &&
+    intendedRoute !== null &&
+    !ONBOARDING_ALLOWED_PATHS.includes(pathname ?? "");
+
   useEffect(() => {
     if (!token) {
       router.replace("/login");
@@ -35,27 +47,25 @@ export function AuthGuard({ children, roles }: AuthGuardProps) {
     }
   }, [token, user, isLoading, fetchUser, router]);
 
-  if (!token || isLoading || !user) {
+  useEffect(() => {
+    if (wrongRole) {
+      router.replace("/dashboard");
+      return;
+    }
+    if (needsOnboardingRedirect && intendedRoute) {
+      router.replace(intendedRoute);
+    }
+  }, [wrongRole, needsOnboardingRedirect, intendedRoute, router]);
+
+  // Show the spinner while we're either still loading the user or
+  // about to bounce somewhere — avoids one frame of children rendering
+  // before the redirect lands.
+  if (!token || isLoading || !user || wrongRole || needsOnboardingRedirect) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (roles && !roles.includes(user.role)) {
-    router.replace("/dashboard");
-    return null;
-  }
-
-  // Defensive onboarding redirect: an incomplete family/caregiver user
-  // landing on /dashboard (or any other guarded surface) gets bounced to
-  // their onboarding flow. Skipped when they're already on the
-  // onboarding page itself, otherwise we'd redirect-loop.
-  const intendedRoute = postLoginRoute(user);
-  if (intendedRoute !== "/dashboard" && !ONBOARDING_ALLOWED_PATHS.includes(pathname ?? "")) {
-    router.replace(intendedRoute);
-    return null;
   }
 
   return <>{children}</>;
