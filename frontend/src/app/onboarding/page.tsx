@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   Camera,
@@ -134,7 +134,15 @@ export default function OnboardingPage() {
 
 function OnboardingForm() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const searchParams = useSearchParams();
+  // Honor ?step=N from the URL so deep-links from dashboard CTAs ("add a
+  // certification" → /onboarding?step=4) land on the right step. Clamped
+  // to the valid range.
+  const initialStep = (() => {
+    const raw = Number(searchParams.get("step"));
+    return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : 1;
+  })();
+  const [step, setStep] = useState(initialStep);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,10 +190,114 @@ function OnboardingForm() {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
+
     api
       .get<{ data: ServiceCategory[] }>("/api/service-categories")
       .then((res) => setCategories(res.data.data))
       .catch(() => toast.error("Failed to load services."));
+
+    // Prefill from the existing caregiver profile so deep-links from the
+    // dashboard ("add a certification") don't strand the user on a blank
+    // form when they're already 92% complete.
+    api
+      .get<{
+        user?: {
+          date_of_birth?: string | null;
+          gender?: string | null;
+          caregiver_profile?: {
+            bio?: string | null;
+            address?: string | null;
+            postal_code?: string | null;
+            hourly_rate?: number | string | null;
+            travel_radius_km?: number | null;
+            years_of_experience?: number | null;
+            languages?: string[] | null;
+            interests?: string[] | null;
+            personality_tags?: string[] | null;
+            certifications?: Certification[] | null;
+            references?: Reference[] | null;
+            emergency_contact_name?: string | null;
+            emergency_contact_phone?: string | null;
+            emergency_contact_relationship?: string | null;
+            availability?: { weekly?: Record<string, { start: string; end: string }[]> } | null;
+            photo_path?: string | null;
+            services?: Array<{ id: number; pivot?: { years_experience?: number } }> | null;
+          } | null;
+        };
+      }>("/api/me")
+      .then((res) => {
+        const u = res.data.user;
+        if (!u) return;
+        if (u.date_of_birth) setDateOfBirth(u.date_of_birth.slice(0, 10));
+        if (u.gender) setGender(u.gender);
+
+        const p = u.caregiver_profile;
+        if (!p) return;
+        if (p.bio) setBio(p.bio);
+        if (p.address) setAddress(p.address);
+        if (p.postal_code) setPostalCode(p.postal_code);
+        if (p.photo_path && /^https?:\/\//.test(p.photo_path)) setPhotoPreview(p.photo_path);
+        if (p.hourly_rate != null) setHourlyRate(Number(p.hourly_rate));
+        if (p.travel_radius_km != null) setTravelRadius(p.travel_radius_km);
+        if (p.years_of_experience != null) setYearsOfExperience(p.years_of_experience);
+        if (Array.isArray(p.languages)) setSelectedLanguages(p.languages);
+        if (Array.isArray(p.interests)) setInterests(p.interests);
+        if (Array.isArray(p.personality_tags)) setPersonalityTags(p.personality_tags);
+        if (Array.isArray(p.certifications)) setCertifications(p.certifications);
+        if (Array.isArray(p.references) && p.references.length > 0) {
+          // Pad with blanks so the form always shows two reference rows.
+          const refs = [...p.references];
+          while (refs.length < 2) refs.push({ name: "", email: "", phone: "", relationship: "" });
+          setReferences(refs);
+        }
+        if (p.emergency_contact_name) setEmergencyName(p.emergency_contact_name);
+        if (p.emergency_contact_phone) setEmergencyPhone(p.emergency_contact_phone);
+        if (p.emergency_contact_relationship) {
+          setEmergencyRelationship(p.emergency_contact_relationship);
+        }
+        if (Array.isArray(p.services) && p.services.length > 0) {
+          const next: Record<number, number> = {};
+          p.services.forEach((s) => {
+            next[s.id] = s.pivot?.years_experience ?? 0;
+          });
+          setSelectedServices(next);
+        }
+        const weekly = p.availability?.weekly;
+        if (weekly && typeof weekly === "object") {
+          // Convert matcher-shaped weekly { mon: [{start,end}], ... } back
+          // to the form's { mon: { available, start, end } } shape.
+          const dayKeyMap: Record<string, string> = {
+            monday: "mon",
+            tuesday: "tue",
+            wednesday: "wed",
+            thursday: "thu",
+            friday: "fri",
+            saturday: "sat",
+            sunday: "sun",
+          };
+          setAvailability((prev) => {
+            const next = { ...prev };
+            for (const [longDay, prevValue] of Object.entries(prev)) {
+              const shortKey = dayKeyMap[longDay] ?? longDay;
+              const ranges = weekly[shortKey];
+              if (Array.isArray(ranges) && ranges.length > 0) {
+                next[longDay] = {
+                  available: true,
+                  start: ranges[0].start,
+                  end: ranges[0].end,
+                };
+              } else if (Array.isArray(ranges)) {
+                next[longDay] = { ...prevValue, available: false };
+              }
+            }
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        // Soft-fail: a fresh user with no profile yet hits a 404-ish
+        // shape; either way we just leave the form blank.
+      });
   }, []);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
