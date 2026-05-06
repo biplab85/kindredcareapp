@@ -13,6 +13,7 @@ import {
   Loader2,
   MapPin,
   ShieldCheck,
+  ShieldX,
   Sparkles,
   UsersRound,
   Wallet,
@@ -145,10 +146,13 @@ const STEP_BY_FIELD: Record<string, string> = {
   interests: "/onboarding?step=3",
 };
 
+type IdentityStatus = "not_started" | "pending_review" | "cleared" | "rejected" | "incomplete";
+
 function CaregiverDashboard() {
   const { user } = useAuthStore();
   const [completion, setCompletion] = useState<ProfileCompletion | null>(null);
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
+  const [identityStatus, setIdentityStatus] = useState<IdentityStatus>("not_started");
   const [bookings, setBookings] = useState<Booking[] | null>(null);
 
   // Fetches in parallel but each settles independently — one failure
@@ -163,6 +167,13 @@ function CaregiverDashboard() {
         if (!alive) return;
         setCompletion(meRes.data?.profile_completion ?? null);
         setIsVerified(Boolean(meRes.data?.is_fully_verified));
+        // verification_summary is an array of {check_type, status}.
+        // Pull out the identity row so the strip can show the
+        // in-between "pending admin review" state.
+        const summary: Array<{ check_type: string; status: IdentityStatus }> =
+          meRes.data?.verification_summary ?? [];
+        const identity = summary.find((s) => s.check_type === "identity");
+        if (identity) setIdentityStatus(identity.status);
       } catch (err) {
         console.error("[dashboard] /api/me failed", err);
         if (alive) setIsVerified(false);
@@ -248,7 +259,7 @@ function CaregiverDashboard() {
           <LoadingRows />
         ) : (
           <>
-            <StatusStrip isVerified={isVerified} />
+            <StatusStrip isVerified={isVerified} identityStatus={identityStatus} />
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <DashboardMetric
@@ -319,7 +330,13 @@ function CaregiverDashboard() {
  * Caregiver — status strip
  * ───────────────────────────────────────────────────────────── */
 
-function StatusStrip({ isVerified }: { isVerified: boolean }) {
+function StatusStrip({
+  isVerified,
+  identityStatus,
+}: {
+  isVerified: boolean;
+  identityStatus: IdentityStatus;
+}) {
   if (isVerified) {
     return (
       <aside className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-success/30 bg-success/[0.05] px-5 py-4 text-sm">
@@ -343,6 +360,59 @@ function StatusStrip({ isVerified }: { isVerified: boolean }) {
     );
   }
 
+  // Identity docs submitted, waiting on admin to approve. Distinct from
+  // "haven't uploaded yet" so caregivers don't get nagged to do something
+  // they've already done.
+  if (identityStatus === "pending_review") {
+    return (
+      <aside className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/30 bg-primary/[0.04] px-5 py-4 text-sm">
+        <div className="grid size-10 place-items-center rounded-xl bg-primary/15 text-primary">
+          <Loader2 className="size-5 animate-spin" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-foreground">Documents submitted — pending review.</p>
+          <p className="text-muted-foreground">
+            Our admin team is checking your ID and selfie. Most reviews land within a business
+            day; you&rsquo;ll get an email when it&rsquo;s done.
+          </p>
+        </div>
+        <Link
+          href="/verification"
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:text-primary/80"
+        >
+          View status
+          <ChevronRight className="size-3.5" />
+        </Link>
+      </aside>
+    );
+  }
+
+  // Admin rejected — caregiver needs to act. Same destructive tone as a
+  // hard error, but with a clear "try again" CTA.
+  if (identityStatus === "rejected") {
+    return (
+      <aside className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-destructive/30 bg-destructive/[0.04] px-5 py-4 text-sm">
+        <div className="grid size-10 place-items-center rounded-xl bg-destructive/15 text-destructive">
+          <ShieldX className="size-5" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-foreground">Verification needs another look.</p>
+          <p className="text-muted-foreground">
+            Admin couldn&rsquo;t approve your last submission. Open the verification page for the
+            specific reason and re-upload.
+          </p>
+        </div>
+        <Link href="/verification">
+          <Button size="sm" variant="destructive">
+            Re-submit documents
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </Link>
+      </aside>
+    );
+  }
+
+  // Default — haven't uploaded anything yet (or only some checks done).
   return (
     <aside className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-accent/30 bg-accent/[0.05] px-5 py-4 text-sm">
       <div className="grid size-10 place-items-center rounded-xl bg-accent/15 text-accent">
