@@ -45,7 +45,7 @@ class ShiftReminder extends Notification
             ->line("When: {$time}")
             ->line("Where: {$b->address_full}")
             ->line('You can start the visit from the booking page when you arrive.')
-            ->action('View booking', url("/bookings/{$b->id}"));
+            ->action('View booking', config('app.frontend_url')."/bookings/{$b->id}");
     }
 
     /**

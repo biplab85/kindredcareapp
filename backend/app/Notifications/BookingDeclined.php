@@ -39,7 +39,7 @@ class BookingDeclined extends Notification
             ->greeting("{$prev} {$verb}.")
             ->line("We've sent the booking to the next-ranked caregiver.")
             ->line('They have some time to respond. We\'ll notify you as soon as we hear back.')
-            ->action('View booking', url("/bookings/{$this->nextBooking->id}"));
+            ->action('View booking', config('app.frontend_url')."/bookings/{$this->nextBooking->id}");
     }
 
     /**

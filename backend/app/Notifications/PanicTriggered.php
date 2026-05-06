@@ -46,7 +46,7 @@ class PanicTriggered extends Notification
             $msg->line('This was a **silent** alert — the other party does not see it.');
         }
 
-        return $msg->action('Open safety queue', url('/admin/safety'));
+        return $msg->action('Open safety queue', config('app.frontend_url').'/admin/safety');
     }
 
     /**

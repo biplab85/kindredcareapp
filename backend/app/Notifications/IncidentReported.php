@@ -38,7 +38,7 @@ class IncidentReported extends Notification
             ->line('Booking #'.str_pad((string) $i->booking_id, 5, '0', STR_PAD_LEFT))
             ->line("Reporter: {$i->reporter->name}")
             ->line("Description: {$i->description}")
-            ->action('Open incident queue', url('/admin/safety'));
+            ->action('Open incident queue', config('app.frontend_url').'/admin/safety');
     }
 
     /**
