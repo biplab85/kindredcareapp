@@ -38,6 +38,17 @@ return [
             'report' => false,
         ],
 
+        // Sensitive uploads — government IDs, selfies, anything that must
+        // never be served via /storage/. Points at the same root as 'local'
+        // but the explicit name signals intent at every call site.
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
