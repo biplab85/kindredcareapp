@@ -39,10 +39,10 @@ class BookingOffered extends Notification
             ->line("When: {$start}")
             ->line("Where: {$b->address_full}")
             ->line('Duration: '.($b->duration_minutes / 60).' hours')
-            ->line("Client total: \${$total}")
-            ->line("Your earnings after the 7.5% platform fee: \${$payout}")
+            ->line("Family pays: \${$total} (includes the 7.5% platform fee)")
+            ->line("Your earnings: \${$payout}")
             ->line("Please respond before: {$deadline}.")
-            ->action('Review the booking', url("/bookings/{$b->id}"));
+            ->action('Review the booking', config('app.frontend_url')."/bookings/{$b->id}");
     }
 
     /**

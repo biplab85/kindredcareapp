@@ -41,7 +41,7 @@ class VerificationDocumentsSubmitted extends Notification
             ->greeting('A caregiver is waiting on review.')
             ->line("{$this->caregiver->name} just {$verb} their identity documents.")
             ->line("Email: {$this->caregiver->email}")
-            ->action('Review in admin', url("/admin/verifications/{$this->record->id}"));
+            ->action('Review in admin', config('app.frontend_url')."/admin/verifications/{$this->record->id}");
     }
 
     /**

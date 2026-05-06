@@ -35,7 +35,7 @@ class BookingCheckedIn extends Notification
             ->subject("{$caregiverName} has arrived")
             ->greeting("{$caregiverName} started the visit at {$time}.")
             ->line('You can follow the visit on the booking page and reach them through the thread.')
-            ->action('View booking', url("/bookings/{$b->id}"));
+            ->action('View booking', config('app.frontend_url')."/bookings/{$b->id}");
     }
 
     /**

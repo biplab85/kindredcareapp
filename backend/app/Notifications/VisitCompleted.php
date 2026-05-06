@@ -56,14 +56,14 @@ class VisitCompleted extends Notification
 
             return $msg
                 ->line('We\'d love your rating and any notes while it\'s fresh.')
-                ->action('Rate this visit', url("/bookings/{$b->id}"));
+                ->action('Rate this visit', config('app.frontend_url')."/bookings/{$b->id}");
         }
 
         $payout = number_format($b->caregiver_payout_cents / 100, 2);
 
         return $msg
             ->line("Your payout for this visit: \${$payout}.")
-            ->action('View booking', url("/bookings/{$b->id}"));
+            ->action('View booking', config('app.frontend_url')."/bookings/{$b->id}");
     }
 
     /**

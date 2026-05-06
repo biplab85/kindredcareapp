@@ -47,7 +47,7 @@ class BookingConfirmed extends Notification
 
         return $msg
             ->line('You can message them through the booking page to share any last details.')
-            ->action('View booking', url("/bookings/{$b->id}"));
+            ->action('View booking', config('app.frontend_url')."/bookings/{$b->id}");
     }
 
     /**

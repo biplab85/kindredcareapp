@@ -36,7 +36,7 @@ class BookingExpired extends Notification
             ->greeting("We've run out of ranked caregivers.")
             ->line('Every candidate on the shortlist either declined or let their window pass.')
             ->line('Your gig is back in the open pool. Try broadening preferences or switching it to an open call so more caregivers can see it.')
-            ->action('Review the gig', url("/gigs/{$this->closedBooking->gig_id}"));
+            ->action('Review the gig', config('app.frontend_url')."/gigs/{$this->closedBooking->gig_id}");
     }
 
     /**

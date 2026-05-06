@@ -37,7 +37,7 @@ class MessageReceived extends Notification
             ->greeting('You have a new message on KindredCare.')
             ->line("From: {$sender->name}")
             ->line($this->preview())
-            ->action('Open conversation', url("/bookings/{$bookingId}"))
+            ->action('Open conversation', config('app.frontend_url')."/bookings/{$bookingId}")
             ->line('Replies stay in the booking — please keep contact on platform.');
     }
 
