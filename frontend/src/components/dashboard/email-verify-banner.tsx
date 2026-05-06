@@ -35,11 +35,15 @@ export function EmailVerifyBanner({ context }: { context?: "booking" | "gig" }) 
         <div className="flex-1">
           <p className="text-sm font-semibold text-accent">{message}</p>
           <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-            We sent a verification link to <span className="font-medium">{user.email}</span>.
-            Open it and click the button — takes 30 seconds.
+            We sent a verification link to <span className="font-medium">{user.email}</span>. Open
+            it and click the button — takes 30 seconds.
           </p>
           <Link href="/verify-email" className="mt-3 inline-block">
-            <Button variant="outline" size="sm" className="h-9 border-accent/40 text-accent hover:bg-accent/5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 border-accent/40 text-accent hover:bg-accent/5"
+            >
               <Mail className="size-3.5" strokeWidth={2.25} />
               Resend verification email
             </Button>
