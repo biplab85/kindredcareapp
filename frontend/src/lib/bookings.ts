@@ -62,6 +62,7 @@ export interface BookingVisit {
   caregiver_notes: string | null;
   is_flagged: boolean;
   flag_reasons: VisitFlagReason[];
+  family_confirmed_at: string | null;
 }
 
 export interface BookingActivePanicAlert {
@@ -179,6 +180,17 @@ export async function updateBookingTasks(
   payload: UpdateTasksPayload,
 ): Promise<Booking> {
   const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/tasks`, payload);
+  return res.data.data;
+}
+
+/**
+ * Family-side positive confirmation that the visit happened as described.
+ * Pulls the caregiver payout forward to "now" so the next ReleasePayouts
+ * tick (every 5 min) transfers the funds instead of waiting on the 24-hour
+ * auto-release. Idempotent on the backend, so retries are safe.
+ */
+export async function confirmBooking(id: number): Promise<Booking> {
+  const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/confirm`);
   return res.data.data;
 }
 

@@ -84,6 +84,7 @@ class BookingResource extends JsonResource
             'caregiver_notes' => $this->caregiver_notes,
             'is_flagged' => $this->isFlagged(),
             'flag_reasons' => $this->flag_reasons ?? [],
+            'family_confirmed_at' => $this->family_confirmed_at?->toIso8601String(),
         ];
     }
 

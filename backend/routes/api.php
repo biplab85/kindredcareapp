@@ -153,6 +153,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::patch('/bookings/{booking}/check-in', [BookingController::class, 'checkIn']);
     Route::patch('/bookings/{booking}/check-out', [BookingController::class, 'checkOut']);
     Route::patch('/bookings/{booking}/tasks', [BookingController::class, 'updateTasks']);
+    Route::patch('/bookings/{booking}/confirm', [BookingController::class, 'confirm']);
     Route::post('/bookings/{booking}/dispute', [BookingController::class, 'openDispute']);
 
     // ─── PAYMENTS ───

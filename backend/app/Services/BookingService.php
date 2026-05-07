@@ -417,6 +417,50 @@ class BookingService
     }
 
     /**
+     * Family-side positive confirmation that the visit happened as
+     * described. Idempotent — a second call is a no-op so the family can
+     * tap the button twice without surprising state changes.
+     *
+     * Pulls payout_at forward to now() so ReleasePayouts transfers the
+     * funds on its next tick (every 5 min) instead of waiting on the
+     * 24-hour auto-release. Silence is still treated as success — this
+     * is a fast-path lever, not a hard gate.
+     */
+    public function confirmVisit(Booking $booking, User $actor): Booking
+    {
+        if (! $this->actorIsFamilyOwner($booking, $actor)) {
+            throw ValidationException::withMessages([
+                'actor' => 'Only the family that booked the visit can confirm it.',
+            ]);
+        }
+
+        if (! $booking->isCompleted()) {
+            throw ValidationException::withMessages([
+                'status' => 'Only completed visits can be confirmed.',
+            ]);
+        }
+
+        if ($booking->payment_status === Booking::PAYMENT_HELD_PENDING_DISPUTE) {
+            throw ValidationException::withMessages([
+                'status' => 'A dispute is open on this visit — confirmation is no longer available.',
+            ]);
+        }
+
+        // Already confirmed or already paid out → no-op so the UI can call
+        // this without coordinating with whatever the cron has done.
+        if ($booking->family_confirmed_at !== null || $booking->payout_transferred_at !== null) {
+            return $booking->fresh(['gig.serviceCategory', 'caregiver.caregiverProfile']);
+        }
+
+        $booking->update([
+            'family_confirmed_at' => now(),
+            'payout_at' => now(),
+        ]);
+
+        return $booking->fresh(['gig.serviceCategory', 'caregiver.caregiverProfile']);
+    }
+
+    /**
      * Intermediate task-log update during an active visit. No status change
      * and no payment side-effects — purely a receipt of progress.
      *

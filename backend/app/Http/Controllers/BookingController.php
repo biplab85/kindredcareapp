@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Booking\CancelBookingRequest;
 use App\Http\Requests\Booking\CheckInBookingRequest;
 use App\Http\Requests\Booking\CheckOutBookingRequest;
+use App\Http\Requests\Booking\ConfirmVisitRequest;
 use App\Http\Requests\Booking\DeclineBookingRequest;
 use App\Http\Requests\Booking\OpenDisputeRequest;
 use App\Http\Requests\Booking\StoreBookingRequest;
@@ -181,6 +182,21 @@ class BookingController extends Controller
             notes: $request->input('caregiver_notes'),
         );
 
+        $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);
+
+        return new BookingResource($booking);
+    }
+
+    public function confirm(ConfirmVisitRequest $request, Booking $booking): BookingResource|JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if (! $this->canViewBooking($booking, $user)) {
+            return response()->json(['message' => 'Not authorized.'], 403);
+        }
+
+        $booking = $this->service->confirmVisit($booking, $user);
         $booking->loadMissing(['gig.serviceCategory', 'caregiver.caregiverProfile']);
 
         return new BookingResource($booking);
