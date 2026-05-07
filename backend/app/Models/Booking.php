@@ -50,6 +50,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $payout_at
  * @property Carbon|null $payout_transferred_at
  * @property string|null $stripe_transfer_id
+ * @property Carbon|null $family_confirmed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Gig $gig
@@ -200,6 +201,7 @@ class Booking extends Model
         'payout_at',
         'payout_transferred_at',
         'stripe_transfer_id',
+        'family_confirmed_at',
     ];
 
     /**
@@ -228,6 +230,7 @@ class Booking extends Model
             'flag_reasons' => 'array',
             'payout_at' => 'datetime',
             'payout_transferred_at' => 'datetime',
+            'family_confirmed_at' => 'datetime',
         ];
     }
 

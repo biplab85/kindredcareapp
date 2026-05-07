@@ -37,6 +37,7 @@ import {
   cancelBooking,
   checkInBooking,
   checkOutBooking,
+  confirmBooking,
   declineBooking,
   flagReasonLabel,
   formatCents,
@@ -153,6 +154,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
             <ReceiptBlock booking={booking} role={role} />
             <VisitBlock booking={booking} role={role} onChanged={reload} />
             <MessagesBlock bookingId={booking.id} />
+            <FamilyConfirmBlock booking={booking} role={role} onChanged={reload} />
             <RatingPromptBlock booking={booking} />
             <PartyBlock booking={booking} role={role} />
           </div>
@@ -1574,6 +1576,133 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((n) => n.charAt(0).toUpperCase())
     .join("");
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Family confirm — fast-path payout release
+ *
+ * The default flow is silence-as-consent: caregiver gets paid 24 h
+ * after check-out unless the family disputes within 48 h. This block
+ * is a courtesy lever for engaged families — pressing the button
+ * pulls payout_at forward to now so the next ReleasePayouts tick
+ * transfers the funds. Hidden in every state where it would be
+ * misleading (caregiver viewer, payout already moved, dispute open).
+ * ───────────────────────────────────────────────────────────── */
+
+function FamilyConfirmBlock({
+  booking,
+  role,
+  onChanged,
+}: {
+  booking: Booking;
+  role: "family" | "caregiver" | "admin";
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  if (role !== "family") return null;
+  if (booking.status !== "completed") return null;
+  if (booking.payment_status === "held_pending_dispute") return null;
+
+  const confirmedAt = booking.visit.family_confirmed_at;
+  const isConfirmed = confirmedAt !== null;
+  const payout = formatCents(booking.caregiver_payout_cents);
+
+  async function handleConfirm() {
+    setBusy(true);
+    setErrorMsg(null);
+    try {
+      await confirmBooking(booking.id);
+      onChanged();
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Couldn't record the confirmation. Try again in a moment.";
+      setErrorMsg(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section
+      aria-label="Confirm this visit"
+      className={cn(
+        "relative overflow-hidden rounded-3xl border bg-card p-6 sm:p-8",
+        isConfirmed ? "border-success/35" : "border-success/25",
+      )}
+    >
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-success/50" />
+        Closing the loop — § 12
+      </div>
+
+      {isConfirmed ? (
+        <>
+          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
+            <span className="italic text-success">Visit confirmed.</span>
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+            You released the {payout} payout on {formatLongTime(confirmedAt!)}. Thanks — your
+            caregiver will see the funds on their next payout cycle.
+          </p>
+
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-success/30 bg-success/[0.06] px-3 py-1 text-[11px] tracking-[0.18em] text-success uppercase">
+            <CheckCircle2 className="size-3.5" strokeWidth={2.5} />
+            Payout released early
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
+            Was this visit <span className="italic text-success">all good?</span>
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Confirming releases the {payout} payout to your caregiver right away instead of waiting
+            on the 24-hour hold. You still have 48 hours to open a dispute either way.
+          </p>
+
+          <div className="my-7 border-t-2 border-dashed border-success/20" />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleConfirm}
+              disabled={busy}
+              className="border-success/40 text-success hover:bg-success/[0.08] hover:text-success focus-visible:ring-success/30"
+            >
+              <CheckCircle2 className="size-4" strokeWidth={2.25} />
+              {busy ? "Confirming…" : "Yes, this visit happened as described"}
+            </Button>
+            <p className="text-[11px] tracking-[0.18em] text-muted-foreground/80 uppercase">
+              Optional · skip and the payout still releases at the 24 h mark
+            </p>
+          </div>
+
+          {errorMsg !== null && (
+            <p
+              role="alert"
+              className="mt-4 rounded-xl border border-destructive/30 bg-destructive/[0.04] px-4 py-2 text-sm text-destructive"
+            >
+              {errorMsg}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function formatLongTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-CA", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 /* ─────────────────────────────────────────────────────────────
