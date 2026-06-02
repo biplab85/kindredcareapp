@@ -1,5 +1,5 @@
-import type { NextConfig } from "next";
-import path from "node:path";
+/* eslint-disable @typescript-eslint/no-require-imports */
+const path = require("node:path");
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -65,7 +65,8 @@ const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
 ];
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   // Repo root has a package-lock.json (husky + lint-staged) that confuses
   // Turbopack's workspace inference, breaking `next dev`. Pin the root to
   // this app's folder explicitly.
@@ -89,4 +90,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
