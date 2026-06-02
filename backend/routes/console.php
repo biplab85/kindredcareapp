@@ -41,3 +41,15 @@ Schedule::command(ReleaseVisibleReviews::class)->dailyAt('02:00')->withoutOverla
 // no-op once Veriff integration is live and we stop touching ID photos
 // directly. See docs/BIOMETRIC_DATA_POLICY.md for context.
 Schedule::command(PurgeStaleVerificationFiles::class)->dailyAt('03:00')->withoutOverlapping();
+
+// Run queue worker (exactly one at a time, self-terminates after ~58 min)
+Schedule::command('queue:work --queue=default,notifications --sleep=3 --tries=3 --timeout=90 --max-time=3500')
+    ->withoutOverlapping(70)
+    ->runInBackground()
+    ->everyMinute();
+
+// Restart queue worker daily to pick up new code after deploys
+Schedule::command('queue:restart')
+    ->dailyAt('02:00');
+
+    
