@@ -51,5 +51,3 @@ Schedule::command('queue:work --queue=default,notifications --sleep=3 --tries=3 
 // Restart queue worker daily to pick up new code after deploys
 Schedule::command('queue:restart')
     ->dailyAt('02:00');
-
-    
