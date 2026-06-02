@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   },
   description:
     "Find verified caregivers for companionship, errands, and everyday help for seniors across Canada.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
