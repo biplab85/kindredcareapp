@@ -55,6 +55,8 @@ class UserConsent extends Model
     protected function casts(): array
     {
         return [
+            // FK cast to int — see Booking::casts() for context.
+            'user_id' => 'int',
             'granted' => 'boolean',
             'created_at' => 'datetime',
         ];

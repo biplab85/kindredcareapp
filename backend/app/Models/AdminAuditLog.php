@@ -39,6 +39,9 @@ class AdminAuditLog extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'admin_user_id' => 'int',
+            'target_id' => 'int',
             'metadata' => 'array',
             'created_at' => 'datetime',
         ];

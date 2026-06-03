@@ -62,6 +62,9 @@ class Gig extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'caregiver_profile_id' => 'int',
+            'service_category_id' => 'int',
             'tasks_included' => 'array',
             'published_at' => 'datetime',
         ];

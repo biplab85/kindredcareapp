@@ -70,6 +70,12 @@ class Review extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'booking_id' => 'int',
+            'rater_user_id' => 'int',
+            'ratee_user_id' => 'int',
+            'flagged_by_user_id' => 'int',
+            'resolved_by' => 'int',
             'submitted_at' => 'datetime',
             'visible_at' => 'datetime',
             'flagged_at' => 'datetime',

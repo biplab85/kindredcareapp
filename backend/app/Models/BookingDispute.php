@@ -80,6 +80,10 @@ class BookingDispute extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'booking_id' => 'int',
+            'reporter_user_id' => 'int',
+            'resolved_by' => 'int',
             'evidence_paths' => 'array',
             'resolved_at' => 'datetime',
         ];

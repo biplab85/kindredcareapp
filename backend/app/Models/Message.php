@@ -42,6 +42,11 @@ class Message extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context (shared-host
+            // PDO drivers return bigint columns as strings, breaking ===).
+            'booking_id' => 'int',
+            'sender_user_id' => 'int',
+            'hidden_by' => 'int',
             // Phase 15.B — message bodies are encrypted at rest. Bodies
             // are already redacted before persistence, but encryption
             // adds a second layer so a DB compromise doesn't leak the

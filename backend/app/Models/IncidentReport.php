@@ -93,6 +93,11 @@ class IncidentReport extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'booking_id' => 'int',
+            'reporter_user_id' => 'int',
+            'assigned_to' => 'int',
+            'resolved_by' => 'int',
             'evidence_paths' => 'array',
             'assigned_at' => 'datetime',
             'resolved_at' => 'datetime',

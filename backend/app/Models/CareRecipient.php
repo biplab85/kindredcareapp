@@ -36,6 +36,8 @@ class CareRecipient extends Model
     protected function casts(): array
     {
         return [
+            // FK cast to int — see Booking::casts() for context.
+            'family_profile_id' => 'int',
             'interests' => 'array',
             // Phase 15.B — accessibility_notes can carry medical / cognitive
             // context. Never queried, so encrypted-at-rest is safe.
