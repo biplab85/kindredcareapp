@@ -57,7 +57,7 @@ class BookingController extends Controller
         ]);
 
         $query = Booking::query()
-            ->with(['caregiver:id,name,email', 'familyProfile.user:id,name,email', 'gig:id,description,location_address']);
+            ->with(['caregiver:id,name,email', 'familyProfile.user:id,name,email', 'gig:id,title,description']);
 
         if (! empty($data['status'])) {
             $statuses = array_filter(array_map('trim', explode(',', $data['status'])));
@@ -141,8 +141,8 @@ class BookingController extends Controller
                 ...$this->card($booking),
                 'gig' => [
                     'id' => $booking->gig->id,
+                    'title' => $booking->gig->title,
                     'description' => $booking->gig->description,
-                    'location_address' => $booking->gig->location_address,
                 ],
                 'check_in' => [
                     'at' => $this->isoTimestamp($booking->getAttribute('check_in_at')),
