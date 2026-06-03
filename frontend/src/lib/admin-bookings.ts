@@ -88,8 +88,8 @@ export interface AdminMessage {
 export interface BookingDetail extends BookingCard {
   gig: {
     id: number;
+    title: string | null;
     description: string | null;
-    location_address: string | null;
   };
   check_in: { at: string | null; lat: number | null; lng: number | null };
   check_out: { at: string | null; lat: number | null; lng: number | null };
