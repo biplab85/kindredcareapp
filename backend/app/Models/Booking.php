@@ -210,6 +210,16 @@ class Booking extends Model
     protected function casts(): array
     {
         return [
+            // Foreign keys cast to int so identity checks (`===`) work even
+            // when the underlying PDO driver returns them as strings. On
+            // CloudLinux / shared hosting the mysqlnd vs pdo_mysql config
+            // differs from local dev — without these casts the controller's
+            // `$user->id === $booking->caregiver_user_id` returned false
+            // for legit owners and surfaced as "could not find the booking".
+            'gig_id' => 'int',
+            'caregiver_user_id' => 'int',
+            'family_profile_id' => 'int',
+            'care_recipient_id' => 'int',
             'fallback_queue' => 'array',
             'scheduled_start' => 'datetime',
             'scheduled_end' => 'datetime',
