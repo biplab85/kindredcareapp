@@ -75,6 +75,8 @@ class CaregiverProfile extends Model
     protected function casts(): array
     {
         return [
+            // FK cast to int — see Booking::casts() for context.
+            'user_id' => 'int',
             'languages' => 'array',
             'interests' => 'array',
             'personality_tags' => 'array',

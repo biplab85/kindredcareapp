@@ -55,6 +55,11 @@ class PanicAlert extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'booking_id' => 'int',
+            'caregiver_user_id' => 'int',
+            'acknowledged_by' => 'int',
+            'resolved_by' => 'int',
             'triggered_at' => 'datetime',
             'gps_lat' => 'float',
             'gps_lng' => 'float',

@@ -52,6 +52,9 @@ class VerificationRecord extends Model
     protected function casts(): array
     {
         return [
+            // FKs cast to int — see Booking::casts() for context.
+            'user_id' => 'int',
+            'reviewed_by' => 'int',
             'document_paths' => 'array',
             'reviewed_at' => 'datetime',
         ];
