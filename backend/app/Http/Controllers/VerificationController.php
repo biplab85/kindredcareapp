@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CaregiverProfile;
 use App\Models\User;
 use App\Models\VerificationRecord;
 use App\Notifications\VerificationDocumentsSubmitted;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 
 class VerificationController extends Controller
 {
@@ -76,7 +78,8 @@ class VerificationController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $path = $request->file('selfie')->store("verifications/{$user->id}", 'private');
+        $file = $request->file('selfie');
+        $path = $file->store("verifications/{$user->id}", 'private');
 
         $record = VerificationRecord::where('user_id', $user->id)
             ->where('check_type', VerificationRecord::TYPE_IDENTITY)
@@ -86,6 +89,27 @@ class VerificationController extends Controller
             $docs = $record->document_paths ?? [];
             $docs['selfie'] = $path;
             $record->update(['document_paths' => $docs]);
+        }
+
+        // Mirror the selfie to the public disk and use it as the caregiver
+        // profile photo. Only seed photo_path if it's empty — an explicit
+        // /me/photo upload always wins, so a caregiver who chose a different
+        // headshot isn't surprised by it changing on a verification reupload.
+        // The verification copy stays on the private disk untouched; the
+        // public mirror is an additional file used purely for display.
+        if ($user->isCaregiver()) {
+            $profile = CaregiverProfile::firstOrCreate(['user_id' => $user->id]);
+            if (! $profile->photo_path) {
+                $contents = Storage::disk('private')->get($path);
+                if ($contents !== null) {
+                    $publicPath = 'avatars/'.$user->id.'-'.uniqid('selfie-', true).'.'.$file->getClientOriginalExtension();
+                    Storage::disk('public')->put($publicPath, $contents);
+                    $profile->update([
+                        'photo_path' => $publicPath,
+                        'photo_status' => 'pending_review',
+                    ]);
+                }
+            }
         }
 
         return response()->json([
