@@ -80,8 +80,22 @@ class ReleasePayouts extends Command
 
     private function releaseOne(Booking $booking, StripePaymentService $stripe): void
     {
-        DB::transaction(function () use ($booking, $stripe) {
+        // Stub-mode bookings (Stripe not configured at runtime) carry no
+        // real money — closing them out locally is the whole job. Real
+        // bookings only close out when transferToCaregiver returns a
+        // Transfer object; if it returned null (no Connect account yet,
+        // payouts not enabled, Stripe API error), leave payout_transferred_at
+        // null so the next cron tick retries. This is the lever that lets
+        // a caregiver finish Connect onboarding *after* a visit completed
+        // and still get paid automatically.
+        $isStub = $booking->payment_status === Booking::PAYMENT_CAPTURED_STUB;
+
+        DB::transaction(function () use ($booking, $stripe, $isStub) {
             $transfer = $stripe->transferToCaregiver($booking);
+
+            if (! $isStub && $transfer === null) {
+                return;
+            }
 
             $booking->update([
                 'payout_transferred_at' => now(),
