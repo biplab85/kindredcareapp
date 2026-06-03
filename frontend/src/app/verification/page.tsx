@@ -45,7 +45,8 @@ const CHECK_META: Record<string, { icon: LucideIcon; label: string; description:
   aml: {
     icon: AlertTriangleIcon,
     label: "AML / sanctions",
-    description: "Financial-sanctions screen, bundled with the CPIC step.",
+    description:
+      "Financial-sanctions screen, bundled with the CPIC check — clears automatically the moment your CPIC check clears. Nothing to do here.",
   },
   reference: {
     icon: UserCheck,
