@@ -24,6 +24,9 @@ class FamilyProfile extends Model
     protected function casts(): array
     {
         return [
+            // FK cast so identity checks (`===`) hold regardless of PDO
+            // driver behavior — see Booking::casts() for context.
+            'user_id' => 'int',
             'onboarding_complete' => 'boolean',
         ];
     }
