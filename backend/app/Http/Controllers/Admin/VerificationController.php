@@ -20,7 +20,11 @@ class VerificationController extends Controller
     {
         $status = $request->query('status', 'pending_review');
 
+        // AML is auto-cleared with CPIC (see ::approve below), so the queue
+        // never needs to surface standalone AML rows — they'd just be noise
+        // that resolves the moment CPIC is approved.
         $query = VerificationRecord::with('user')
+            ->where('check_type', '!=', VerificationRecord::TYPE_AML)
             ->orderBy('updated_at', 'desc');
 
         if ($status !== 'all') {
@@ -95,6 +99,43 @@ class VerificationController extends Controller
             ],
             reason: $data['admin_notes'] ?? null,
         );
+
+        // CPIC and AML are a packaged background check in practice — the
+        // admin runs them externally (Certn / similar) as one screening and
+        // gets a single report covering both. Clearing CPIC therefore also
+        // clears AML on the same caregiver in the same transaction, so we
+        // don't strand an AML row at not_started forever.
+        if ($verification->check_type === VerificationRecord::TYPE_CPIC) {
+            $aml = VerificationRecord::where('user_id', $verification->user_id)
+                ->where('check_type', VerificationRecord::TYPE_AML)
+                ->first();
+
+            if ($aml && $aml->status !== VerificationRecord::STATUS_CLEARED) {
+                $amlPreviousStatus = $aml->status;
+                $aml->update([
+                    'status' => VerificationRecord::STATUS_CLEARED,
+                    'admin_notes' => 'Auto-cleared with CPIC.',
+                    'reviewed_by' => $admin->id,
+                    'reviewed_at' => now(),
+                    'rejection_reason' => null,
+                ]);
+
+                $this->auditLogger->record(
+                    admin: $admin,
+                    action: 'verification.approved',
+                    targetType: AdminAuditLog::TARGET_VERIFICATION_RECORD,
+                    targetId: $aml->id,
+                    metadata: [
+                        'check_type' => $aml->check_type,
+                        'caregiver_user_id' => $aml->user_id,
+                        'previous_status' => $amlPreviousStatus,
+                        'auto_cleared_with' => 'cpic',
+                        'triggered_by_verification_id' => $verification->id,
+                    ],
+                    reason: 'Auto-cleared with CPIC.',
+                );
+            }
+        }
 
         return response()->json([
             'message' => 'Verification approved.',
