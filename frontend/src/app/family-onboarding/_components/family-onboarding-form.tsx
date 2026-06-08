@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Loader2, ArrowRight, ArrowLeft, Heart, CheckCircle2 } from "lucide-react";
+import { Loader2, Heart, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { StepIndicator } from "@/components/ui/step-indicator";
 import { useAuthStore } from "@/lib/auth";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -46,6 +44,8 @@ export function FamilyOnboardingForm() {
   const user = useAuthStore((s) => s.user);
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Shown in the sticky save bar after a successful save in edit mode.
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   const [relationship, setRelationship] = useState("parent");
   const [postalCode, setPostalCode] = useState("");
@@ -69,10 +69,6 @@ export function FamilyOnboardingForm() {
     },
   ];
   const totalSteps = 2;
-
-  const canProceedStep1 = postalCode.length >= 6 && city.length > 0;
-  // Self users can leave the name blank — submit falls back to user.name.
-  const canProceedStep2 = isSelf ? Boolean(user?.name) : recipientName.length >= 2;
 
   const addInterest = () => {
     const trimmed = interestInput.trim();
@@ -108,8 +104,17 @@ export function FamilyOnboardingForm() {
       // dashboard redirect bounces straight back to /family-onboarding
       // because the cached user still has the stale flag.
       await useAuthStore.getState().fetchUser();
-      toast.success("Profile complete! You can now find caregivers.");
-      router.push("/dashboard");
+
+      // First-run signup: walk the family into the dashboard to start
+      // browsing caregivers. Edit session from /profile: stay on the
+      // page, just stamp the sticky save bar.
+      if (user?.family_profile?.onboarding_complete) {
+        setLastSavedAt(formatSavedAt(new Date()));
+        toast.success("Profile saved.");
+      } else {
+        toast.success("Profile complete! You can now find caregivers.");
+        router.push("/dashboard");
+      }
     } catch (err: unknown) {
       // Surface Laravel's 422 field errors instead of a generic
       // "something went wrong". If the response carries a structured
@@ -131,34 +136,71 @@ export function FamilyOnboardingForm() {
     }
   };
 
+  const isAlreadyOnboarded = user?.family_profile?.onboarding_complete === true;
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-lg px-4 py-8">
-        <div className="mb-8 text-center">
-          <Image
-            src="/logo.png"
-            alt="KindredCare"
-            width={160}
-            height={36}
-            className="mx-auto mb-4"
-            priority
-          />
-          <h1 className="text-2xl font-bold">
-            {user?.family_profile?.onboarding_complete
-              ? "Edit your profile"
-              : "Let’s Get You Started"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {user?.family_profile?.onboarding_complete
-              ? "Update any section — your changes save when you finish the wizard."
-              : "Just a couple of quick questions so we can match you with the right caregivers."}
-          </p>
-        </div>
+    <div className="mx-auto max-w-3xl px-4 pt-6 pb-32 sm:px-6 lg:px-8">
+      {/* ─── Editorial header ─── */}
+      <div className="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        § 01 · Your profile
+      </div>
 
-        <div className="mb-8">
-          <StepIndicator steps={steps} currentStep={step} />
-        </div>
+      <header className="mt-3">
+        <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl">
+          {isAlreadyOnboarded ? (
+            <>
+              Tell us <span className="italic text-primary">who you book for.</span>
+            </>
+          ) : (
+            <>
+              Let&rsquo;s <span className="italic text-primary">get you started.</span>
+            </>
+          )}
+        </h1>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          {isAlreadyOnboarded
+            ? "Switch tabs to edit any section. Changes save when you press the button at the bottom."
+            : "Just two quick sections so we can match you with the right caregivers."}
+        </p>
+      </header>
 
+      <div className="my-6 border-t border-dashed border-border/60" />
+
+      {/* ─── Tab bar — clickable, no forced order ─── */}
+      <div className="-mx-1 overflow-x-auto">
+        <div role="tablist" className="flex min-w-max items-stretch gap-1 px-1">
+          {steps.map((tab, idx) => {
+            const tabNum = idx + 1;
+            const active = step === tabNum;
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setStep(tabNum)}
+                className={cn(
+                  "group relative flex items-baseline gap-2 px-3 py-3 transition-colors",
+                  "font-mono text-[11px] font-medium tracking-[0.18em] uppercase",
+                  "border-b-2",
+                  active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className={cn(active ? "text-primary" : "text-muted-foreground/60")}>
+                  {String(tabNum).padStart(2, "0")}
+                </span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ─── Tab body ─── */}
+      <div className="mt-6">
         <Card>
           <CardContent className="p-6 sm:p-8">
             {/* Step 1 */}
@@ -350,34 +392,37 @@ export function FamilyOnboardingForm() {
               </div>
             )}
 
-            {/* Navigation */}
-            <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
-              {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(1)}>
-                  <ArrowLeft className="mr-1 size-4" /> Back
-                </Button>
-              ) : (
-                <div />
-              )}
-
-              {step < totalSteps ? (
-                <Button onClick={() => setStep(2)} disabled={!canProceedStep1}>
-                  Next <ArrowRight className="ml-1 size-4" />
-                </Button>
-              ) : (
-                <Button onClick={handleSubmit} disabled={isSubmitting || !canProceedStep2}>
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-1 size-4" />
-                  )}
-                  Find Caregivers
-                </Button>
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── Sticky save bar ─── */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 backdrop-blur-md md:left-[248px]">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            {lastSavedAt
+              ? `Saved · ${lastSavedAt}`
+              : isAlreadyOnboarded
+                ? "Changes save when you press the button"
+                : `${steps[step - 1].label} · step ${step} of ${totalSteps}`}
+          </p>
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="min-w-[140px]">
+            {isSubmitting ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-1 size-4" />
+            )}
+            {isAlreadyOnboarded ? "Save changes" : "Find caregivers"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
+}
+
+function formatSavedAt(d: Date): string {
+  return d.toLocaleTimeString("en-CA", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
