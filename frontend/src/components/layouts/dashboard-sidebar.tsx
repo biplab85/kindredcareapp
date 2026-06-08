@@ -15,9 +15,7 @@ import {
   PlusCircle,
   ScrollText,
   Search,
-  Settings,
   ShieldAlert,
-  UserCircle,
   UserCog,
   UsersRound,
   X,
@@ -60,11 +58,13 @@ const CAREGIVER_SECTIONS: SidebarSection[] = [
     ],
   },
   {
+    // Profile + Settings live in the top-right avatar dropdown — keeping
+    // them out of the sidebar matches GitHub/Slack/Gmail conventions.
+    // Verification stays because it's a workflow stage (with a badge
+    // dot for outstanding action), not account chrome.
     heading: "Account",
     items: [
-      { href: "/profile", label: "Profile", icon: UserCircle },
       { href: "/verification", label: "Verification", icon: BadgeCheck, badge: "verification" },
-      { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -79,13 +79,8 @@ const FAMILY_SECTIONS: SidebarSection[] = [
       { href: "/care-recipients", label: "Recipients", icon: UsersRound },
     ],
   },
-  {
-    heading: "Account",
-    items: [
-      { href: "/profile", label: "Profile", icon: UserCircle },
-      { href: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
+  // Family role has no workflow-stage account items; the top-right
+  // dropdown carries everything (Profile, Settings, Log out).
 ];
 
 const ADMIN_SECTIONS: SidebarSection[] = [
@@ -103,10 +98,8 @@ const ADMIN_SECTIONS: SidebarSection[] = [
       { href: "/admin/admins", label: "Admins", icon: UserCog },
     ],
   },
-  {
-    heading: "Account",
-    items: [{ href: "/settings", label: "Settings", icon: Settings }],
-  },
+  // Admin Settings lives in the top-right dropdown — same convention as
+  // the caregiver/family roles after this cleanup.
 ];
 
 function sectionsFor(role: "family" | "caregiver" | "admin" | undefined): SidebarSection[] {
