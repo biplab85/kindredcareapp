@@ -152,9 +152,15 @@ function FamilyOnboardingForm() {
             className="mx-auto mb-4"
             priority
           />
-          <h1 className="text-2xl font-bold">Let&apos;s Get You Started</h1>
+          <h1 className="text-2xl font-bold">
+            {user?.family_profile?.onboarding_complete
+              ? "Edit your profile"
+              : "Let’s Get You Started"}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Just a couple of quick questions so we can match you with the right caregivers.
+            {user?.family_profile?.onboarding_complete
+              ? "Update any section — your changes save when you finish the wizard."
+              : "Just a couple of quick questions so we can match you with the right caregivers."}
           </p>
         </div>
 

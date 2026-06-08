@@ -16,6 +16,7 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  UserCircle,
   UserCog,
   UsersRound,
   X,
@@ -60,6 +61,7 @@ const CAREGIVER_SECTIONS: SidebarSection[] = [
   {
     heading: "Account",
     items: [
+      { href: "/profile", label: "Profile", icon: UserCircle },
       { href: "/verification", label: "Verification", icon: BadgeCheck, badge: "verification" },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
@@ -78,7 +80,10 @@ const FAMILY_SECTIONS: SidebarSection[] = [
   },
   {
     heading: "Account",
-    items: [{ href: "/settings", label: "Settings", icon: Settings }],
+    items: [
+      { href: "/profile", label: "Profile", icon: UserCircle },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
   },
 ];
 

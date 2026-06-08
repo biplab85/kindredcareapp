@@ -1,6 +1,49 @@
 import { create } from "zustand";
 import api from "./api";
 
+export interface CaregiverProfileSummary {
+  onboarding_complete: boolean;
+  bio?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  hourly_rate?: string | number | null;
+  travel_radius_km?: number | null;
+  years_of_experience?: number | null;
+  languages?: string[] | null;
+  interests?: string[] | null;
+  personality_tags?: string[] | null;
+  certifications?: Array<{ name: string; issuer?: string | null; year?: string | number | null }> | null;
+  references?: Array<{
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    relationship?: string | null;
+  }> | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  emergency_contact_relationship?: string | null;
+  photo_path?: string | null;
+  photo_status?: string | null;
+  payouts_enabled?: boolean;
+  services?: Array<{ id: number; name: string; slug: string }> | null;
+}
+
+export interface CareRecipientSummary {
+  id: number;
+  name: string;
+  street_address?: string | null;
+  age?: number | null;
+  postal_code?: string | null;
+  language?: string | null;
+  interests?: string[] | null;
+  accessibility_notes?: string | null;
+}
+
+export interface FamilyProfileSummary {
+  onboarding_complete: boolean;
+  care_recipients?: CareRecipientSummary[] | null;
+}
+
 interface User {
   id: number;
   name: string;
@@ -10,10 +53,11 @@ interface User {
   email_verified_at: string | null;
   phone_verified_at: string | null;
   status: string;
-  // Eager-loaded by /api/me (ProfileController::show). Exposed here so
-  // the post-login redirect can route incomplete users to onboarding.
-  family_profile?: { onboarding_complete: boolean } | null;
-  caregiver_profile?: { onboarding_complete: boolean } | null;
+  // Eager-loaded by /api/me (ProfileController::show). The full shape
+  // backs /profile; the original onboarding_complete check lives on too
+  // for the post-login redirect.
+  family_profile?: FamilyProfileSummary | null;
+  caregiver_profile?: CaregiverProfileSummary | null;
 }
 
 /**
