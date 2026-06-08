@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use App\Models\Certification;
 use App\Models\User;
+use App\Notifications\CertificationRejected;
+use App\Notifications\CertificationVerified;
 use App\Services\AdminAuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -117,9 +119,16 @@ class CertificationController extends Controller
             ],
         );
 
+        // Notify the caregiver — they're more likely to check email than
+        // refresh /profile/edit. The relation is reloaded here so the
+        // notification's toMail() sees the fresh attributes.
+        $fresh = $certification->fresh();
+        $caregiver = $fresh?->caregiverProfile?->user;
+        $caregiver?->notify(new CertificationVerified($fresh));
+
         return response()->json([
             'message' => 'Certification verified.',
-            'certification' => $certification->fresh(),
+            'certification' => $fresh,
         ]);
     }
 
@@ -162,9 +171,16 @@ class CertificationController extends Controller
             reason: $data['rejection_reason'],
         );
 
+        // Caregiver needs the rejection_reason to know what to fix on
+        // their re-upload. Reload the relation so the notification picks
+        // up the just-written reason.
+        $fresh = $certification->fresh();
+        $caregiver = $fresh?->caregiverProfile?->user;
+        $caregiver?->notify(new CertificationRejected($fresh));
+
         return response()->json([
             'message' => 'Certification rejected.',
-            'certification' => $certification->fresh(),
+            'certification' => $fresh,
         ]);
     }
 
