@@ -1,47 +1,43 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { DashboardShell } from "@/components/layouts";
+import { FamilyOnboardingForm } from "@/app/family-onboarding/_components/family-onboarding-form";
+import { OnboardingForm } from "@/app/onboarding/_components/onboarding-form";
 import { useAuthStore } from "@/lib/auth";
 
 /**
- * /profile is the user-facing entry point for "edit who I am." Under the hood
- * it's the existing onboarding wizard — caregiver: /onboarding, family:
- * /family-onboarding — both of which already pre-fill from the current
- * profile when one exists. Single source of truth for the form, no duplicate
- * validation/save code to maintain.
+ * /profile mounts the same onboarding form the user filled at signup time
+ * inside the dashboard shell (sidebar + topbar). The URL stays at /profile;
+ * the form code lives in the existing onboarding routes so we don't fork
+ * the validation/save logic between two surfaces.
  *
- * Routing decision lives client-side (not in middleware) so AuthGuard's
- * role check fires first and we don't bounce unauthenticated users into a
- * dead-end on the wrong wizard.
+ * The form itself already detects `onboarding_complete === true` and swaps
+ * the heading copy to "Edit your profile" — see PR #74.
  */
 export default function ProfilePage() {
   return (
     <AuthGuard roles={["caregiver", "family"]}>
-      <ProfileRedirect />
+      <ProfileView />
     </AuthGuard>
   );
 }
 
-function ProfileRedirect() {
-  const router = useRouter();
+function ProfileView() {
   const role = useAuthStore((s) => s.user?.role);
 
-  useEffect(() => {
-    if (role === "caregiver") {
-      router.replace("/onboarding?step=1");
-      return;
-    }
-    if (role === "family") {
-      router.replace("/family-onboarding?step=1");
-    }
-  }, [role, router]);
-
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="size-8 animate-spin text-primary" />
-    </div>
+    <DashboardShell pageTitle="Profile">
+      {role === "caregiver" ? (
+        <OnboardingForm />
+      ) : role === "family" ? (
+        <FamilyOnboardingForm />
+      ) : (
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
+      )}
+    </DashboardShell>
   );
 }
