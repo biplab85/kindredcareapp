@@ -74,32 +74,31 @@ interface MeResponse {
 
 function ProfileView() {
   const user = useAuthStore((s) => s.user);
-  const fetchUser = useAuthStore((s) => s.fetchUser);
   const [completion, setCompletion] = useState<ProfileCompletionPayload | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Re-fetch on mount so edits made elsewhere in the app are reflected
-  // here, and to pick up the profile_completion payload that the auth
-  // store doesn't carry.
+  // Just fetch the completion payload. The user object is already loaded by
+  // AuthGuard, so we don't need to refetch it here. The earlier version
+  // called fetchUser() in parallel — but fetchUser's catch wipes auth on
+  // any non-2xx response, which logged out users on transient errors.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [, res] = await Promise.all([fetchUser(), api.get<MeResponse>("/api/me")]);
-        if (!alive) return;
-        if (res.data.profile_completion) setCompletion(res.data.profile_completion);
+        const res = await api.get<MeResponse>("/api/me");
+        if (alive && res.data.profile_completion) {
+          setCompletion(res.data.profile_completion);
+        }
       } catch {
-        // fetchUser already handles auth bounces; nothing else to do.
-      } finally {
-        if (alive) setIsLoading(false);
+        // Failures here just leave completion null — the status pill
+        // falls back to "SETUP NEEDED" and the cards still render.
       }
     })();
     return () => {
       alive = false;
     };
-  }, [fetchUser]);
+  }, []);
 
-  if (!user || isLoading) {
+  if (!user) {
     return (
       <DashboardShell pageTitle="Profile">
         <div className="flex min-h-[60vh] items-center justify-center">
