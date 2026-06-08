@@ -35,10 +35,9 @@ class UpdateCaregiverProfileRequest extends FormRequest
             'personality_tags' => ['sometimes', 'array'],
             'personality_tags.*' => ['string', 'max:50'],
 
-            'certifications' => ['sometimes', 'array'],
-            'certifications.*.name' => ['required_with:certifications', 'string', 'max:100'],
-            'certifications.*.issuer' => ['sometimes', 'nullable', 'string', 'max:200'],
-            'certifications.*.year' => ['sometimes', 'nullable', 'integer', 'min:1990', 'max:2030'],
+            // Certifications moved to /api/me/certifications in PR 1 of the
+            // cert-verification flow. Any incoming `certifications` payload
+            // is silently dropped because the validator no longer lists it.
 
             'references' => ['sometimes', 'array', 'max:5'],
             'references.*.name' => ['required_with:references', 'string', 'max:100'],

@@ -26,7 +26,7 @@ class ProfileController extends Controller
         $data = ['user' => $user];
 
         if ($user->isCaregiver()) {
-            $user->load(['caregiverProfile.services', 'verificationRecords']);
+            $user->load(['caregiverProfile.services', 'caregiverProfile.certifications', 'verificationRecords']);
             $completionService = new ProfileCompletionService;
             $data['profile_completion'] = $completionService->calculate($user);
             $data['is_fully_verified'] = $user->isFullyVerified();
@@ -151,7 +151,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         if ($user->isCaregiver()) {
-            $user->load('caregiverProfile.services');
+            $user->load(['caregiverProfile.services', 'caregiverProfile.certifications']);
         }
 
         if ($user->isFamily()) {
