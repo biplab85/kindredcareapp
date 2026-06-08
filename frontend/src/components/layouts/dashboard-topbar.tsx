@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Bell, LogOut, Menu, Settings, type LucideIcon, User } from "lucide-react";
+import { Bell, LogOut, Menu, Settings, type LucideIcon, User, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -77,6 +78,10 @@ export function DashboardTopbar({
 
   const initials = initialsOf(user?.name);
   const firstName = user?.name?.split(" ")[0] ?? "Account";
+  // Caregivers carry a profile photo; surface it in the top-right avatar
+  // so the user sees their own face instead of just initials.
+  const photoUrl =
+    user?.role === "caregiver" ? resolvePhotoUrl(user.caregiver_profile?.photo_path) : null;
 
   return (
     <header
@@ -125,9 +130,22 @@ export function DashboardTopbar({
                 className="ml-1 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card py-1 pr-3 pl-1 text-sm transition-colors hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                 aria-label="Account menu"
               >
-                <span className="grid size-7 place-items-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-primary">
-                  {initials}
-                </span>
+                {photoUrl ? (
+                  <span className="relative grid size-7 shrink-0 place-items-center overflow-hidden rounded-full ring-1 ring-foreground/10">
+                    <Image
+                      src={photoUrl}
+                      alt={user?.name ?? "You"}
+                      fill
+                      sizes="28px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </span>
+                ) : (
+                  <span className="grid size-7 place-items-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-primary">
+                    {initials}
+                  </span>
+                )}
                 <span className="hidden max-w-[120px] truncate font-medium lg:inline">
                   {firstName}
                 </span>
@@ -142,6 +160,10 @@ export function DashboardTopbar({
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem render={<Link href="/profile" />}>
+              <UserCircle className="size-4" strokeWidth={1.75} />
+              Profile
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/settings" />}>
               <Settings className="size-4" strokeWidth={1.75} />
               Settings
@@ -175,3 +197,16 @@ function initialsOf(name: string | undefined): string {
 
 // Keep the unused-import warning happy if LucideIcon is referenced elsewhere in future.
 export type { LucideIcon };
+
+/**
+ * Photo paths come back as either a fully-qualified URL (seeded pravatar
+ * placeholders) or a relative public-disk path (uploaded files). Resolve
+ * the relative case through NEXT_PUBLIC_API_URL so the topbar renders
+ * the same asset everyone else sees.
+ */
+function resolvePhotoUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
+}
