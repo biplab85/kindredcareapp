@@ -45,7 +45,7 @@ class CaregiverController extends Controller
     {
         $user = User::where('role', 'caregiver')
             ->where('id', $caregiver)
-            ->with(['caregiverProfile.services', 'verificationRecords'])
+            ->with(['caregiverProfile.services', 'caregiverProfile.certifications', 'verificationRecords'])
             ->firstOrFail();
 
         return response()->json([

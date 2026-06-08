@@ -90,7 +90,7 @@ class ProfileCompletionService
             'service_experience' => $profile->services->count() > 0 && $profile->years_of_experience > 0,
             'years_of_experience' => $profile->years_of_experience > 0,
             'languages' => ! empty($profile->languages),
-            'certifications' => ! empty($profile->certifications),
+            'certifications' => $profile->certifications()->exists(),
             'hourly_rate' => $profile->hourly_rate >= 18,
             'availability' => ! empty($profile->availability),
             'emergency_contact' => (bool) $profile->emergency_contact_name && (bool) $profile->emergency_contact_phone,

@@ -19,6 +19,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CaregiverAvailabilityController;
 use App\Http\Controllers\CaregiverConnectController;
 use App\Http\Controllers\CaregiverController;
+use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\ConsentController;
 use App\Http\Controllers\EarningsController;
 use App\Http\Controllers\EarningsStatementController;
@@ -129,6 +130,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         [CaregiverAvailabilityController::class, 'bookedWindows'],
     );
     Route::get('/caregivers/{caregiver}', [CaregiverController::class, 'show']);
+
+    // ─── CERTIFICATIONS (caregiver-owned) ───
+    Route::get('/me/certifications', [CertificationController::class, 'index']);
+    Route::post('/me/certifications', [CertificationController::class, 'store']);
+    Route::patch('/me/certifications/{certification}', [CertificationController::class, 'update']);
+    Route::post('/me/certifications/{certification}/document', [CertificationController::class, 'uploadDocument']);
+    Route::delete('/me/certifications/{certification}', [CertificationController::class, 'destroy']);
 
     // ─── VERIFICATION (caregiver) ───
     Route::prefix('verification')->group(function () {
