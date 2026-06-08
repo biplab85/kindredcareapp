@@ -1137,6 +1137,7 @@ function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
                   fill
                   sizes="80px"
                   className="object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground">
