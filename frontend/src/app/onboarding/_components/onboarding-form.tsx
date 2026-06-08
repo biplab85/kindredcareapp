@@ -842,8 +842,8 @@ export function OnboardingForm() {
                 <div>
                   <h3 className="text-lg font-semibold">Certifications</h3>
                   <p className="mb-3 text-sm text-muted-foreground">
-                    Add your professional certifications. Attach a PDF or photo of each to
-                    have the admin team mark it as Verified.
+                    Add your professional certifications — every entry needs a PDF or photo
+                    so the admin team can mark it as Verified.
                   </p>
 
                   {certifications.length > 0 && (
@@ -964,11 +964,16 @@ export function OnboardingForm() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-9"
+                        className={cn(
+                          "h-9",
+                          !certDoc && certName
+                            ? "border-accent/40 text-accent hover:bg-accent/5 hover:text-accent"
+                            : "",
+                        )}
                         onClick={() => certDocInputRef.current?.click()}
                       >
                         <Plus className="mr-1 size-3" />
-                        {certDoc ? certDoc.name : "Attach document (optional)"}
+                        {certDoc ? certDoc.name : "Attach your cert (required)"}
                       </Button>
                       {certDoc ? (
                         <button
@@ -988,7 +993,7 @@ export function OnboardingForm() {
                         size="sm"
                         className="ml-auto h-9"
                         onClick={addCertification}
-                        disabled={!certName || certBusy}
+                        disabled={!certName || !certDoc || certBusy}
                       >
                         {certBusy ? (
                           <Loader2 className="mr-1 size-3 animate-spin" />
@@ -999,7 +1004,9 @@ export function OnboardingForm() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      PDF or image, up to 10MB. Documents go to the admin review queue.
+                      PDF or image, up to 10MB. The admin team reviews documents within a
+                      couple of business days — your cert appears as &ldquo;Pending&rdquo; until
+                      then.
                     </p>
                   </div>
                 </div>
