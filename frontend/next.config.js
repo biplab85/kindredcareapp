@@ -75,9 +75,19 @@ const nextConfig = {
   },
 
   images: {
-    // Seeded test users carry pravatar URLs as photo placeholders until
-    // real uploads land — next/image refuses unknown hosts otherwise.
-    remotePatterns: [{ protocol: "https", hostname: "i.pravatar.cc" }],
+    // Hosts whose photo URLs we render through next/image. Anything not
+    // listed throws "hostname X is not configured" at runtime.
+    // - i.pravatar.cc: seeded caregivers carry these as placeholders.
+    // - localhost:8000 / 127.0.0.1: the Laravel API in dev serves uploaded
+    //   photos via /storage/<path>; the absolute URL is what
+    //   resolvePhotoUrl(...) emits.
+    // - api.kindredcare.ca: same role in production.
+    remotePatterns: [
+      { protocol: "https", hostname: "i.pravatar.cc" },
+      { protocol: "http", hostname: "localhost", port: "8000" },
+      { protocol: "http", hostname: "127.0.0.1", port: "8000" },
+      { protocol: "https", hostname: "api.kindredcare.ca" },
+    ],
   },
 
   async headers() {
