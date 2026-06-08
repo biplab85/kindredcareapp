@@ -9,9 +9,11 @@ use App\Http\Resources\CertificationResource;
 use App\Models\CaregiverProfile;
 use App\Models\Certification;
 use App\Models\User;
+use App\Notifications\CertificationDocumentSubmitted;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -62,6 +64,7 @@ class CertificationController extends Controller
                 'document_path' => $path,
                 'status' => Certification::STATUS_PENDING_REVIEW,
             ]);
+            $this->notifyAdminsOfSubmission($cert->fresh(), $request->user(), isResubmit: false);
         } else {
             $cert->save();
         }
@@ -98,6 +101,7 @@ class CertificationController extends Controller
             Storage::disk('private')->delete($certification->document_path);
         }
 
+        $wasReviewed = $certification->reviewed_at !== null;
         $path = $this->storeDocument($request, $certification->caregiverProfile, $certification);
         $certification->update([
             'document_path' => $path,
@@ -108,6 +112,12 @@ class CertificationController extends Controller
             'reviewed_at' => null,
             'rejection_reason' => null,
         ]);
+
+        $this->notifyAdminsOfSubmission(
+            $certification->fresh(),
+            $request->user(),
+            isResubmit: $wasReviewed,
+        );
 
         return new CertificationResource($certification->fresh());
     }
@@ -170,5 +180,25 @@ class CertificationController extends Controller
         $file = $request->file('document');
 
         return $file->store("verifications/{$profile->user_id}/certs/{$cert->id}", 'private');
+    }
+
+    /**
+     * Drop a cert-document submission into every active admin's
+     * notification bell + inbox so the review queue isn't dependent on
+     * someone refreshing /admin/certifications.
+     */
+    private function notifyAdminsOfSubmission(
+        Certification $certification,
+        User $caregiver,
+        bool $isResubmit,
+    ): void {
+        $admins = User::where('role', 'admin')->where('status', 'active')->get();
+        if ($admins->isEmpty()) {
+            return;
+        }
+        Notification::send(
+            $admins,
+            new CertificationDocumentSubmitted($certification, $caregiver, $isResubmit),
+        );
     }
 }
