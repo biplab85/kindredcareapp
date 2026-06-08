@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Heart, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -399,13 +400,23 @@ export function FamilyOnboardingForm() {
       {/* ─── Sticky save bar ─── */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 backdrop-blur-md md:left-[248px]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            {lastSavedAt
-              ? `Saved · ${lastSavedAt}`
-              : isAlreadyOnboarded
-                ? "Changes save when you press the button"
-                : `${steps[step - 1].label} · step ${step} of ${totalSteps}`}
-          </p>
+          <div className="flex flex-col gap-1">
+            {isAlreadyOnboarded ? (
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.18em] text-primary uppercase transition-colors hover:text-primary/80"
+              >
+                ← Back to profile
+              </Link>
+            ) : null}
+            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+              {lastSavedAt
+                ? `Saved · ${lastSavedAt}`
+                : isAlreadyOnboarded
+                  ? "Changes save when you press the button"
+                  : `${steps[step - 1].label} · step ${step} of ${totalSteps}`}
+            </p>
+          </div>
           <Button onClick={handleSubmit} disabled={isSubmitting} className="min-w-[140px]">
             {isSubmitting ? (
               <Loader2 className="mr-2 size-4 animate-spin" />

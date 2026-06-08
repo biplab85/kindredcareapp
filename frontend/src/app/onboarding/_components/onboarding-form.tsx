@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Camera,
@@ -29,7 +30,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import type { ServiceCategory } from "@/lib/service-categories";
@@ -151,7 +151,6 @@ export function OnboardingForm() {
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   const [yearsOfExperience, setYearsOfExperience] = useState(0);
   const [selectedServices, setSelectedServices] = useState<Record<number, number>>({});
@@ -333,7 +332,6 @@ export function OnboardingForm() {
     // Show the local preview immediately so the user sees their choice
     // before the upload round-trips.
     setPhotoPreview(URL.createObjectURL(file));
-    setPhotoFile(file);
 
     // Upload right away. The original flow deferred this to handleSubmit
     // (step 5's "Complete Setup"), which meant editing the photo from
@@ -349,8 +347,6 @@ export function OnboardingForm() {
       if (res.data?.photo_url) {
         setPhotoPreview(res.data.photo_url);
       }
-      // photoFile cleared so handleSubmit doesn't re-upload the same bytes.
-      setPhotoFile(null);
       toast.success("Photo updated.");
     } catch {
       toast.error("Couldn't upload the photo. Try again in a moment.");
@@ -411,27 +407,6 @@ export function OnboardingForm() {
   const updateReference = (index: number, field: keyof Reference, value: string) => {
     setReferences((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   };
-
-  const localCompletion = (() => {
-    let score = 0;
-    if (bio.length >= 50) score += 15;
-    if (photoFile) score += 10;
-    if (dateOfBirth) score += 5;
-    if (gender) score += 3;
-    if (postalCode.length >= 6) score += 7;
-    if (Object.keys(selectedServices).length > 0) score += 10;
-    if (Object.values(selectedServices).some((v) => v > 0)) score += 5;
-    if (yearsOfExperience > 0) score += 5;
-    if (selectedLanguages.length > 0) score += 5;
-    if (certifications.length > 0) score += 8;
-    if (hourlyRate >= 18) score += 5;
-    if (Object.values(availability).some((d) => d.available)) score += 7;
-    if (emergencyName && emergencyPhone) score += 5;
-    if (references.filter((r) => r.name).length >= 2) score += 7;
-    if (personalityTags.length > 0) score += 2;
-    if (interests.length > 0) score += 1;
-    return Math.min(100, score);
-  })();
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -513,32 +488,23 @@ export function OnboardingForm() {
         § 01 · Your profile
       </div>
 
-      <header className="mt-3 flex flex-wrap items-start justify-between gap-6">
-        <div className="min-w-0">
-          <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl">
-            {isAlreadyOnboarded ? (
-              <>
-                Tell families <span className="italic text-primary">who you are.</span>
-              </>
-            ) : (
-              <>
-                Let&rsquo;s set up <span className="italic text-primary">your profile.</span>
-              </>
-            )}
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            {isAlreadyOnboarded
-              ? "Switch tabs to edit any section. Changes save when you press the button at the bottom."
-              : "Walk through the tabs — when each is filled out, families can find and book you."}
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <ProfileCompletionRing percentage={localCompletion} size="sm" />
-          <p className="mt-1.5 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-            {localCompletion}% complete
-            {localCompletion >= 70 ? <span className="ml-1 text-success">· matchable</span> : null}
-          </p>
-        </div>
+      <header className="mt-3">
+        <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl">
+          {isAlreadyOnboarded ? (
+            <>
+              Tell families <span className="italic text-primary">who you are.</span>
+            </>
+          ) : (
+            <>
+              Let&rsquo;s set up <span className="italic text-primary">your profile.</span>
+            </>
+          )}
+        </h1>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          {isAlreadyOnboarded
+            ? "Switch tabs to edit any section. Changes save when you press the button at the bottom."
+            : "Walk through the tabs — when each is filled out, families can find and book you."}
+        </p>
       </header>
 
       <div className="my-6 border-t border-dashed border-border/60" />
@@ -1157,13 +1123,23 @@ export function OnboardingForm() {
       {/* ─── Sticky save bar ─── */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 backdrop-blur-md md:left-[248px]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            {lastSavedAt
-              ? `Saved · ${lastSavedAt}`
-              : isAlreadyOnboarded
-                ? "Changes save when you press the button"
-                : `${steps[step - 1].label} · step ${step} of ${steps.length}`}
-          </p>
+          <div className="flex flex-col gap-1">
+            {isAlreadyOnboarded ? (
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.18em] text-primary uppercase transition-colors hover:text-primary/80"
+              >
+                ← Back to profile
+              </Link>
+            ) : null}
+            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+              {lastSavedAt
+                ? `Saved · ${lastSavedAt}`
+                : isAlreadyOnboarded
+                  ? "Changes save when you press the button"
+                  : `${steps[step - 1].label} · step ${step} of ${steps.length}`}
+            </p>
+          </div>
           <Button onClick={handleSubmit} disabled={isSubmitting} className="min-w-[140px]">
             {isSubmitting ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
