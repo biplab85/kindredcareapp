@@ -315,15 +315,47 @@ export function OnboardingForm() {
       });
   }, []);
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Photo must be under 5MB.");
       return;
     }
-    setPhotoFile(file);
+
+    // Show the local preview immediately so the user sees their choice
+    // before the upload round-trips.
     setPhotoPreview(URL.createObjectURL(file));
+    setPhotoFile(file);
+
+    // Upload right away. The original flow deferred this to handleSubmit
+    // (step 5's "Complete Setup"), which meant editing the photo from
+    // /profile silently dropped it if the user didn't click through every
+    // step — the photo was just a local blob URL until the final submit.
+    setIsUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await api.post<{ photo_url?: string }>("/api/me/photo", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data?.photo_url) {
+        setPhotoPreview(res.data.photo_url);
+      }
+      // photoFile cleared so handleSubmit doesn't re-upload the same bytes.
+      setPhotoFile(null);
+      toast.success("Photo updated.");
+    } catch {
+      toast.error("Couldn't upload the photo. Try again in a moment.");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+
+    // Reset the hidden input so picking the same file twice in a row still
+    // fires the onChange event.
+    e.target.value = "";
   };
 
   const toggleService = (id: number) => {
@@ -421,13 +453,8 @@ export function OnboardingForm() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      if (photoFile) {
-        const formData = new FormData();
-        formData.append("photo", photoFile);
-        await api.post("/api/me/photo", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      }
+      // Photo is uploaded eagerly on file select via handlePhotoSelect, so
+      // there's nothing to do here for it.
 
       await api.patch("/api/me/caregiver-profile", {
         date_of_birth: dateOfBirth,
@@ -519,7 +546,8 @@ export function OnboardingForm() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="group relative mb-2 flex size-24 items-center justify-center overflow-hidden rounded-full bg-muted transition-colors hover:bg-muted/80"
+                    disabled={isUploadingPhoto}
+                    className="group relative mb-2 flex size-24 items-center justify-center overflow-hidden rounded-full bg-muted transition-colors hover:bg-muted/80 disabled:cursor-not-allowed"
                   >
                     {photoPreview ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
@@ -527,8 +555,15 @@ export function OnboardingForm() {
                     ) : (
                       <Camera className="size-8 text-muted-foreground transition-colors group-hover:text-foreground" />
                     )}
+                    {isUploadingPhoto && (
+                      <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur-sm">
+                        <Loader2 className="size-6 animate-spin text-primary" />
+                      </div>
+                    )}
                   </button>
-                  <p className="text-xs text-muted-foreground">Upload a profile photo</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isUploadingPhoto ? "Uploading…" : "Upload a profile photo"}
+                  </p>
                   <input
                     ref={fileInputRef}
                     type="file"
