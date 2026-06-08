@@ -2,12 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import {
   Camera,
   Loader2,
-  ArrowRight,
-  ArrowLeft,
   CheckCircle2,
   Heart,
   Smartphone,
@@ -32,7 +29,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { StepIndicator } from "@/components/ui/step-indicator";
 import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
@@ -142,6 +138,9 @@ export function OnboardingForm() {
   );
   const [step, setStep] = useState(initialStep);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Shown in the sticky save bar after a successful save. Just a relative
+  // time string like "just now" or "2 min ago" — we re-derive on save.
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchedRef = useRef(false);
@@ -428,28 +427,6 @@ export function OnboardingForm() {
     return Math.min(100, score);
   })();
 
-  const canProceed = () => {
-    switch (step) {
-      case 1:
-        return bio.length >= 50 && postalCode.length >= 6 && dateOfBirth.length > 0;
-      case 2:
-        return Object.keys(selectedServices).length > 0;
-      case 3:
-        return selectedLanguages.length > 0;
-      case 4:
-        return hourlyRate >= 18 && hourlyRate <= 50;
-      case 5:
-        return (
-          emergencyName.length > 0 &&
-          emergencyPhone.length > 0 &&
-          references[0].name.length > 0 &&
-          references[1].name.length > 0
-        );
-      default:
-        return false;
-    }
-  };
-
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
@@ -486,8 +463,16 @@ export function OnboardingForm() {
       // (because postLoginRoute still thinks they're not done).
       await useAuthStore.getState().fetchUser();
 
-      toast.success("Profile complete! You're ready to receive gigs.");
-      router.push("/dashboard");
+      // First-run signup: walk the caregiver into the dashboard so they can
+      // see their first matches. Edit session from /profile: stay on the
+      // page, just show a confirmation in the sticky save bar.
+      if (isAlreadyOnboarded) {
+        setLastSavedAt(formatSavedAt(new Date()));
+        toast.success("Profile saved.");
+      } else {
+        toast.success("Profile complete! You're ready to receive gigs.");
+        router.push("/dashboard");
+      }
     } catch (err: unknown) {
       // Surface the actual server message (validation errors, 500s, etc)
       // instead of swallowing into a generic "failed to save". 422 field
@@ -515,34 +500,77 @@ export function OnboardingForm() {
   const youKeep = hourlyRate;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <div className="mb-8 text-center">
-          <Image
-            src="/logo.png"
-            alt="KindredCare"
-            width={160}
-            height={36}
-            className="mx-auto mb-4"
-            priority
-          />
-          <h1 className="text-2xl font-bold">
-            {isAlreadyOnboarded ? "Edit your profile" : "Complete Your Profile"}
+    <div className="mx-auto max-w-3xl px-4 pt-6 pb-32 sm:px-6 lg:px-8">
+      {/* ─── Editorial header ─── */}
+      <div className="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+        <span className="h-px w-6 bg-foreground/30" />
+        § 01 · Your profile
+      </div>
+
+      <header className="mt-3 flex flex-wrap items-start justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl">
+            {isAlreadyOnboarded ? (
+              <>
+                Tell families <span className="italic text-primary">who you are.</span>
+              </>
+            ) : (
+              <>
+                Let&rsquo;s set up <span className="italic text-primary">your profile.</span>
+              </>
+            )}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {isAlreadyOnboarded
-              ? "Update any section — your changes save when you finish the wizard."
-              : "Tell families about yourself so they can find and book you."}
+              ? "Switch tabs to edit any section. Changes save when you press the button at the bottom."
+              : "Walk through the tabs — when each is filled out, families can find and book you."}
           </p>
         </div>
-
-        <div className="mb-8 flex items-center gap-6">
-          <div className="flex-1">
-            <StepIndicator steps={steps} currentStep={step} />
-          </div>
+        <div className="shrink-0 text-right">
           <ProfileCompletionRing percentage={localCompletion} size="sm" />
+          <p className="mt-1.5 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+            {localCompletion}% complete
+            {localCompletion >= 70 ? <span className="ml-1 text-success">· matchable</span> : null}
+          </p>
         </div>
+      </header>
 
+      <div className="my-6 border-t border-dashed border-border/60" />
+
+      {/* ─── Tab bar — clickable, no forced order ─── */}
+      <div className="-mx-1 overflow-x-auto">
+        <div role="tablist" className="flex min-w-max items-stretch gap-1 px-1">
+          {steps.map((tab, idx) => {
+            const tabNum = idx + 1;
+            const active = step === tabNum;
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setStep(tabNum)}
+                className={cn(
+                  "group relative flex items-baseline gap-2 px-3 py-3 transition-colors",
+                  "font-mono text-[11px] font-medium tracking-[0.18em] uppercase",
+                  "border-b-2",
+                  active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className={cn(active ? "text-primary" : "text-muted-foreground/60")}>
+                  {String(tabNum).padStart(2, "0")}
+                </span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ─── Tab body ─── */}
+      <div className="mt-6">
         <Card>
           <CardContent className="p-6 sm:p-8">
             {/* ─── STEP 1: Personal Info ─── */}
@@ -1116,34 +1144,37 @@ export function OnboardingForm() {
               </div>
             )}
 
-            {/* Navigation */}
-            <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
-              {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(step - 1)}>
-                  <ArrowLeft className="mr-1 size-4" /> Back
-                </Button>
-              ) : (
-                <div />
-              )}
-
-              {step < 5 ? (
-                <Button onClick={() => setStep(step + 1)} disabled={!canProceed()}>
-                  Next <ArrowRight className="ml-1 size-4" />
-                </Button>
-              ) : (
-                <Button onClick={handleSubmit} disabled={isSubmitting || !canProceed()}>
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-1 size-4" />
-                  )}
-                  Complete Setup
-                </Button>
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── Sticky save bar ─── */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 backdrop-blur-md md:left-[248px]">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            {lastSavedAt
+              ? `Saved · ${lastSavedAt}`
+              : isAlreadyOnboarded
+                ? "Changes save when you press the button"
+                : `${steps[step - 1].label} · step ${step} of ${steps.length}`}
+          </p>
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="min-w-[140px]">
+            {isSubmitting ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-1 size-4" />
+            )}
+            {isAlreadyOnboarded ? "Save changes" : "Complete profile"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
+}
+
+function formatSavedAt(d: Date): string {
+  return d.toLocaleTimeString("en-CA", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
