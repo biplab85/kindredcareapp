@@ -47,27 +47,22 @@ class CertificationController extends Controller
             return $profile;
         }
 
+        // Document is required as of the no-self-reported-creates change
+        // (StoreCertificationRequest enforces this) — every new cert
+        // starts at pending_review with bytes admin can verify. The
+        // STATUS_SELF_REPORTED tier is kept for backfilled legacy rows
+        // but no longer creatable through this endpoint.
         $cert = new Certification([
             'caregiver_profile_id' => $profile->id,
             'name' => $request->string('name')->toString(),
             'issuer' => $request->input('issuer'),
             'year' => $request->input('year'),
-            'status' => Certification::STATUS_SELF_REPORTED,
+            'status' => Certification::STATUS_PENDING_REVIEW,
         ]);
-
-        // If a document came along with the create, persist it and flip
-        // to pending_review in the same write.
-        if ($request->hasFile('document')) {
-            $cert->save();
-            $path = $this->storeDocument($request, $profile, $cert);
-            $cert->update([
-                'document_path' => $path,
-                'status' => Certification::STATUS_PENDING_REVIEW,
-            ]);
-            $this->notifyAdminsOfSubmission($cert->fresh(), $request->user(), isResubmit: false);
-        } else {
-            $cert->save();
-        }
+        $cert->save();
+        $path = $this->storeDocument($request, $profile, $cert);
+        $cert->update(['document_path' => $path]);
+        $this->notifyAdminsOfSubmission($cert->fresh(), $request->user(), isResubmit: false);
 
         return new CertificationResource($cert->fresh());
     }
