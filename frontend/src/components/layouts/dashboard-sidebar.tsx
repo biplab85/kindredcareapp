@@ -16,6 +16,7 @@ import {
   ScrollText,
   Search,
   ShieldAlert,
+  UserCircle,
   UserCog,
   UsersRound,
   X,
@@ -58,12 +59,9 @@ const CAREGIVER_SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    // Profile + Settings live in the top-right avatar dropdown — keeping
-    // them out of the sidebar matches GitHub/Slack/Gmail conventions.
-    // Verification stays because it's a workflow stage (with a badge
-    // dot for outstanding action), not account chrome.
     heading: "Account",
     items: [
+      { href: "/profile", label: "Profile", icon: UserCircle },
       { href: "/verification", label: "Verification", icon: BadgeCheck, badge: "verification" },
     ],
   },
@@ -79,8 +77,10 @@ const FAMILY_SECTIONS: SidebarSection[] = [
       { href: "/care-recipients", label: "Recipients", icon: UsersRound },
     ],
   },
-  // Family role has no workflow-stage account items; the top-right
-  // dropdown carries everything (Profile, Settings, Log out).
+  {
+    heading: "Account",
+    items: [{ href: "/profile", label: "Profile", icon: UserCircle }],
+  },
 ];
 
 const ADMIN_SECTIONS: SidebarSection[] = [
