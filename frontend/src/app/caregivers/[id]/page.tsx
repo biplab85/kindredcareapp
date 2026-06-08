@@ -33,10 +33,13 @@ interface CaregiverService {
 }
 
 interface Certification {
+  id: number;
   name: string;
-  issuer?: string;
-  year?: string;
-  status: string;
+  issuer?: string | null;
+  year?: number | null;
+  status: "self_reported" | "pending_review" | "verified" | "rejected" | "expired";
+  has_document: boolean;
+  expires_at?: string | null;
 }
 
 interface CaregiverProfile {
@@ -404,6 +407,15 @@ function ServicesBlock({ services }: { services: CaregiverService[] }) {
  * ───────────────────────────────────────────────────────────── */
 
 function CertificationsBlock({ certifications }: { certifications: Certification[] }) {
+  // Only the family-readable states surface on the public card. Pending and
+  // rejected are caregiver-private — exposing pending would look like
+  // "almost verified" without the platform vouching, and rejected is
+  // strictly between the caregiver and the admin team.
+  const verified = certifications.filter((c) => c.status === "verified");
+  const selfReported = certifications.filter((c) => c.status === "self_reported");
+
+  if (verified.length === 0 && selfReported.length === 0) return null;
+
   return (
     <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
       <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
@@ -411,22 +423,62 @@ function CertificationsBlock({ certifications }: { certifications: Certification
         Certifications — § 05
       </div>
 
-      <ul className="mt-5 space-y-3">
-        {certifications.map((cert, i) => (
-          <li
-            key={i}
-            className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/40 px-4 py-3"
-          >
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold tracking-tight">{cert.name}</p>
-              <p className="mt-0.5 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
-                {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "Self-reported"}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {verified.length > 0 ? (
+        <div className="mt-5">
+          <div className="flex items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-success uppercase">
+            <span className="h-px w-6 bg-success/50" />
+            Verified by KindredCare
+          </div>
+          <ul className="mt-3 space-y-2">
+            {verified.map((cert) => (
+              <li
+                key={cert.id}
+                className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/[0.05] px-4 py-3"
+              >
+                <ShieldCheck
+                  className="mt-0.5 size-4 shrink-0 text-success"
+                  strokeWidth={2.25}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold tracking-tight">{cert.name}</p>
+                  <p className="mt-0.5 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
+                    {[cert.issuer, cert.year].filter(Boolean).join(" · ") ||
+                      "Reviewed by admin"}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {selfReported.length > 0 ? (
+        <div className={verified.length > 0 ? "mt-6" : "mt-5"}>
+          <div className="flex items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            <span className="h-px w-6 bg-foreground/20" />
+            Self-reported
+          </div>
+          <ul className="mt-3 space-y-2">
+            {selfReported.map((cert) => (
+              <li
+                key={cert.id}
+                className="flex items-start gap-3 rounded-2xl border border-dashed border-border/60 bg-background/40 px-4 py-3"
+              >
+                <Award
+                  className="mt-0.5 size-4 shrink-0 text-muted-foreground/70"
+                  strokeWidth={1.75}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium tracking-tight">{cert.name}</p>
+                  <p className="mt-0.5 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
+                    {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "Not reviewed"}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }

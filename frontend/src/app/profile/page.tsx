@@ -458,15 +458,32 @@ function CertificationsList({
   if (certifications.length === 0) {
     return <Empty message="No certifications added yet." />;
   }
+
+  // Verified first, then pending, then rejected/self-reported. Reading
+  // top-down should match the order of trust signals families see on the
+  // public card — and surfacing pending here is helpful for the caregiver
+  // so they know what's in flight.
+  const rank: Record<NonNullable<CaregiverProfileSummary["certifications"]>[number]["status"], number> = {
+    verified: 0,
+    pending_review: 1,
+    rejected: 2,
+    self_reported: 3,
+    expired: 4,
+  };
+  const sorted = [...certifications].sort((a, b) => rank[a.status] - rank[b.status]);
+
   return (
     <div className="divide-y divide-dashed divide-border/60">
-      {certifications.map((c, i) => (
+      {sorted.map((c) => (
         <div
-          key={`${c.name}-${i}`}
+          key={c.id}
           className="flex flex-wrap items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0"
         >
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">{c.name}</p>
+            <p className="text-sm font-medium text-foreground">
+              {c.name}
+              <CertStatusPill status={c.status} />
+            </p>
             {c.issuer ? <p className="text-xs text-muted-foreground">{c.issuer}</p> : null}
           </div>
           {c.year ? (
@@ -634,4 +651,41 @@ function resolvePhotoUrl(path: string | null | undefined): string | null {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
+}
+
+function CertStatusPill({
+  status,
+}: {
+  status: NonNullable<CaregiverProfileSummary["certifications"]>[number]["status"];
+}) {
+  const map: Record<typeof status, { label: string; cls: string }> = {
+    verified: {
+      label: "Verified",
+      cls: "bg-success/10 text-success ring-success/30",
+    },
+    pending_review: {
+      label: "Pending",
+      cls: "bg-primary/10 text-primary ring-primary/30",
+    },
+    rejected: {
+      label: "Rejected",
+      cls: "bg-destructive/10 text-destructive ring-destructive/30",
+    },
+    self_reported: {
+      label: "Self-reported",
+      cls: "bg-muted text-muted-foreground ring-foreground/15",
+    },
+    expired: {
+      label: "Expired",
+      cls: "bg-accent/10 text-accent ring-accent/30",
+    },
+  };
+  const { label, cls } = map[status];
+  return (
+    <span
+      className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.14em] uppercase ring-1 ${cls}`}
+    >
+      {label}
+    </span>
+  );
 }
