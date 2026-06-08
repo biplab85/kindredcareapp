@@ -36,6 +36,7 @@ import { StepIndicator } from "@/components/ui/step-indicator";
 import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import api from "@/lib/api";
+import { useAuthStore } from "@/lib/auth";
 import type { ServiceCategory } from "@/lib/service-categories";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +143,12 @@ function OnboardingForm() {
     const raw = Number(searchParams.get("step"));
     return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : 1;
   })();
+  // When the caregiver has already finished onboarding once, this page acts
+  // as the profile editor (linked from /profile in the sidebar). Headline
+  // switches to "Edit your profile" so it doesn't read like a first-run flow.
+  const isAlreadyOnboarded = useAuthStore(
+    (s) => s.user?.caregiver_profile?.onboarding_complete === true,
+  );
   const [step, setStep] = useState(initialStep);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -495,9 +502,13 @@ function OnboardingForm() {
             className="mx-auto mb-4"
             priority
           />
-          <h1 className="text-2xl font-bold">Complete Your Profile</h1>
+          <h1 className="text-2xl font-bold">
+            {isAlreadyOnboarded ? "Edit your profile" : "Complete Your Profile"}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tell families about yourself so they can find and book you.
+            {isAlreadyOnboarded
+              ? "Update any section — your changes save when you finish the wizard."
+              : "Tell families about yourself so they can find and book you."}
           </p>
         </div>
 
