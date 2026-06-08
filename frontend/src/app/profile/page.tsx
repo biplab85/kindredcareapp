@@ -125,7 +125,21 @@ function ProfileView() {
           <div className="flex items-center gap-5">
             {photoUrl ? (
               <div className="relative size-20 overflow-hidden rounded-2xl bg-muted ring-2 ring-foreground/10 sm:size-24">
-                <Image src={photoUrl} alt={user.name} fill className="object-cover" sizes="96px" />
+                {/* `unoptimized` bypasses Next's image proxy. Required in
+                    dev because the API serves photos from localhost — Next
+                    16's SSRF guard refuses to fetch from private IPs even
+                    when the host is whitelisted in remotePatterns. The
+                    photos are already small (<5MB upload, 96px display),
+                    so the optimizer's savings aren't worth the complexity
+                    of dev/prod branching. */}
+                <Image
+                  src={photoUrl}
+                  alt={user.name}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                  unoptimized
+                />
               </div>
             ) : (
               <div className="grid size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/10 via-card to-card text-xl font-semibold tracking-tight text-foreground ring-2 ring-foreground/10 sm:size-24 sm:text-2xl">
