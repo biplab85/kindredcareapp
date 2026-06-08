@@ -480,6 +480,12 @@ export function OnboardingForm() {
         availability: { weekly: availability },
       });
 
+      // Refresh the auth store so caregiver_profile.onboarding_complete is
+      // current — without this, the next visit to /profile sees stale
+      // local state and AuthGuard bounces the user back to /onboarding
+      // (because postLoginRoute still thinks they're not done).
+      await useAuthStore.getState().fetchUser();
+
       toast.success("Profile complete! You're ready to receive gigs.");
       router.push("/dashboard");
     } catch (err: unknown) {
