@@ -431,8 +431,8 @@ export function OnboardingForm() {
           ? "Certification added — admin will review your document."
           : "Certification added (self-reported).",
       );
-    } catch {
-      toast.error("Couldn't add the certification. Try again in a moment.");
+    } catch (err) {
+      surfaceServerError(err, "Couldn't add the certification. Try again in a moment.");
     } finally {
       setCertBusy(false);
     }
@@ -444,8 +444,8 @@ export function OnboardingForm() {
     try {
       await deleteCertification(id);
       await refreshCertifications();
-    } catch {
-      toast.error("Couldn't remove the certification.");
+    } catch (err) {
+      surfaceServerError(err, "Couldn't remove the certification.");
     } finally {
       setCertBusy(false);
     }
@@ -467,8 +467,8 @@ export function OnboardingForm() {
       await uploadCertificationDocument(certId, file);
       await refreshCertifications();
       toast.success("Document uploaded — pending review.");
-    } catch {
-      toast.error("Couldn't upload the document. Try again in a moment.");
+    } catch (err) {
+      surfaceServerError(err, "Couldn't upload the document. Try again in a moment.");
     } finally {
       setPendingDocCertId(null);
     }
@@ -1323,6 +1323,27 @@ function formatSavedAt(d: Date): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/**
+ * Read the Laravel error shape off an axios rejection and toast the
+ * meaningful bit instead of a swallowed generic. 422 field errors fan
+ * out into one toast each (mime/size validation, etc.); single-message
+ * errors (419, 5xx) show the server's `message`; everything else falls
+ * back to the supplied default.
+ */
+function surfaceServerError(err: unknown, fallback: string): void {
+  const error = err as {
+    response?: { data?: { message?: string; errors?: Record<string, string[]> } };
+  };
+  const fieldErrors = error.response?.data?.errors;
+  if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+    Object.values(fieldErrors)
+      .flat()
+      .forEach((msg) => toast.error(msg));
+    return;
+  }
+  toast.error(error.response?.data?.message ?? fallback);
 }
 
 /**
