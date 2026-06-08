@@ -32,6 +32,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
+import {
+  type Certification as RemoteCertification,
+  createCertification,
+  deleteCertification,
+  listCertifications,
+  statusLabel,
+  statusTone,
+  uploadCertificationDocument,
+} from "@/lib/certifications";
 import type { ServiceCategory } from "@/lib/service-categories";
 import { cn } from "@/lib/utils";
 
@@ -108,11 +117,6 @@ interface DayAvailability {
   start: string;
   end: string;
 }
-interface Certification {
-  name: string;
-  issuer: string;
-  year: string;
-}
 interface Reference {
   name: string;
   email: string;
@@ -159,10 +163,17 @@ export function OnboardingForm() {
   const [interests, setInterests] = useState<string[]>([]);
   const [interestInput, setInterestInput] = useState("");
   const [personalityTags, setPersonalityTags] = useState<string[]>([]);
-  const [certifications, setCertifications] = useState<Certification[]>([]);
+  // Certifications live on the new /api/me/certifications endpoint, not on
+  // the big profile PATCH. Fetched separately on mount + after every mutate.
+  const [certifications, setCertifications] = useState<RemoteCertification[]>([]);
   const [certName, setCertName] = useState("");
   const [certIssuer, setCertIssuer] = useState("");
   const [certYear, setCertYear] = useState("");
+  const [certDoc, setCertDoc] = useState<File | null>(null);
+  const [certBusy, setCertBusy] = useState(false);
+  const certDocInputRef = useRef<HTMLInputElement>(null);
+  const certRowDocInputRef = useRef<HTMLInputElement>(null);
+  const [pendingDocCertId, setPendingDocCertId] = useState<number | null>(null);
 
   const [hourlyRate, setHourlyRate] = useState(25);
   const [travelRadius, setTravelRadius] = useState(10);
@@ -187,6 +198,15 @@ export function OnboardingForm() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
+    // Certs live on a sibling endpoint now (PR 86) — fetch them on mount
+    // and after every mutation to keep the list authoritative.
+    listCertifications()
+      .then(setCertifications)
+      .catch(() => {
+        // Soft-fail: a fresh caregiver with no certs still loads, and an
+        // outright API failure shouldn't block the rest of the form.
+      });
+
     api
       .get<{ data: ServiceCategory[] }>("/api/service-categories")
       .then((res) => setCategories(res.data.data))
@@ -210,7 +230,6 @@ export function OnboardingForm() {
             languages?: string[] | null;
             interests?: string[] | null;
             personality_tags?: string[] | null;
-            certifications?: Certification[] | null;
             references?: Reference[] | null;
             emergency_contact_name?: string | null;
             emergency_contact_phone?: string | null;
@@ -245,18 +264,9 @@ export function OnboardingForm() {
         if (Array.isArray(p.languages)) setSelectedLanguages(p.languages);
         if (Array.isArray(p.interests)) setInterests(p.interests);
         if (Array.isArray(p.personality_tags)) setPersonalityTags(p.personality_tags);
-        if (Array.isArray(p.certifications)) {
-          // Coerce nulls in optional fields to "" so controlled <Input>
-          // doesn't warn ("value prop on input should not be null").
-          setCertifications(
-            p.certifications.map((c) => ({
-              ...c,
-              name: c.name ?? "",
-              issuer: c.issuer ?? "",
-              year: c.year ?? "",
-            })),
-          );
-        }
+        // Certs are fetched separately via /api/me/certifications below —
+        // the relation is loaded server-side but we hit the dedicated
+        // endpoint so the form's mutation methods share the same shape.
         if (Array.isArray(p.references) && p.references.length > 0) {
           // Pad with blanks so the form always shows two reference rows;
           // coerce nullable fields so controlled <Input>s don't warn.
@@ -392,12 +402,76 @@ export function OnboardingForm() {
     }
   };
 
-  const addCertification = () => {
-    if (!certName) return;
-    setCertifications((prev) => [...prev, { name: certName, issuer: certIssuer, year: certYear }]);
-    setCertName("");
-    setCertIssuer("");
-    setCertYear("");
+  const refreshCertifications = async () => {
+    try {
+      setCertifications(await listCertifications());
+    } catch {
+      toast.error("Couldn't load your certifications. Try again in a moment.");
+    }
+  };
+
+  const addCertification = async () => {
+    if (!certName || certBusy) return;
+    setCertBusy(true);
+    try {
+      await createCertification({
+        name: certName,
+        issuer: certIssuer || null,
+        year: certYear ? Number(certYear) : null,
+        document: certDoc,
+      });
+      setCertName("");
+      setCertIssuer("");
+      setCertYear("");
+      setCertDoc(null);
+      if (certDocInputRef.current) certDocInputRef.current.value = "";
+      await refreshCertifications();
+      toast.success(
+        certDoc
+          ? "Certification added — admin will review your document."
+          : "Certification added (self-reported).",
+      );
+    } catch {
+      toast.error("Couldn't add the certification. Try again in a moment.");
+    } finally {
+      setCertBusy(false);
+    }
+  };
+
+  const removeCertification = async (id: number) => {
+    if (certBusy) return;
+    setCertBusy(true);
+    try {
+      await deleteCertification(id);
+      await refreshCertifications();
+    } catch {
+      toast.error("Couldn't remove the certification.");
+    } finally {
+      setCertBusy(false);
+    }
+  };
+
+  const handleRowDocChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    certId: number,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Document must be under 10MB.");
+      return;
+    }
+    setPendingDocCertId(certId);
+    try {
+      await uploadCertificationDocument(certId, file);
+      await refreshCertifications();
+      toast.success("Document uploaded — pending review.");
+    } catch {
+      toast.error("Couldn't upload the document. Try again in a moment.");
+    } finally {
+      setPendingDocCertId(null);
+    }
   };
 
   const updateDay = (day: string, field: keyof DayAvailability, value: string | boolean) => {
@@ -426,7 +500,8 @@ export function OnboardingForm() {
         languages: selectedLanguages,
         interests,
         personality_tags: personalityTags,
-        certifications: certifications.map((c) => ({ ...c, status: "self_reported" })),
+        // certifications now managed via their own endpoint — not part of
+        // this PATCH payload (see addCertification / removeCertification).
         services_offered: Object.entries(selectedServices).map(([id, years]) => ({
           id: Number(id),
           years_experience: years,
@@ -767,76 +842,165 @@ export function OnboardingForm() {
                 <div>
                   <h3 className="text-lg font-semibold">Certifications</h3>
                   <p className="mb-3 text-sm text-muted-foreground">
-                    Add your professional certifications. Displayed as &quot;Self-reported&quot;
-                    until verified.
+                    Add your professional certifications. Attach a PDF or photo of each to
+                    have the admin team mark it as Verified.
                   </p>
 
                   {certifications.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                      {certifications.map((cert, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
+                    <ul className="mb-4 space-y-2">
+                      {certifications.map((cert) => (
+                        <li
+                          key={cert.id}
+                          className="rounded-lg border border-border bg-muted/30 px-3 py-2.5"
                         >
-                          <Shield className="size-4 text-primary" />
-                          <span className="flex-1 text-sm font-medium">{cert.name}</span>
-                          {cert.issuer && (
-                            <span className="text-xs text-muted-foreground">{cert.issuer}</span>
-                          )}
-                          {cert.year && (
-                            <span className="text-xs text-muted-foreground">{cert.year}</span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCertifications((prev) => prev.filter((_, idx) => idx !== i))
-                            }
-                          >
-                            <X className="size-4 text-muted-foreground hover:text-foreground" />
-                          </button>
-                        </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Shield className="size-4 text-primary" />
+                            <span className="text-sm font-medium">{cert.name}</span>
+                            {cert.issuer ? (
+                              <span className="text-xs text-muted-foreground">
+                                {cert.issuer}
+                              </span>
+                            ) : null}
+                            {cert.year ? (
+                              <span className="text-xs text-muted-foreground">{cert.year}</span>
+                            ) : null}
+                            <CertStatusPill status={cert.status} />
+                            <div className="ml-auto flex items-center gap-1">
+                              {!cert.has_document || cert.status === "rejected" ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-2 text-[11px]"
+                                  disabled={pendingDocCertId === cert.id}
+                                  onClick={() => {
+                                    if (certRowDocInputRef.current) {
+                                      certRowDocInputRef.current.dataset.certId = String(cert.id);
+                                      certRowDocInputRef.current.click();
+                                    }
+                                  }}
+                                >
+                                  {pendingDocCertId === cert.id ? (
+                                    <Loader2 className="mr-1 size-3 animate-spin" />
+                                  ) : (
+                                    <Plus className="mr-1 size-3" />
+                                  )}
+                                  {cert.has_document ? "Re-upload" : "Add document"}
+                                </Button>
+                              ) : null}
+                              <button
+                                type="button"
+                                aria-label="Remove certification"
+                                onClick={() => removeCertification(cert.id)}
+                                disabled={certBusy}
+                              >
+                                <X className="size-4 text-muted-foreground hover:text-foreground" />
+                              </button>
+                            </div>
+                          </div>
+                          {cert.status === "rejected" && cert.rejection_reason ? (
+                            <p className="mt-2 text-xs leading-relaxed text-destructive">
+                              <span className="font-medium">Rejected:</span>{" "}
+                              {cert.rejection_reason}
+                            </p>
+                          ) : null}
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
 
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      value={certName}
-                      onChange={(e) => setCertName(e.target.value)}
-                      className="h-10 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
-                    >
-                      <option value="">Select certification...</option>
-                      {COMMON_CERTS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <Input
-                      className="h-10 w-32"
-                      placeholder="Issuer"
-                      value={certIssuer}
-                      onChange={(e) => setCertIssuer(e.target.value)}
-                    />
-                    <Input
-                      className="h-10 w-20"
-                      type="number"
-                      placeholder="Year"
-                      value={certYear}
-                      onChange={(e) => setCertYear(e.target.value)}
-                      min={1990}
-                      max={2030}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10"
-                      onClick={addCertification}
-                      disabled={!certName}
-                    >
-                      <Plus className="mr-1 size-3" /> Add
-                    </Button>
+                  <input
+                    ref={certRowDocInputRef}
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const id = Number(certRowDocInputRef.current?.dataset.certId);
+                      if (Number.isFinite(id) && id > 0) {
+                        handleRowDocChange(e, id);
+                      }
+                    }}
+                  />
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={certName}
+                        onChange={(e) => setCertName(e.target.value)}
+                        className="h-10 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+                      >
+                        <option value="">Select certification…</option>
+                        {COMMON_CERTS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <Input
+                        className="h-10 w-32"
+                        placeholder="Issuer"
+                        value={certIssuer}
+                        onChange={(e) => setCertIssuer(e.target.value)}
+                      />
+                      <Input
+                        className="h-10 w-20"
+                        type="number"
+                        placeholder="Year"
+                        value={certYear}
+                        onChange={(e) => setCertYear(e.target.value)}
+                        min={1990}
+                        max={2030}
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        ref={certDocInputRef}
+                        type="file"
+                        accept="application/pdf,image/jpeg,image/png"
+                        className="hidden"
+                        onChange={(e) => setCertDoc(e.target.files?.[0] ?? null)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                        onClick={() => certDocInputRef.current?.click()}
+                      >
+                        <Plus className="mr-1 size-3" />
+                        {certDoc ? certDoc.name : "Attach document (optional)"}
+                      </Button>
+                      {certDoc ? (
+                        <button
+                          type="button"
+                          aria-label="Clear document"
+                          onClick={() => {
+                            setCertDoc(null);
+                            if (certDocInputRef.current) certDocInputRef.current.value = "";
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          clear
+                        </button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="ml-auto h-9"
+                        onClick={addCertification}
+                        disabled={!certName || certBusy}
+                      >
+                        {certBusy ? (
+                          <Loader2 className="mr-1 size-3 animate-spin" />
+                        ) : (
+                          <Plus className="mr-1 size-3" />
+                        )}
+                        Add
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PDF or image, up to 10MB. Documents go to the admin review queue.
+                    </p>
                   </div>
                 </div>
 
@@ -1173,4 +1337,26 @@ function resolvePhotoUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
+}
+
+function CertStatusPill({
+  status,
+}: {
+  status: import("@/lib/certifications").CertificationStatus;
+}) {
+  const tone = statusTone(status);
+  const cls: Record<typeof tone, string> = {
+    muted: "bg-muted text-muted-foreground ring-foreground/15",
+    primary: "bg-primary/10 text-primary ring-primary/30",
+    success: "bg-success/10 text-success ring-success/30",
+    destructive: "bg-destructive/10 text-destructive ring-destructive/30",
+    warning: "bg-accent/10 text-accent ring-accent/30",
+  };
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.14em] uppercase ring-1 ${cls[tone]}`}
+    >
+      {statusLabel(status)}
+    </span>
+  );
 }

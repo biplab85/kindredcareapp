@@ -12,7 +12,23 @@ export interface CaregiverProfileSummary {
   languages?: string[] | null;
   interests?: string[] | null;
   personality_tags?: string[] | null;
-  certifications?: Array<{ name: string; issuer?: string | null; year?: string | number | null }> | null;
+  certifications?: Array<{
+    id: number;
+    name: string;
+    issuer?: string | null;
+    year?: number | null;
+    status:
+      | "self_reported"
+      | "pending_review"
+      | "verified"
+      | "rejected"
+      | "expired";
+    has_document: boolean;
+    expires_at?: string | null;
+    rejection_reason?: string | null;
+    reviewed_at?: string | null;
+    created_at?: string | null;
+  }> | null;
   references?: Array<{
     name: string;
     email?: string | null;
