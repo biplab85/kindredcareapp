@@ -233,7 +233,13 @@ export function OnboardingForm() {
         if (p.bio) setBio(p.bio);
         if (p.address) setAddress(p.address);
         if (p.postal_code) setPostalCode(p.postal_code);
-        if (p.photo_path && /^https?:\/\//.test(p.photo_path)) setPhotoPreview(p.photo_path);
+        // Photo path can be either a fully-qualified URL (seeded pravatar
+        // placeholders) or a relative public-disk path like
+        // "avatars/1-xyz.jpg" — uploaded files. Resolve the relative case
+        // through the API origin so the preview actually renders.
+        if (p.photo_path) {
+          setPhotoPreview(resolvePhotoUrl(p.photo_path));
+        }
         if (p.hourly_rate != null) setHourlyRate(Number(p.hourly_rate));
         if (p.travel_radius_km != null) setTravelRadius(p.travel_radius_km);
         if (p.years_of_experience != null) setYearsOfExperience(p.years_of_experience);
@@ -1177,4 +1183,18 @@ function formatSavedAt(d: Date): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/**
+ * Photo paths come back as either:
+ * - a fully-qualified URL (seeded pravatar avatars), or
+ * - a relative public-disk path (uploaded files).
+ *
+ * The public disk is served by Laravel at `/storage/<path>` on the API
+ * origin, so we prepend NEXT_PUBLIC_API_URL for the relative case.
+ */
+function resolvePhotoUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
 }
