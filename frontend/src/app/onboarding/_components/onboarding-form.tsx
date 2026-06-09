@@ -85,6 +85,11 @@ const PERSONALITY_TAGS = [
   "Flexible",
 ];
 
+// Sentinel value for the dropdown's "Other" escape hatch — when this is
+// selected the form reveals a freeform text field for the caregiver to
+// type a cert name that isn't in COMMON_CERTS.
+const CERT_OTHER_VALUE = "__other__";
+
 const COMMON_CERTS = [
   "PSW",
   "Standard First Aid + CPR C",
@@ -166,7 +171,10 @@ export function OnboardingForm() {
   // Certifications live on the new /api/me/certifications endpoint, not on
   // the big profile PATCH. Fetched separately on mount + after every mutate.
   const [certifications, setCertifications] = useState<RemoteCertification[]>([]);
+  // certName carries the dropdown value. The literal "__other__" sentinel
+  // means the caregiver wants to type their own name in certCustomName.
   const [certName, setCertName] = useState("");
+  const [certCustomName, setCertCustomName] = useState("");
   const [certIssuer, setCertIssuer] = useState("");
   const [certYear, setCertYear] = useState("");
   const [certDoc, setCertDoc] = useState<File | null>(null);
@@ -411,7 +419,19 @@ export function OnboardingForm() {
   };
 
   const addCertification = async () => {
-    if (!certName || certBusy) return;
+    if (certBusy) return;
+    // Resolve the actual cert name: dropdown value unless the caregiver
+    // picked "Other", in which case the freeform input wins.
+    const finalName =
+      certName === CERT_OTHER_VALUE ? certCustomName.trim() : certName;
+    if (!finalName) {
+      toast.error(
+        certName === CERT_OTHER_VALUE
+          ? "Type the certification name."
+          : "Pick a certification.",
+      );
+      return;
+    }
     // Document is required server-side; toast a friendly nudge here
     // instead of letting the picker drop the file silently and the
     // request 422 with a generic message.
@@ -429,12 +449,13 @@ export function OnboardingForm() {
     setCertBusy(true);
     try {
       await createCertification({
-        name: certName,
+        name: finalName,
         issuer: certIssuer || null,
         year: yearForApi,
         document: certDoc,
       });
       setCertName("");
+      setCertCustomName("");
       setCertIssuer("");
       setCertYear("");
       setCertDoc(null);
@@ -945,6 +966,10 @@ export function OnboardingForm() {
                             {c}
                           </option>
                         ))}
+                        {/* Thin divider so "Other" reads as a different
+                            tier from the preset list. */}
+                        <option disabled>──────────</option>
+                        <option value={CERT_OTHER_VALUE}>Other (specify)</option>
                       </select>
                       <Input
                         className="h-10 w-32"
@@ -962,6 +987,28 @@ export function OnboardingForm() {
                         max={2030}
                       />
                     </div>
+                    {/* CSS-only slide reveal: grid-rows transition keeps
+                        the field flush with the strip above and animates
+                        cleanly on open. */}
+                    <div
+                      className={cn(
+                        "grid transition-[grid-template-rows] duration-200 ease-out",
+                        certName === CERT_OTHER_VALUE
+                          ? "grid-rows-[1fr]"
+                          : "grid-rows-[0fr]",
+                      )}
+                    >
+                      <div className="overflow-hidden">
+                        <Input
+                          className="h-10"
+                          placeholder="Name your certification — e.g. Vulnerable Sector Check"
+                          value={certCustomName}
+                          onChange={(e) => setCertCustomName(e.target.value)}
+                          maxLength={100}
+                          autoFocus={certName === CERT_OTHER_VALUE}
+                        />
+                      </div>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
                         ref={certDocInputRef}
@@ -976,7 +1023,9 @@ export function OnboardingForm() {
                         size="sm"
                         className={cn(
                           "h-9",
-                          !certDoc && certName
+                          !certDoc &&
+                            certName &&
+                            !(certName === CERT_OTHER_VALUE && !certCustomName.trim())
                             ? "border-accent/40 text-accent hover:bg-accent/5 hover:text-accent"
                             : "",
                         )}
@@ -1003,7 +1052,12 @@ export function OnboardingForm() {
                         size="sm"
                         className="ml-auto h-9"
                         onClick={addCertification}
-                        disabled={!certName || !certDoc || certBusy}
+                        disabled={
+                          !certName ||
+                          (certName === CERT_OTHER_VALUE && !certCustomName.trim()) ||
+                          !certDoc ||
+                          certBusy
+                        }
                       >
                         {certBusy ? (
                           <Loader2 className="mr-1 size-3 animate-spin" />
