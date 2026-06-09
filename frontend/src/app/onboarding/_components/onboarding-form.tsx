@@ -412,12 +412,26 @@ export function OnboardingForm() {
 
   const addCertification = async () => {
     if (!certName || certBusy) return;
+    // Document is required server-side; toast a friendly nudge here
+    // instead of letting the picker drop the file silently and the
+    // request 422 with a generic message.
+    if (!certDoc) {
+      toast.error("Attach a PDF or photo of your certification before adding.");
+      return;
+    }
+    // Year is optional. Treat anything outside 1990–2030 as "no year"
+    // rather than shipping out-of-range values that 422 server-side.
+    // The user might mid-type "20" and tap Add — that shouldn't fail.
+    const yearNum = certYear ? Number(certYear) : NaN;
+    const yearForApi =
+      Number.isFinite(yearNum) && yearNum >= 1990 && yearNum <= 2030 ? yearNum : null;
+
     setCertBusy(true);
     try {
       await createCertification({
         name: certName,
         issuer: certIssuer || null,
-        year: certYear ? Number(certYear) : null,
+        year: yearForApi,
         document: certDoc,
       });
       setCertName("");
@@ -426,11 +440,7 @@ export function OnboardingForm() {
       setCertDoc(null);
       if (certDocInputRef.current) certDocInputRef.current.value = "";
       await refreshCertifications();
-      toast.success(
-        certDoc
-          ? "Certification added — admin will review your document."
-          : "Certification added (self-reported).",
-      );
+      toast.success("Certification added — admin will review your document.");
     } catch (err) {
       surfaceServerError(err, "Couldn't add the certification. Try again in a moment.");
     } finally {
