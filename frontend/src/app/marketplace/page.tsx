@@ -184,57 +184,73 @@ function GigCard({ gig }: { gig: Gig }) {
 
   return (
     <li>
-      <Link
-        href={`/gigs/${gig.id}`}
-        className="group block rounded-2xl bg-card p-6 ring-1 ring-border/60 transition-all hover:-translate-y-0.5 hover:ring-foreground/30 hover:shadow-sm"
-      >
-        {/* Eyebrow */}
-        <div className="mb-3 flex items-center gap-2">
-          <Icon className="size-4 text-primary" strokeWidth={1.75} />
-          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            {gig.service_category?.name ?? "Service"}
-          </p>
-        </div>
-
-        {/* Title */}
-        <h2 className="line-clamp-2 text-lg leading-snug font-semibold tracking-tight">
-          {gig.title}
-        </h2>
-
-        {/* Description */}
-        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground italic">
-          &ldquo;{gig.description}&rdquo;
-        </p>
-
-        {/* Caregiver row */}
-        <div className="mt-5 flex items-center gap-3 border-t border-border/40 pt-4">
-          {gig.caregiver?.photo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={gig.caregiver.photo_url}
-              alt=""
-              className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border/60"
-            />
-          ) : (
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-primary">
-              {initials}
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1 truncate text-sm font-medium">
-              {gig.caregiver?.display_name ?? "Caregiver"}
-              <ShieldCheck className="size-3.5 text-success" strokeWidth={2} />
-            </p>
-            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-              Verified
+      <div className="group rounded-2xl bg-card p-6 ring-1 ring-border/60 transition-all hover:-translate-y-0.5 hover:ring-foreground/30 hover:shadow-sm">
+        {/* Gig body — links to gig detail */}
+        <Link href={`/gigs/${gig.id}`} className="block">
+          {/* Eyebrow */}
+          <div className="mb-3 flex items-center gap-2">
+            <Icon className="size-4 text-primary" strokeWidth={1.75} />
+            <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+              {gig.service_category?.name ?? "Service"}
             </p>
           </div>
+
+          {/* Title */}
+          <h2 className="line-clamp-2 text-lg leading-snug font-semibold tracking-tight">
+            {gig.title}
+          </h2>
+
+          {/* Description */}
+          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground italic">
+            &ldquo;{gig.description}&rdquo;
+          </p>
+        </Link>
+
+        {/* Caregiver row — separate link to the caregiver's public profile,
+            so a family who wants to vet a caregiver before clicking through
+            to the gig has a one-tap shortcut. */}
+        <div className="mt-5 flex items-center gap-3 border-t border-border/40 pt-4">
+          {gig.caregiver ? (
+            <Link
+              href={`/caregivers/${gig.caregiver.user_id}`}
+              className="-mx-2 -my-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-muted/40"
+            >
+              {gig.caregiver.photo_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={gig.caregiver.photo_url}
+                  alt=""
+                  className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border/60"
+                />
+              ) : (
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-primary">
+                  {initials}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1 truncate text-sm font-medium">
+                  {gig.caregiver.display_name}
+                  <ShieldCheck className="size-3.5 text-success" strokeWidth={2} />
+                </p>
+                <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  View profile
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted font-mono text-[11px] font-semibold tracking-[0.08em] text-muted-foreground">
+                —
+              </span>
+              <p className="text-sm font-medium text-muted-foreground">Caregiver</p>
+            </div>
+          )}
           <p className="font-mono text-base font-semibold tabular-nums">
             ${gig.hourly_rate_dollars.toFixed(0)}
             <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">/hr</span>
           </p>
         </div>
-      </Link>
+      </div>
     </li>
   );
 }

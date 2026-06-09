@@ -14,6 +14,7 @@ import {
   Loader2,
   ShieldCheck,
   ArrowLeft,
+  ArrowUpRight,
   CheckCircle2,
   Pencil,
   type LucideIcon,
@@ -190,6 +191,17 @@ function GigDetailView({ gigId }: { gigId: number }) {
                   Speaks {gig.caregiver?.languages.join(", ")}
                 </p>
               )}
+
+              {/* Full profile link */}
+              {gig.caregiver ? (
+                <Link
+                  href={`/caregivers/${gig.caregiver.user_id}`}
+                  className="mt-3 inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.22em] text-primary uppercase transition-colors hover:text-primary/80"
+                >
+                  View full profile
+                  <ArrowUpRight className="size-3" strokeWidth={2.5} />
+                </Link>
+              ) : null}
 
               {/* Price */}
               <div className="mt-6 border-t border-border/40 pt-5">
