@@ -7,6 +7,7 @@ use App\Models\CareRecipient;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -58,10 +59,17 @@ class AccountAnonymizer
                     'languages' => null,
                     'personality_tags' => null,
                     'interests' => null,
-                    'certifications' => null,
                     'emergency_contact_name' => null,
                     'emergency_contact_phone' => null,
                 ]);
+                // Certs and their uploaded documents are PII — drop the
+                // rows and their private-disk files entirely.
+                foreach ($user->caregiverProfile->certifications as $cert) {
+                    if ($cert->document_path) {
+                        Storage::disk('private')->delete($cert->document_path);
+                    }
+                    $cert->delete();
+                }
             }
 
             // 5. The user row itself. Replace identifiers with stable

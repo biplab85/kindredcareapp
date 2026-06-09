@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Certification;
 use App\Models\User;
 use App\Models\VerificationRecord;
 use Illuminate\Http\JsonResponse;
@@ -45,7 +46,18 @@ class CaregiverController extends Controller
     {
         $user = User::where('role', 'caregiver')
             ->where('id', $caregiver)
-            ->with(['caregiverProfile.services', 'verificationRecords'])
+            ->with([
+                'caregiverProfile.services',
+                // Family-facing view: only show verified certs. Self-reported
+                // (legacy backfill) and rejected/pending entries are private
+                // to the caregiver — surfacing them would muddy the trust
+                // signal families rely on the leaf-green badge for.
+                'caregiverProfile.certifications' => fn ($q) => $q->where(
+                    'status',
+                    Certification::STATUS_VERIFIED,
+                ),
+                'verificationRecords',
+            ])
             ->firstOrFail();
 
         return response()->json([

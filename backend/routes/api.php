@@ -19,6 +19,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CaregiverAvailabilityController;
 use App\Http\Controllers\CaregiverConnectController;
 use App\Http\Controllers\CaregiverController;
+use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\ConsentController;
 use App\Http\Controllers\EarningsController;
 use App\Http\Controllers\EarningsStatementController;
@@ -130,6 +131,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     );
     Route::get('/caregivers/{caregiver}', [CaregiverController::class, 'show']);
 
+    // ─── CERTIFICATIONS (caregiver-owned) ───
+    Route::get('/me/certifications', [CertificationController::class, 'index']);
+    Route::post('/me/certifications', [CertificationController::class, 'store']);
+    Route::patch('/me/certifications/{certification}', [CertificationController::class, 'update']);
+    Route::post('/me/certifications/{certification}/document', [CertificationController::class, 'uploadDocument']);
+    Route::delete('/me/certifications/{certification}', [CertificationController::class, 'destroy']);
+
     // ─── VERIFICATION (caregiver) ───
     Route::prefix('verification')->group(function () {
         Route::get('/status', [VerificationController::class, 'status']);
@@ -196,6 +204,15 @@ Route::prefix('webhooks')->middleware('throttle:webhooks')->group(function () {
     Route::post('/stripe', [StripeWebhookController::class, 'handle']);
 });
 
+// ─── ADMIN CERTIFICATION DOCUMENT VIEWER (signed URLs) ───
+// Same shape as the verification-doc viewer below — lives outside the
+// auth:sanctum group so the signed URL can be pasted into <img src=...>
+// or opened in a new tab without the bearer token.
+Route::get(
+    '/admin/certifications/{certification}/document',
+    [App\Http\Controllers\Admin\CertificationController::class, 'document'],
+)->middleware(['signed', 'throttle:api'])->name('admin.certification.document');
+
 // ─── ADMIN VERIFICATION DOCUMENT VIEWER (signed URLs) ───
 // Lives outside the auth:sanctum group so an admin can open the doc in a
 // new tab or paste it into <img src=...> without needing the bearer
@@ -219,6 +236,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::get('/verifications/{verification}', [App\Http\Controllers\Admin\VerificationController::class, 'show']);
     Route::post('/verifications/{verification}/approve', [App\Http\Controllers\Admin\VerificationController::class, 'approve']);
     Route::post('/verifications/{verification}/reject', [App\Http\Controllers\Admin\VerificationController::class, 'reject']);
+
+    Route::get('/certifications', [App\Http\Controllers\Admin\CertificationController::class, 'index']);
+    Route::get('/certifications/{certification}', [App\Http\Controllers\Admin\CertificationController::class, 'show']);
+    Route::post('/certifications/{certification}/verify', [App\Http\Controllers\Admin\CertificationController::class, 'verify']);
+    Route::post('/certifications/{certification}/reject', [App\Http\Controllers\Admin\CertificationController::class, 'reject']);
 
     Route::get('/bookings', [App\Http\Controllers\Admin\BookingController::class, 'index']);
     Route::get('/bookings/{booking}', [App\Http\Controllers\Admin\BookingController::class, 'show']);

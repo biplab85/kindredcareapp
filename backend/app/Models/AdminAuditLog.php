@@ -58,6 +58,8 @@ class AdminAuditLog extends Model
 
     public const TARGET_BOOKING = 'booking';
 
+    public const TARGET_CERTIFICATION = 'certification';
+
     /**
      * @return BelongsTo<User, $this>
      */

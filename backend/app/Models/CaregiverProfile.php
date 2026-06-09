@@ -23,7 +23,6 @@ use Illuminate\Support\Carbon;
  * @property array<int, string>|null $languages
  * @property array<int, string>|null $interests
  * @property array<int, string>|null $personality_tags
- * @property array<int, mixed>|null $certifications
  * @property array<int, mixed>|null $references
  * @property string|null $emergency_contact_name
  * @property string|null $emergency_contact_phone
@@ -55,7 +54,6 @@ class CaregiverProfile extends Model
         'languages',
         'interests',
         'personality_tags',
-        'certifications',
         'references',
         'emergency_contact_name',
         'emergency_contact_phone',
@@ -80,7 +78,6 @@ class CaregiverProfile extends Model
             'languages' => 'array',
             'interests' => 'array',
             'personality_tags' => 'array',
-            'certifications' => 'array',
             'references' => 'array',
             'availability' => 'array',
             'hourly_rate' => 'decimal:2',
@@ -121,5 +118,13 @@ class CaregiverProfile extends Model
     public function availabilityOverrides(): HasMany
     {
         return $this->hasMany(CaregiverAvailabilityOverride::class);
+    }
+
+    /**
+     * @return HasMany<Certification, $this>
+     */
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(Certification::class)->orderByDesc('created_at');
     }
 }
