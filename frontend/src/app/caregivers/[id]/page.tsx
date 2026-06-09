@@ -15,7 +15,8 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicLayout } from "@/components/layouts/public-layout";
+import { AuthGuard } from "@/components/auth/auth-guard";
+import { DashboardShell } from "@/components/layouts";
 import api from "@/lib/api";
 import { getUserReviews, type Review } from "@/lib/reviews";
 import { cn } from "@/lib/utils";
@@ -79,9 +80,11 @@ type LoadPhase = "loading" | "ready" | "error";
 export default function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   return (
-    <PublicLayout>
-      <ProfileView caregiverId={id} />
-    </PublicLayout>
+    <AuthGuard>
+      <DashboardShell pageTitle="Caregiver">
+        <ProfileView caregiverId={id} />
+      </DashboardShell>
+    </AuthGuard>
   );
 }
 
