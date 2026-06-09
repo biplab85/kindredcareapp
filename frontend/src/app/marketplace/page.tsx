@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
-import { listGigs, type Gig } from "@/lib/gigs";
+import { useAuthStore } from "@/lib/auth";
+import { listGigs, listGigsForRecipient, type Gig } from "@/lib/gigs";
 import { fetchServiceCategories, type ServiceCategory } from "@/lib/service-categories";
 import { cn } from "@/lib/utils";
 
@@ -55,9 +56,14 @@ function MarketplaceView() {
   const searchParams = useSearchParams();
   const initialSlug = searchParams.get("category");
 
+  const recipients = useAuthStore((s) => s.user?.family_profile?.care_recipients ?? []);
+
   const [categories, setCategories] = useState<ServiceCategory[] | null>(null);
   const [gigs, setGigs] = useState<Gig[] | null>(null);
   const [activeSlug, setActiveSlug] = useState<string | null>(initialSlug);
+  // null = "All gigs" view (recent-first). A recipient id = personalized
+  // ranking via MatchingEngine::gigsForRecipient.
+  const [activeRecipientId, setActiveRecipientId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -67,18 +73,30 @@ function MarketplaceView() {
   }, []);
 
   useEffect(() => {
-    listGigs(activeSlug ?? undefined)
-      .then(setGigs)
-      .catch(() => setLoadError(true));
-  }, [activeSlug]);
+    const fetcher =
+      activeRecipientId !== null
+        ? listGigsForRecipient(activeRecipientId)
+        : listGigs(activeSlug ?? undefined);
+    fetcher.then(setGigs).catch(() => setLoadError(true));
+  }, [activeSlug, activeRecipientId]);
 
-  const sortedGigs = useMemo(
+  const activeRecipientName = useMemo(
     () =>
-      gigs
-        ? [...gigs].sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+      activeRecipientId !== null
+        ? (recipients.find((r) => r.id === activeRecipientId)?.name ?? null)
         : null,
-    [gigs],
+    [recipients, activeRecipientId],
   );
+
+  const sortedGigs = useMemo(() => {
+    if (!gigs) return null;
+    // Server already sorts by match_score when recipient is set; keep
+    // that order. Otherwise sort by recency.
+    if (activeRecipientId !== null) return gigs;
+    return [...gigs].sort((a, b) =>
+      (b.published_at ?? "").localeCompare(a.published_at ?? ""),
+    );
+  }, [gigs, activeRecipientId]);
 
   if (loadError) {
     return (
@@ -101,17 +119,58 @@ function MarketplaceView() {
         {/* Header */}
         <div className="mb-6 max-w-3xl">
           <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-            Verified neighbours,{" "}
-            <span className="italic font-normal text-primary">ready to help</span>.
+            {activeRecipientName ? (
+              <>
+                Caregivers for{" "}
+                <span className="italic font-normal text-primary">
+                  {activeRecipientName}
+                </span>
+                .
+              </>
+            ) : (
+              <>
+                Verified neighbours,{" "}
+                <span className="italic font-normal text-primary">ready to help</span>.
+              </>
+            )}
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            Each listing is one caregiver&rsquo;s service offering. Pick one that fits and book a
-            visit — they confirm, you&rsquo;re set.
+            {activeRecipientName
+              ? `Ranked by distance, trust score, and how well each caregiver's profile fits ${activeRecipientName}'s.`
+              : "Each listing is one caregiver's service offering. Pick one that fits and book a visit — they confirm, you're set."}
           </p>
         </div>
 
-        {/* Category chips */}
-        {categories && (
+        {/* Recipient picker — only renders when the family has at least
+            one care recipient. "All" falls back to the recent-first feed. */}
+        {recipients.length > 0 && (
+          <div className="mb-5">
+            <p className="mb-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+              Recommended for
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <RecipientChip
+                label="All gigs"
+                active={activeRecipientId === null}
+                onClick={() => setActiveRecipientId(null)}
+              />
+              {recipients.map((r) => (
+                <RecipientChip
+                  key={r.id}
+                  label={r.name}
+                  active={activeRecipientId === r.id}
+                  onClick={() => setActiveRecipientId(r.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Category chips — hidden when a recipient is active because the
+            matcher ranks across the whole catalog (top 10) and a category
+            cut on top would leave the grid nearly empty. Family can switch
+            to "All gigs" to filter by category. */}
+        {categories && activeRecipientId === null && (
           <div className="mb-8 flex flex-wrap gap-2 border-b border-border/60 pb-4">
             <CategoryChip
               label="All"
@@ -145,6 +204,32 @@ function MarketplaceView() {
         )}
       </div>
     </div>
+  );
+}
+
+function RecipientChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border/60 bg-card text-foreground/80 hover:border-foreground/30 hover:bg-muted/40",
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -188,11 +273,21 @@ function GigCard({ gig }: { gig: Gig }) {
         {/* Gig body — links to gig detail */}
         <Link href={`/gigs/${gig.id}`} className="block">
           {/* Eyebrow */}
-          <div className="mb-3 flex items-center gap-2">
-            <Icon className="size-4 text-primary" strokeWidth={1.75} />
-            <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-              {gig.service_category?.name ?? "Service"}
-            </p>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Icon className="size-4 text-primary" strokeWidth={1.75} />
+              <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+                {gig.service_category?.name ?? "Service"}
+              </p>
+            </div>
+            {typeof gig.match_score === "number" ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.14em] text-primary uppercase ring-1 ring-primary/30"
+                title="Match score 0–100 — distance, trust, language and interest fit"
+              >
+                {gig.match_score} match
+              </span>
+            ) : null}
           </div>
 
           {/* Title */}
