@@ -10,6 +10,7 @@ import {
   Eye,
   Heart,
   type LucideIcon,
+  MoreVertical,
   Smartphone,
   ShoppingBag,
   Footprints,
@@ -20,6 +21,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { listMyGigs, deleteGig, type Gig } from "@/lib/gigs";
@@ -91,113 +99,160 @@ function MyGigsView() {
   }
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
+    <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      {/* Header — matches the dashboard title font size & colour */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+          The shop, at a glance.
+        </h1>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          Each gig is one of your services. Families find them in the marketplace and book directly.
+        </p>
+      </div>
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-2xl">
-            <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-              The shop, <span className="italic font-normal text-primary">at a glance</span>.
-            </h1>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              Each gig is one of your services. Families find them in the marketplace and book
-              directly.
-            </p>
+      {/* List */}
+      {gigs.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+          {/* card toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+            <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+              Your gigs
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums ring-1 ring-primary/20">
+                {gigs.length}
+              </span>
+            </h2>
+            <Link href="/me/gigs/new">
+              <Button className="cursor-pointer">
+                <Plus className="size-4" />
+                Post a new gig
+              </Button>
+            </Link>
           </div>
 
-          <Link href="/me/gigs/new">
-            <Button size="lg" className="h-12 px-6 text-base">
-              <Plus className="size-4" />
-              Post a new gig
-            </Button>
-          </Link>
+          {/* table */}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30 text-left">
+                  <th className="py-3 pr-4 pl-5 text-[11px] font-semibold tracking-wide text-foreground capitalize sm:pl-6">
+                    Gig
+                  </th>
+                  <th className="hidden px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize md:table-cell">
+                    Category
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize">
+                    Rate
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize">
+                    Status
+                  </th>
+                  <th className="py-3 pr-5 pl-4 text-right text-[11px] font-semibold tracking-wide text-foreground capitalize sm:pr-6"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {gigs.map((gig) => (
+                  <GigRow key={gig.id} gig={gig} onDelete={() => handleDelete(gig)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        {/* List */}
-        {gigs.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <ul className="space-y-3">
-            {gigs.map((gig, idx) => (
-              <GigRow key={gig.id} gig={gig} rank={idx + 1} onDelete={() => handleDelete(gig)} />
-            ))}
-          </ul>
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
-function GigRow({ gig, rank, onDelete }: { gig: Gig; rank: number; onDelete: () => void }) {
+function GigRow({ gig, onDelete }: { gig: Gig; onDelete: () => void }) {
   const Icon = gig.service_category?.icon ? (iconMap[gig.service_category.icon] ?? Heart) : Heart;
-  const rankLabel = String(rank).padStart(2, "0");
 
   return (
-    <li>
-      <article className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-5 rounded-2xl bg-card px-5 py-4 ring-1 ring-border/60 transition-colors hover:ring-foreground/30 sm:gap-6 sm:px-6">
-        {/* Rank */}
-        <span className="font-mono text-xs tracking-[0.22em] text-foreground/40 uppercase">
-          § {rankLabel}
-        </span>
-
-        {/* Icon */}
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="size-5" strokeWidth={1.75} />
-        </div>
-
-        {/* Body */}
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
-              {gig.title}
-            </h2>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] uppercase ring-1",
-                statusStyles[gig.status],
-              )}
-            >
-              {gig.status}
-            </span>
+    <tr className="group border-b border-border/60 transition-colors even:bg-muted/30 last:border-0 hover:bg-muted/60">
+      {/* Gig — icon avatar + title + description */}
+      <td className="py-3 pr-4 pl-5 sm:pl-6">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="size-5" strokeWidth={1.75} />
           </div>
-          <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{gig.description}</p>
-          <p className="mt-1.5 flex items-baseline gap-2 font-mono text-xs tracking-[0.1em] text-foreground/60 uppercase">
-            <span>{gig.service_category?.name ?? "—"}</span>
-            <span aria-hidden>·</span>
-            <span className="tabular-nums normal-case tracking-normal text-foreground">
-              ${gig.hourly_rate_dollars.toFixed(2)} / hour
-            </span>
-          </p>
+          <div className="min-w-0">
+            <Link
+              href={`/gigs/${gig.id}`}
+              className="block truncate text-sm font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+            >
+              {gig.title}
+            </Link>
+            <p className="mt-0.5 line-clamp-1 max-w-[320px] text-[13px] text-muted-foreground">
+              {gig.description}
+            </p>
+            {/* category shown inline on small screens where the column is hidden */}
+            <p className="mt-0.5 text-[12px] text-muted-foreground md:hidden">
+              {gig.service_category?.name ?? "—"}
+            </p>
+          </div>
         </div>
+      </td>
 
-        {/* Actions */}
-        <div className="flex shrink-0 items-center gap-1">
-          <Link href={`/gigs/${gig.id}`}>
-            <Button variant="ghost" size="sm" className="h-9">
-              <Eye className="size-3.5" />
-              View
-            </Button>
-          </Link>
-          <Link href={`/me/gigs/${gig.id}/edit`}>
-            <Button variant="ghost" size="sm" className="h-9">
-              <Pencil className="size-3.5" />
-              Edit
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDelete}
-            className="h-9 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="size-3.5" />
-            Delete
-          </Button>
+      {/* Category */}
+      <td className="hidden px-4 py-3 align-middle md:table-cell">
+        <span className="text-sm text-muted-foreground">{gig.service_category?.name ?? "—"}</span>
+      </td>
+
+      {/* Rate */}
+      <td className="px-4 py-3 align-middle whitespace-nowrap">
+        <span className="text-sm font-medium text-foreground tabular-nums">
+          ${gig.hourly_rate_dollars.toFixed(2)}
+        </span>
+        <span className="text-[13px] text-muted-foreground"> / hr</span>
+      </td>
+
+      {/* Status */}
+      <td className="px-4 py-3 align-middle">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ring-1",
+            statusStyles[gig.status],
+          )}
+        >
+          {gig.status}
+        </span>
+      </td>
+
+      {/* Actions — 3-dot kebab dropdown, same pattern as the dashboard cards */}
+      <td className="py-3 pr-5 pl-4 text-right align-middle sm:pr-6">
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Gig actions"
+              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              <MoreVertical className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-auto min-w-40">
+              <DropdownMenuItem
+                render={<Link href={`/gigs/${gig.id}`} />}
+                className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+              >
+                <Eye className="size-4" />
+                View
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href={`/me/gigs/${gig.id}/edit`} />}
+                className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+              >
+                <Pencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={onDelete} className="cursor-pointer gap-2">
+                <Trash2 className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </article>
-    </li>
+      </td>
+    </tr>
   );
 }
 
@@ -215,7 +270,7 @@ function EmptyState() {
         help — and let families pick.
       </p>
       <Link href="/me/gigs/new" className="mt-2">
-        <Button size="lg">
+        <Button size="lg" className="cursor-pointer">
           <Plus className="size-4" />
           Post your first gig
         </Button>

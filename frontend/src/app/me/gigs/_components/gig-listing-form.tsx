@@ -16,6 +16,7 @@ import {
   X,
   Plus,
   Check,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -173,27 +174,20 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
   }
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+          {isEdit ? "Refine your gig." : "Tell families what you offer."}
+        </h1>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          Each gig is one service families can find and book in the marketplace.
+        </p>
+      </div>
 
-      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-            {isEdit ? "Refine your" : "Tell families what"}{" "}
-            <span className="italic font-normal text-primary">{isEdit ? "gig" : "you offer"}</span>.
-          </h1>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-12">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10">
+        {/* Form column */}
+        <form onSubmit={handleSubmit} className="order-2 space-y-6 lg:order-1">
           {isEmailUnverified && <EmailVerifyBanner context="gig" />}
 
           {/* Step 1 — category */}
@@ -208,13 +202,19 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                       type="button"
                       onClick={() => setCategoryId(cat.id)}
                       className={cn(
-                        "flex w-full items-start gap-4 rounded-xl border-2 p-4 text-left transition-all",
+                        "relative flex w-full cursor-pointer items-start gap-4 rounded-xl border-2 p-4 text-left transition-all",
                         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                         selected
                           ? "border-primary bg-primary/5"
                           : "border-border/60 bg-card hover:border-foreground/30",
                       )}
                     >
+                      {selected && (
+                        <Check
+                          className="absolute top-3 right-3 size-4 text-primary"
+                          strokeWidth={2.5}
+                        />
+                      )}
                       <div
                         className={cn(
                           "flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors",
@@ -223,7 +223,13 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                             : "bg-muted/60 text-foreground/70",
                         )}
                       >
-                        <Icon className="size-5" strokeWidth={1.75} />
+                        <Icon
+                          className={cn(
+                            "size-5 transition-transform duration-300",
+                            selected && "rotate-[20deg]",
+                          )}
+                          strokeWidth={1.75}
+                        />
                       </div>
                       <div>
                         <p className="font-semibold">{cat.name}</p>
@@ -304,37 +310,35 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
 
           {/* Step 3 — rate */}
           <Section number="03" eyebrow="The rate" title="How much per hour?">
-            <div className="rounded-2xl bg-card p-6 ring-1 ring-border/60">
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="inline-flex items-baseline gap-1 rounded-xl bg-background px-4 py-2 ring-1 ring-border">
-                  <span className="text-lg font-semibold">$</span>
-                  <input
-                    type="number"
-                    min={18}
-                    max={50}
-                    step={1}
-                    value={hourlyRate}
-                    onChange={(e) => setHourlyRate(Number(e.target.value))}
-                    className="w-16 border-0 bg-transparent text-3xl font-semibold tabular-nums outline-none"
-                  />
-                  <span className="text-sm text-muted-foreground">/ hour</span>
-                </div>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="inline-flex items-baseline gap-1 rounded-xl bg-background px-4 py-2 ring-1 ring-border">
+                <span className="text-lg font-semibold">$</span>
                 <input
-                  type="range"
+                  type="number"
                   min={18}
                   max={50}
                   step={1}
                   value={hourlyRate}
                   onChange={(e) => setHourlyRate(Number(e.target.value))}
-                  className="h-2 max-w-sm min-w-48 flex-1 accent-primary"
-                  aria-label="Hourly rate"
+                  className="w-16 border-0 bg-transparent text-3xl font-semibold tabular-nums outline-none"
                 />
+                <span className="text-sm text-muted-foreground">/ hr</span>
               </div>
-              <p className="mt-4 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-                You keep ${hourlyRate.toFixed(2)} / hour · Family pays $
-                {(hourlyRate * 1.075).toFixed(2)}
-              </p>
+              <input
+                type="range"
+                min={18}
+                max={50}
+                step={1}
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(Number(e.target.value))}
+                className="h-2 max-w-sm min-w-48 flex-1 accent-primary"
+                aria-label="Hourly rate"
+              />
             </div>
+            <p className="mt-4 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+              You keep ${hourlyRate.toFixed(2)} / hr · Family pays $
+              {(hourlyRate * 1.075).toFixed(2)}
+            </p>
           </Section>
 
           {/* Step 4 — what's included */}
@@ -355,7 +359,12 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                 placeholder="e.g., Light walk around the block"
                 className="h-11 rounded-xl border-foreground/20 bg-background/70"
               />
-              <Button type="button" variant="outline" onClick={addTask} className="h-11 px-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addTask}
+                className="h-11 cursor-pointer px-4"
+              >
                 <Plus className="size-4" />
                 Add
               </Button>
@@ -367,7 +376,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                     <button
                       type="button"
                       onClick={() => removeTask(t)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs text-primary ring-1 ring-primary/20 transition-colors hover:bg-primary/15"
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs text-primary ring-1 ring-primary/20 transition-colors hover:bg-primary/15"
                     >
                       {t}
                       <X className="size-3" />
@@ -391,7 +400,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
                 <button
                   type="button"
                   onClick={clearPhoto}
-                  className="absolute top-3 right-3 rounded-full bg-background/90 p-1.5 ring-1 ring-border shadow-sm transition-colors hover:bg-background"
+                  className="absolute top-3 right-3 cursor-pointer rounded-full bg-background/90 p-1.5 ring-1 ring-border shadow-sm transition-colors hover:bg-background"
                   aria-label="Remove photo"
                 >
                   <X className="size-4" />
@@ -430,7 +439,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
               type="submit"
               size="lg"
               disabled={!canSubmit || submitting}
-              className="h-12 bg-accent px-8 text-base text-accent-foreground hover:bg-accent/90"
+              className="h-12 cursor-pointer bg-accent px-8 text-base text-accent-foreground hover:bg-accent/90"
             >
               {submitting ? (
                 <>
@@ -446,6 +455,20 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
             </Button>
           </div>
         </form>
+
+        {/* Live preview — the gig card families see in the marketplace */}
+        <aside className="order-1 lg:order-2">
+          <div className="lg:sticky lg:top-20">
+            <GigPreview
+              category={selectedCategory}
+              title={title}
+              description={description}
+              hourlyRate={hourlyRate}
+              tasks={tasks}
+              photoPreview={photoPreview}
+            />
+          </div>
+        </aside>
       </div>
     </div>
   );
@@ -463,21 +486,115 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section>
-      <div className="mb-5 flex items-start gap-4">
-        <span className="font-mono text-sm tracking-[0.22em] text-foreground/40 uppercase">
-          § {number}
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+      {/* card header */}
+      <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-semibold text-primary tabular-nums">
+          {number}
         </span>
-        <div className="flex-1">
-          <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <div>
+          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             {eyebrow}
           </p>
-          <h2 className="mt-1 text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">
-            {title}
-          </h2>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
         </div>
       </div>
-      <div className="ml-0 sm:ml-12">{children}</div>
+      {/* card body */}
+      <div className="p-5 sm:p-6">{children}</div>
     </section>
+  );
+}
+
+/**
+ * Live marketplace preview — renders the gig card families see, from the
+ * current form values. Read-only; updates as the caregiver fills the form.
+ */
+function GigPreview({
+  category,
+  title,
+  description,
+  hourlyRate,
+  tasks,
+  photoPreview,
+}: {
+  category: ServiceCategory | null;
+  title: string;
+  description: string;
+  hourlyRate: number;
+  tasks: string[];
+  photoPreview: string | null;
+}) {
+  const Icon = category ? (iconMap[category.icon] ?? Heart) : Sparkles;
+  const hasTitle = title.trim().length > 0;
+  const hasDesc = description.trim().length > 0;
+
+  return (
+    <div>
+      <p className="mb-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+        Marketplace preview
+      </p>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        {/* media */}
+        <div className="relative aspect-[16/10] w-full overflow-hidden">
+          {photoPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent">
+              <Icon className="size-12 text-primary/30" strokeWidth={1.5} />
+            </div>
+          )}
+          <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold tracking-wide text-accent-foreground uppercase">
+            New
+          </span>
+        </div>
+
+        {/* body */}
+        <div className="p-4">
+          <div
+            className={cn(
+              "flex items-center gap-1.5 text-xs font-medium",
+              category ? "text-muted-foreground" : "text-primary",
+            )}
+          >
+            <Icon className="size-3.5" strokeWidth={1.75} />
+            {category?.name ?? "Select a service"}
+          </div>
+          <h3
+            className={cn(
+              "mt-1.5 line-clamp-2 text-base leading-snug font-semibold tracking-tight",
+              hasTitle ? "text-foreground" : "text-muted-foreground/50",
+            )}
+          >
+            {hasTitle ? title.trim() : "Your headline will appear here"}
+          </h3>
+          <p
+            className={cn(
+              "mt-1 line-clamp-2 text-[13px] leading-relaxed",
+              hasDesc ? "text-muted-foreground" : "text-muted-foreground/50",
+            )}
+          >
+            {hasDesc ? description.trim() : "Your description gives families a feel for the visit."}
+          </p>
+          <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3">
+            <p className="text-sm">
+              <span className="font-semibold text-foreground tabular-nums">
+                ${hourlyRate.toFixed(2)}
+              </span>
+              <span className="text-muted-foreground"> / hr</span>
+            </p>
+            {tasks.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+                <Check className="size-3.5" strokeWidth={2.5} />
+                {tasks.length} task{tasks.length === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+        Updates live as you fill out the form — this is what families see in the marketplace.
+      </p>
+    </div>
   );
 }
