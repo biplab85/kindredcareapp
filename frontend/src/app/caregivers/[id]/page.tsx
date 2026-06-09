@@ -48,9 +48,12 @@ interface CaregiverProfile {
   hourly_rate: string;
   travel_radius_km: number;
   years_of_experience: number;
-  languages: string[];
-  interests: string[];
-  personality_tags: string[];
+  // Laravel's JSON array cast returns null for unset columns — not an
+  // empty array — so all three of these can be null on the wire even
+  // though the TypeScript shape used to claim string[].
+  languages: string[] | null;
+  interests: string[] | null;
+  personality_tags: string[] | null;
   certifications: Certification[] | null;
   photo_path: string | null;
   photo_status: string;
@@ -201,9 +204,15 @@ function ProfileBody({
 
         <aside className="space-y-6 lg:sticky lg:top-24">
           <FactsBlock caregiver={caregiver} profile={profile} />
-          {profile.languages.length > 0 && <LanguagesBlock languages={profile.languages} />}
-          {(profile.interests.length > 0 || profile.personality_tags.length > 0) && (
-            <FlavourBlock interests={profile.interests} personality={profile.personality_tags} />
+          {(profile.languages?.length ?? 0) > 0 && (
+            <LanguagesBlock languages={profile.languages ?? []} />
+          )}
+          {((profile.interests?.length ?? 0) > 0 ||
+            (profile.personality_tags?.length ?? 0) > 0) && (
+            <FlavourBlock
+              interests={profile.interests ?? []}
+              personality={profile.personality_tags ?? []}
+            />
           )}
         </aside>
       </div>
