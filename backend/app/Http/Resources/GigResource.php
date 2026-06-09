@@ -37,6 +37,10 @@ class GigResource extends JsonResource
             ),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+            // Match score 0-100 from MatchingEngine::gigsForRecipient.
+            // Only present when the request specified a `recipient_id`;
+            // null otherwise.
+            'match_score' => $this->resource->match_score ?? null,
         ];
     }
 

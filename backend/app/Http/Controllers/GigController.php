@@ -6,8 +6,10 @@ use App\Http\Requests\Gig\StoreGigRequest;
 use App\Http\Requests\Gig\UpdateGigRequest;
 use App\Http\Resources\GigResource;
 use App\Models\CaregiverProfile;
+use App\Models\CareRecipient;
 use App\Models\Gig;
 use App\Models\User;
+use App\Services\MatchingEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -28,8 +30,17 @@ use Illuminate\Support\Str;
  */
 class GigController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    public function __construct(private readonly MatchingEngine $matcher) {}
+
+    public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
+        // Personalized recommendations for one of the authed family's
+        // recipients. Authoritative ranking lives in MatchingEngine;
+        // here we just authorize ownership and pass through.
+        if ($request->filled('recipient_id')) {
+            return $this->indexForRecipient($request);
+        }
+
         $query = Gig::query()
             ->published()
             ->with(['serviceCategory', 'caregiverProfile.user']);
@@ -51,10 +62,51 @@ class GigController extends Controller
             );
         }
 
-        // Light sort: most recently published first. Real AI ranking
-        // ships in a follow-up; the matcher's scoring is preserved but
-        // its inversion (gigs-for-recipient) is its own work item.
+        // Light sort: most recently published first.
         $gigs = $query->orderByDesc('published_at')->orderByDesc('id')->get();
+
+        return GigResource::collection($gigs);
+    }
+
+    private function indexForRecipient(Request $request): AnonymousResourceCollection|JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user || ! $user->isFamily()) {
+            return response()->json(
+                ['message' => 'Only family accounts can request personalized matches.'],
+                403,
+            );
+        }
+
+        $recipientId = (int) $request->input('recipient_id');
+        $recipient = CareRecipient::query()
+            ->where('id', $recipientId)
+            ->whereHas('familyProfile', fn ($q) => $q->where('user_id', $user->id))
+            ->first();
+
+        if ($recipient === null) {
+            return response()->json(
+                ['message' => 'Recipient not found.'],
+                404,
+            );
+        }
+
+        $rateMax = $request->filled('rate_max')
+            ? (float) $request->input('rate_max')
+            : null;
+
+        $result = $this->matcher->gigsForRecipient($recipient, $rateMax);
+
+        // Stamp the score back onto each Gig model so GigResource picks
+        // it up via the `match_score` accessor.
+        $gigs = collect($result['matches'])->map(function (array $row): Gig {
+            /** @var Gig $g */
+            $g = $row['gig'];
+            $g->setAttribute('match_score', (int) $row['match_score']);
+
+            return $g;
+        });
 
         return GigResource::collection($gigs);
     }

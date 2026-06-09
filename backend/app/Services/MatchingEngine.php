@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Resources\CaregiverGigResource;
 use App\Models\CaregiverProfile;
+use App\Models\CareRecipient;
 use App\Models\Gig;
 use App\Models\User;
 use App\Models\VerificationRecord;
@@ -66,6 +67,187 @@ class MatchingEngine
             'pool_size' => $candidates->count(),
             'qualifying' => $qualifying->count(),
         ];
+    }
+
+    /**
+     * Inverted matcher for the Fiverr direction: ranks every published
+     * gig against a care recipient's profile so the marketplace can show
+     * a "Recommended for {recipient}" view. Same weighted-scoring
+     * approach as matchesFor() — distance 30, trust 30, overlap 20,
+     * availability 10, rate 10 — but rebased to read signals off the
+     * recipient instead of a family-posted gig.
+     *
+     * MVP simplifications (parity with the rest of the matcher):
+     * - Distance scored from Canadian postal-code FSA-prefix overlap
+     *   since neither CareRecipient nor FamilyProfile carry lat/lng
+     *   today. Crude but ordinal — caregivers in the same FSA rank
+     *   ahead of cross-city ones. Real geocoding is a v1.1 ticket.
+     * - Availability stays at a neutral 50 (the Fiverr-direction gig
+     *   has no fixed schedule). It still contributes its 10% weight
+     *   evenly to every candidate so the architecture matches the
+     *   docs even when one signal is unused.
+     * - Rate alignment uses the optional $rateMax cap if the family
+     *   supplied one; otherwise also defaults to neutral 50.
+     *
+     * @return array{
+     *   matches: array<int, array<string, mixed>>,
+     *   pool_size: int,
+     *   qualifying: int,
+     * }
+     */
+    public function gigsForRecipient(CareRecipient $recipient, ?float $rateMax = null): array
+    {
+        $gigs = Gig::query()
+            ->published()
+            ->with([
+                'serviceCategory',
+                'caregiverProfile.user.verificationRecords',
+                'caregiverProfile.services',
+            ])
+            ->get();
+
+        $qualifying = $gigs->filter(
+            fn (Gig $gig) => $this->gigPassesRecipientFilters($gig, $rateMax),
+        );
+
+        $scored = $qualifying
+            ->map(fn (Gig $gig) => $this->scoreGigForRecipient($gig, $recipient, $rateMax))
+            ->sortByDesc('match_score')
+            ->take(self::MAX_RESULTS)
+            ->values();
+
+        return [
+            'matches' => $scored->all(),
+            'pool_size' => $gigs->count(),
+            'qualifying' => $qualifying->count(),
+        ];
+    }
+
+    private function gigPassesRecipientFilters(Gig $gig, ?float $rateMax): bool
+    {
+        $profile = $gig->caregiverProfile;
+        $user = $profile->user;
+        if (! $this->isFullyVerified($user)) {
+            return false;
+        }
+
+        if ($rateMax !== null && (float) $profile->hourly_rate > $rateMax) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function scoreGigForRecipient(Gig $gig, CareRecipient $recipient, ?float $rateMax): array
+    {
+        $profile = $gig->caregiverProfile;
+        $trust = $this->trust->breakdown($profile);
+
+        $components = [
+            'distance' => $this->postalFsaScore($profile->postal_code, $recipient->postal_code),
+            'trust' => $trust['score'],
+            'overlap' => $this->recipientOverlapScore($profile, $recipient),
+            // Gigs in the Fiverr direction don't carry a schedule. Hold
+            // the slot at neutral so the published weights still total
+            // 100 (matches docs §4.5 even though this axis is dormant).
+            'availability' => 50,
+            'rate' => $this->rateAlignmentForRecipient($profile, $rateMax),
+        ];
+
+        $weighted = 0;
+        foreach (self::WEIGHTS as $key => $weight) {
+            $weighted += $components[$key] * $weight;
+        }
+        $matchScore = (int) round($weighted / 100);
+
+        return [
+            'gig' => $gig,
+            'match_score' => $matchScore,
+            'match_components' => $components,
+            'trust_components' => $trust['components'],
+            'trust_is_new' => $trust['is_new'],
+        ];
+    }
+
+    /**
+     * Canadian postal-code proximity by FSA prefix. Same first letter
+     * (rough region — L = central-west Ontario) is +20, same first two
+     * chars (city/town slice) is +60, same full FSA (3 chars, eg "L1H")
+     * is 100. Anything below the first-letter match — or missing data
+     * on either side — gets a neutral 50.
+     */
+    private function postalFsaScore(?string $caregiverPostal, ?string $recipientPostal): int
+    {
+        if ($caregiverPostal === null || $recipientPostal === null) {
+            return 50;
+        }
+        $cg = strtoupper(preg_replace('/\s+/', '', $caregiverPostal) ?? '');
+        $rp = strtoupper(preg_replace('/\s+/', '', $recipientPostal) ?? '');
+        if ($cg === '' || $rp === '') {
+            return 50;
+        }
+        if (substr($cg, 0, 3) === substr($rp, 0, 3)) {
+            return 100;
+        }
+        if (substr($cg, 0, 2) === substr($rp, 0, 2)) {
+            return 60;
+        }
+        if (substr($cg, 0, 1) === substr($rp, 0, 1)) {
+            return 20;
+        }
+
+        return 0;
+    }
+
+    /**
+     * Recipient-flavoured overlap signal — same 70% language / 30%
+     * interest split the gig-direction scorer uses, but reading from
+     * the CareRecipient row instead of gig preferences.
+     */
+    private function recipientOverlapScore(CaregiverProfile $profile, CareRecipient $recipient): int
+    {
+        $spoken = collect($profile->languages ?? [])
+            ->map(fn ($lang) => strtolower((string) $lang));
+
+        $languageSignal = $recipient->language && $spoken->contains(strtolower($recipient->language))
+            ? 100
+            : ($spoken->isEmpty() ? 50 : 40);
+
+        $cgInterests = collect($profile->interests ?? [])
+            ->map(fn ($i) => strtolower((string) $i));
+        $rpInterests = collect($recipient->interests ?? [])
+            ->map(fn ($i) => strtolower((string) $i));
+
+        if ($cgInterests->isEmpty() || $rpInterests->isEmpty()) {
+            $interestSignal = 50;
+        } else {
+            $overlap = $cgInterests->intersect($rpInterests)->count();
+            $interestSignal = (int) round(min(1.0, $overlap / max(1, $rpInterests->count())) * 100);
+        }
+
+        return (int) round($languageSignal * 0.7 + $interestSignal * 0.3);
+    }
+
+    private function rateAlignmentForRecipient(CaregiverProfile $profile, ?float $rateMax): int
+    {
+        if ($rateMax === null || $rateMax <= 0) {
+            return 50;
+        }
+        $rate = (float) $profile->hourly_rate;
+        if ($rate <= 0) {
+            return 50;
+        }
+        // Linear: rate at half budget = 100, rate at budget = 0.
+        // Below half budget plateaus at 100 (cheaper still scores top).
+        if ($rate <= $rateMax / 2) {
+            return 100;
+        }
+        $ratio = 1 - min(1.0, ($rate - $rateMax / 2) / ($rateMax / 2));
+
+        return (int) round($ratio * 100);
     }
 
     /**
