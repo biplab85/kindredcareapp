@@ -10,7 +10,6 @@ import {
   Clock,
   Languages,
   MapPin,
-  MessageCircle,
   ShieldCheck,
   Sparkles,
   Star,
@@ -201,7 +200,6 @@ function ProfileBody({
           {(profile.interests.length > 0 || profile.personality_tags.length > 0) && (
             <FlavourBlock interests={profile.interests} personality={profile.personality_tags} />
           )}
-          <ActionBlock />
         </aside>
       </div>
     </>
@@ -696,48 +694,6 @@ function FlavourBlock({ interests, personality }: { interests: string[]; persona
           </ul>
         </div>
       )}
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Sidebar: actions (stub — booking flow lives off the gig page)
- * ───────────────────────────────────────────────────────────── */
-
-function ActionBlock() {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Get in touch
-      </div>
-
-      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        Booking goes through your gig posting &mdash; matching will rank this caregiver if
-        they&rsquo;re a fit.
-      </p>
-
-      <div className="mt-5 flex flex-col gap-2">
-        <Button disabled title="Direct booking coming later" size="lg" className="w-full">
-          Book directly
-          <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
-            soon
-          </span>
-        </Button>
-        <Button
-          disabled
-          title="Messaging arrives in Phase 10"
-          variant="outline"
-          size="lg"
-          className="w-full"
-        >
-          <MessageCircle className="size-4" />
-          Send a message
-          <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
-            soon
-          </span>
-        </Button>
-      </div>
     </section>
   );
 }
