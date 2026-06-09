@@ -120,6 +120,18 @@ export async function listGigs(category?: string): Promise<Gig[]> {
   return res.data.data;
 }
 
+/**
+ * All published gigs from a single caregiver, by user_id (matches the
+ * /caregivers/{id} route param). Powers the "Services offered" section
+ * on the public caregiver profile.
+ */
+export async function listGigsByCaregiver(caregiverUserId: number | string): Promise<Gig[]> {
+  const res = await api.get<GigListResponse>("/api/gigs", {
+    params: { caregiver_id: caregiverUserId },
+  });
+  return res.data.data;
+}
+
 /** Caregiver dashboard — own listings across every status. */
 export async function listMyGigs(): Promise<Gig[]> {
   const res = await api.get<GigListResponse>("/api/me/gigs");

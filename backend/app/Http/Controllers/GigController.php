@@ -39,6 +39,18 @@ class GigController extends Controller
             $query->whereHas('serviceCategory', fn ($q) => $q->where('slug', $slug));
         }
 
+        // Filter to a single caregiver's gigs — used by the "Services
+        // offered" section on /caregivers/{id}. Param is the user_id
+        // (which matches the public profile URL), resolved via the
+        // caregiverProfile relation.
+        if ($request->filled('caregiver_id')) {
+            $userId = (int) $request->input('caregiver_id');
+            $query->whereHas(
+                'caregiverProfile',
+                fn ($q) => $q->where('user_id', $userId),
+            );
+        }
+
         // Light sort: most recently published first. Real AI ranking
         // ships in a follow-up; the matcher's scoring is preserved but
         // its inversion (gigs-for-recipient) is its own work item.
