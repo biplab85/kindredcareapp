@@ -417,7 +417,12 @@ export function FamilyOnboardingForm() {
                   : `${steps[step - 1].label} · step ${step} of ${totalSteps}`}
             </p>
           </div>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="min-w-[140px]">
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            size="lg"
+            className="min-w-[140px]"
+          >
             {isSubmitting ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (

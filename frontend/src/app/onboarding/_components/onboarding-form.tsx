@@ -1020,9 +1020,8 @@ export function OnboardingForm() {
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
+                        size="lg"
                         className={cn(
-                          "h-9",
                           !certDoc &&
                             certName &&
                             !(certName === CERT_OTHER_VALUE && !certCustomName.trim())
@@ -1049,8 +1048,8 @@ export function OnboardingForm() {
                       ) : null}
                       <Button
                         type="button"
-                        size="sm"
-                        className="ml-auto h-9"
+                        size="lg"
+                        className="ml-auto"
                         onClick={addCertification}
                         disabled={
                           !certName ||
@@ -1375,7 +1374,12 @@ export function OnboardingForm() {
                   : `${steps[step - 1].label} · step ${step} of ${steps.length}`}
             </p>
           </div>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="min-w-[140px]">
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            size="lg"
+            className="min-w-[140px]"
+          >
             {isSubmitting ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
