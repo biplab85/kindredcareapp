@@ -10,14 +10,15 @@ import {
   Clock,
   Languages,
   MapPin,
-  MessageCircle,
   ShieldCheck,
   Sparkles,
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicLayout } from "@/components/layouts/public-layout";
+import { AuthGuard } from "@/components/auth/auth-guard";
+import { DashboardShell } from "@/components/layouts";
 import api from "@/lib/api";
+import { type Gig, listGigsByCaregiver } from "@/lib/gigs";
 import { getUserReviews, type Review } from "@/lib/reviews";
 import { cn } from "@/lib/utils";
 
@@ -47,9 +48,12 @@ interface CaregiverProfile {
   hourly_rate: string;
   travel_radius_km: number;
   years_of_experience: number;
-  languages: string[];
-  interests: string[];
-  personality_tags: string[];
+  // Laravel's JSON array cast returns null for unset columns — not an
+  // empty array — so all three of these can be null on the wire even
+  // though the TypeScript shape used to claim string[].
+  languages: string[] | null;
+  interests: string[] | null;
+  personality_tags: string[] | null;
   certifications: Certification[] | null;
   photo_path: string | null;
   photo_status: string;
@@ -80,9 +84,11 @@ type LoadPhase = "loading" | "ready" | "error";
 export default function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   return (
-    <PublicLayout>
-      <ProfileView caregiverId={id} />
-    </PublicLayout>
+    <AuthGuard>
+      <DashboardShell pageTitle="Caregiver">
+        <ProfileView caregiverId={id} />
+      </DashboardShell>
+    </AuthGuard>
   );
 }
 
@@ -187,6 +193,7 @@ function ProfileBody({
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
         <div className="space-y-6">
           <TrustBlock caregiver={caregiver} reviews={reviews} />
+          <GigsBlock caregiverUserId={caregiver.id} firstName={firstName} reviews={reviews} />
           {profile.bio && <AboutBlock bio={profile.bio} firstName={firstName} />}
           {profile.services.length > 0 && <ServicesBlock services={profile.services} />}
           {profile.certifications && profile.certifications.length > 0 && (
@@ -197,11 +204,16 @@ function ProfileBody({
 
         <aside className="space-y-6 lg:sticky lg:top-24">
           <FactsBlock caregiver={caregiver} profile={profile} />
-          {profile.languages.length > 0 && <LanguagesBlock languages={profile.languages} />}
-          {(profile.interests.length > 0 || profile.personality_tags.length > 0) && (
-            <FlavourBlock interests={profile.interests} personality={profile.personality_tags} />
+          {(profile.languages?.length ?? 0) > 0 && (
+            <LanguagesBlock languages={profile.languages ?? []} />
           )}
-          <ActionBlock />
+          {((profile.interests?.length ?? 0) > 0 ||
+            (profile.personality_tags?.length ?? 0) > 0) && (
+            <FlavourBlock
+              interests={profile.interests ?? []}
+              personality={profile.personality_tags ?? []}
+            />
+          )}
         </aside>
       </div>
     </>
@@ -395,6 +407,109 @@ function ServicesBlock({ services }: { services: CaregiverService[] }) {
                 {svc.pivot.years_experience === 1 ? "" : "s"}
               </span>
             )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Gigs — every published listing this caregiver has on offer.
+ * Sits high in the left column because gigs are the conversion
+ * point: family lands here, sees the available services, picks
+ * one to book.
+ * ───────────────────────────────────────────────────────────── */
+
+function GigsBlock({
+  caregiverUserId,
+  firstName,
+  reviews,
+}: {
+  caregiverUserId: number;
+  firstName: string;
+  reviews: ReviewsState;
+}) {
+  const [gigs, setGigs] = useState<Gig[] | null>(null);
+  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const list = await listGigsByCaregiver(caregiverUserId);
+        if (alive) {
+          setGigs(list);
+          setPhase("ready");
+        }
+      } catch {
+        if (alive) setPhase("error");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [caregiverUserId]);
+
+  if (phase === "loading") return null;
+  if (phase === "error" || !gigs || gigs.length === 0) return null;
+
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <Briefcase className="size-3.5" />
+        {firstName}&rsquo;s services — § 02
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        Each listing is a separate service {firstName} offers. Pick one to book.
+        {reviews.average !== null && reviews.count >= 3 ? (
+          <>
+            {" "}
+            All visits roll into {firstName}&rsquo;s overall rating of{" "}
+            <span className="font-mono text-foreground tabular-nums">
+              {reviews.average.toFixed(1)}
+            </span>{" "}
+            ({reviews.count}{" "}
+            {reviews.count === 1 ? "review" : "reviews"}).
+          </>
+        ) : null}
+      </p>
+
+      <ul className="mt-5 space-y-3">
+        {gigs.map((gig) => (
+          <li key={gig.id}>
+            <Link
+              href={`/gigs/${gig.id}`}
+              className="group block rounded-2xl border border-border/60 bg-background/40 p-4 transition-all hover:border-foreground/30 hover:bg-muted/30"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  {gig.service_category ? (
+                    <p className="font-mono text-[10px] tracking-[0.2em] text-primary uppercase">
+                      {gig.service_category.name}
+                    </p>
+                  ) : null}
+                  <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug tracking-tight">
+                    {gig.title}
+                  </h3>
+                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground italic">
+                    &ldquo;{gig.description}&rdquo;
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-mono text-base font-semibold tabular-nums">
+                    ${gig.hourly_rate_dollars.toFixed(0)}
+                    <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
+                      /hr
+                    </span>
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] tracking-[0.18em] text-primary uppercase transition-colors group-hover:text-primary/80">
+                    Book →
+                  </p>
+                </div>
+              </div>
+            </Link>
           </li>
         ))}
       </ul>
@@ -696,48 +811,6 @@ function FlavourBlock({ interests, personality }: { interests: string[]; persona
           </ul>
         </div>
       )}
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Sidebar: actions (stub — booking flow lives off the gig page)
- * ───────────────────────────────────────────────────────────── */
-
-function ActionBlock() {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Get in touch
-      </div>
-
-      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        Booking goes through your gig posting &mdash; matching will rank this caregiver if
-        they&rsquo;re a fit.
-      </p>
-
-      <div className="mt-5 flex flex-col gap-2">
-        <Button disabled title="Direct booking coming later" size="lg" className="w-full">
-          Book directly
-          <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
-            soon
-          </span>
-        </Button>
-        <Button
-          disabled
-          title="Messaging arrives in Phase 10"
-          variant="outline"
-          size="lg"
-          className="w-full"
-        >
-          <MessageCircle className="size-4" />
-          Send a message
-          <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
-            soon
-          </span>
-        </Button>
-      </div>
     </section>
   );
 }

@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ChevronsLeft,
   ChevronsRight,
+  ChevronsUpDown,
   ClipboardCheck,
   type LucideIcon,
   LayoutDashboard,
@@ -16,7 +17,9 @@ import {
   PlusCircle,
   ScrollText,
   Search,
+  Settings,
   ShieldAlert,
+  User,
   UserCircle,
   UserCog,
   UsersRound,
@@ -142,6 +145,9 @@ export function DashboardSidebar({
 
   const initials = initialsOf(user?.name);
   const accountName = user?.name?.split(" ")[0] ?? "Account";
+  // Mirror the topbar: caregivers show their profile photo, everyone else initials.
+  const photoUrl =
+    user?.role === "caregiver" ? resolvePhotoUrl(user.caregiver_profile?.photo_path) : null;
 
   const handleLogout = async () => {
     await logout();
@@ -309,9 +315,22 @@ export function DashboardSidebar({
                   labelsVisible ? "px-2 py-2" : "justify-center px-0 py-2",
                 )}
               >
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-sidebar-primary">
-                  {initials}
-                </span>
+                {photoUrl ? (
+                  <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-full ring-1 ring-foreground/10">
+                    <Image
+                      src={photoUrl}
+                      alt={user?.name ?? "You"}
+                      fill
+                      sizes="32px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </span>
+                ) : (
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-sidebar-primary">
+                    {initials}
+                  </span>
+                )}
                 {labelsVisible && (
                   <>
                     <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
@@ -339,6 +358,10 @@ export function DashboardSidebar({
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem render={<Link href="/profile" />} onClick={onDrawerClose}>
+              <UserCircle className="size-4" strokeWidth={1.75} />
+              Profile
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/settings" />} onClick={onDrawerClose}>
               <Settings className="size-4" strokeWidth={1.75} />
               Settings
@@ -368,4 +391,14 @@ function initialsOf(name: string | undefined): string {
     .slice(0, 2)
     .map((n) => n.charAt(0).toUpperCase())
     .join("");
+}
+
+// Photo paths come back as a full URL (seeded placeholders) or a relative
+// public-disk path (uploads). Resolve the relative case through the API origin
+// so the sidebar renders the same asset as the topbar.
+function resolvePhotoUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
 }

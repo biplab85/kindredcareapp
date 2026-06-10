@@ -59,87 +59,94 @@ export function SafetyGate({
   return (
     <section
       aria-label="Pre-visit safety checklist"
-      className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.05] via-card to-card p-6 sm:p-8"
+      className="overflow-hidden rounded-2xl border border-primary/30 bg-card shadow-sm"
     >
-      {/* Corner bloom */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-10 -right-10 size-40 rounded-full bg-primary/[0.06] blur-3xl"
-      />
-
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <ShieldCheck className="size-3.5 text-primary" strokeWidth={2} />
-        Safety check — § 11a
+      {/* Card header */}
+      <div className="flex items-center justify-between gap-3 border-b border-primary/15 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] px-6 py-4 sm:px-8">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+            <ShieldCheck className="size-5" strokeWidth={2} />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">Safety check</h2>
+            <p className="text-xs text-muted-foreground">Before you start the visit</p>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-primary ring-1 ring-primary/20">
+          {ticked.filter(Boolean).length}/{CHECKS.length}
+        </span>
       </div>
 
-      <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
-        Before you <span className="italic text-primary">start&hellip;</span>
-      </h2>
+      {/* Card content */}
+      <div className="px-6 py-6 sm:px-8">
+        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+          A quick three-step ritual so the timeline has an audit trail and you&rsquo;ve got support
+          on speed dial if anything feels off.
+        </p>
 
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-        A quick three-step ritual so the timeline has an audit trail and you&rsquo;ve got support on
-        speed dial if anything feels off.
-      </p>
-
-      <div className="my-7 border-t-2 border-dashed border-primary/20" />
-
-      <ul className="space-y-1.5">
-        {CHECKS.map((label, i) => {
-          const isTicked = ticked[i];
-          return (
-            <li key={i}>
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={isTicked}
-                onClick={() => toggle(i)}
-                disabled={submitting}
-                className={cn(
-                  "group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors",
-                  "hover:bg-primary/[0.04] focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
-                  isTicked && "bg-primary/[0.04]",
-                  submitting && "pointer-events-none opacity-70",
-                )}
-              >
-                <span className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground/80">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span
-                  aria-hidden
+        <ul className="mt-5 space-y-2">
+          {CHECKS.map((label, i) => {
+            const isTicked = ticked[i];
+            return (
+              <li key={i}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={isTicked}
+                  onClick={() => toggle(i)}
+                  disabled={submitting}
                   className={cn(
-                    "mt-px grid size-5 shrink-0 place-items-center rounded-[5px] border transition-all",
-                    isTicked
-                      ? "scale-100 border-primary bg-primary text-primary-foreground"
-                      : "scale-95 border-border/80 bg-background group-hover:border-primary/50",
+                    "group flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-left transition-all",
+                    "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
+                    isTicked ? "bg-primary/[0.06]" : "hover:bg-primary/[0.03]",
+                    submitting && "pointer-events-none opacity-70",
                   )}
                 >
-                  {isTicked && <Check className="size-3.5" strokeWidth={3} />}
-                </span>
-                <span
-                  className={cn(
-                    "text-sm leading-relaxed transition-colors",
-                    isTicked ? "text-foreground" : "text-foreground/80 group-hover:text-foreground",
-                  )}
-                >
-                  {label}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "grid size-5 shrink-0 place-items-center rounded-md border transition-all",
+                      isTicked
+                        ? "scale-100 border-primary bg-primary text-primary-foreground"
+                        : "scale-95 border-border/80 bg-background group-hover:border-primary/50",
+                    )}
+                  >
+                    {isTicked && <Check className="size-3.5" strokeWidth={3} />}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-sm leading-relaxed transition-colors",
+                      isTicked
+                        ? "text-foreground"
+                        : "text-foreground/80 group-hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
 
-      {errorMsg && (
-        <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-          <p className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            {errorMsg}
-          </p>
-        </div>
-      )}
+        {errorMsg && (
+          <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+            <p className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              {errorMsg}
+            </p>
+          </div>
+        )}
+      </div>
 
-      <div className="mt-7 flex items-center gap-3">
-        <Button onClick={submit} disabled={!allTicked || submitting} size="lg">
+      {/* Card footer */}
+      <div className="border-t border-border bg-muted/30 px-6 py-4 sm:px-8">
+        <Button
+          onClick={submit}
+          disabled={!allTicked || submitting}
+          size="lg"
+          className="h-12 w-full text-base shadow-sm"
+        >
           {submitting ? (
             <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
           ) : (
@@ -147,9 +154,6 @@ export function SafetyGate({
           )}
           {submitting ? "Logging…" : "Acknowledge & proceed"}
         </Button>
-        <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase tabular-nums">
-          {ticked.filter(Boolean).length} / {CHECKS.length}
-        </span>
       </div>
     </section>
   );

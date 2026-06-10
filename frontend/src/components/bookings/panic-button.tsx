@@ -99,7 +99,7 @@ export function PanicButton({
         </div>
 
         <div>
-          <h2 className="text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
+          <h2 className="text-lg font-semibold tracking-tight">
             Something <span className="italic text-accent">not right?</span>
           </h2>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -141,7 +141,7 @@ function IdleView({ onArm }: { onArm: () => void }) {
         type="button"
         onClick={onArm}
         className={cn(
-          "group relative inline-flex items-center gap-2.5 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground",
+          "group relative inline-flex cursor-pointer items-center gap-2.5 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground",
           "shadow-[0_6px_18px_-6px_theme(colors.accent/0.55)] transition-all",
           "hover:scale-[1.02] hover:shadow-[0_10px_28px_-8px_theme(colors.accent/0.6)]",
           "active:scale-100",
@@ -204,7 +204,7 @@ function ArmedView({
         onClick={onToggleSilent}
         disabled={firing}
         className={cn(
-          "group flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors",
+          "group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors",
           silent
             ? "border-foreground/40 bg-foreground/5"
             : "border-border/60 bg-background/60 hover:border-foreground/30",

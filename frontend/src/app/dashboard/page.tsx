@@ -10,18 +10,27 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
+  Car,
+  ChefHat,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Clock,
   CreditCard,
   DollarSign,
+  Eye,
+  Flower2,
+  Footprints,
   Heart,
   Loader2,
   MapPin,
   MoreVertical,
   ShieldCheck,
   ShieldX,
+  ShoppingBag,
+  Smartphone,
   Sparkles,
+  SprayCan,
   Store,
   UserRoundCheck,
   UsersRound,
@@ -90,7 +99,7 @@ function DashboardRouter() {
 function DashboardTitle({ title, meta }: { title: React.ReactNode; meta?: React.ReactNode }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">{title}</h1>
+      <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">{title}</h1>
       {meta && <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{meta}</p>}
     </div>
   );
@@ -208,14 +217,7 @@ const METRIC_TILE_STYLES: Record<
   },
 };
 
-// Faint concentric-arc swoosh in the top-right corner — the light-mode
-// echo of Metronic's bg-3 decorative texture, inlined so there's no
-// external asset to hotlink.
-const METRIC_TILE_SWOOSH =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='170'><g fill='none' stroke='%230A0E28' stroke-opacity='0.05' stroke-width='2'><circle cx='300' cy='8' r='55'/><circle cx='300' cy='8' r='100'/><circle cx='300' cy='8' r='145'/><circle cx='300' cy='8' r='190'/></g></svg>\")";
-
-// Distinct corner texture for the Quick-routes cards so they don't share the
-// metric tiles' concentric-arc swoosh — a faint dot-grid instead.
+// Distinct corner texture for the Quick-routes cards — a faint dot-grid.
 const QUICK_ROUTE_TEXTURE =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='150'><defs><pattern id='kc-dots' width='15' height='15' patternUnits='userSpaceOnUse'><circle cx='2.5' cy='2.5' r='1.4' fill='%230A0E28' fill-opacity='0.06'/></pattern></defs><rect width='220' height='150' fill='url(%23kc-dots)'/></svg>\")";
 
@@ -246,16 +248,6 @@ function MetricTile({
     >
       {/* light tonal wash */}
       <div aria-hidden className={cn("absolute inset-0 bg-gradient-to-br", s.grad)} />
-      {/* decorative corner swoosh */}
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          backgroundImage: METRIC_TILE_SWOOSH,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "right top",
-        }}
-      />
 
       <div className="relative">
         <div className="flex items-center gap-3">
@@ -412,7 +404,7 @@ function CaregiverDashboard() {
 
   return (
     <DashboardShell pageTitle="Dashboard" navBadges={navBadges}>
-      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome back, ${firstName}.`}
           meta={
@@ -643,6 +635,20 @@ function StatusStrip({
  * Caregiver — next-visit block
  * ───────────────────────────────────────────────────────────── */
 
+// Best-effort service-category → icon, matched on the slug so a missing icon
+// field never breaks the card. A lookup table (rather than a component-returning
+// function) keeps the call site clear of react-hooks/static-components.
+// Companionship + anything unknown falls through to Heart.
+const CATEGORY_ICONS: ReadonlyArray<readonly [readonly string[], LucideIcon]> = [
+  [["tech"], Smartphone],
+  [["errand", "shop"], ShoppingBag],
+  [["walk"], Footprints],
+  [["garden"], Flower2],
+  [["cook", "meal"], ChefHat],
+  [["transport", "drive", "ride"], Car],
+  [["clean", "housekeep"], SprayCan],
+];
+
 function NextVisitBlock({
   booking,
   pending,
@@ -714,6 +720,9 @@ function NextVisitBlock({
     day: "numeric",
   });
   const timeLine = start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const slug = active.gig?.service_category?.slug ?? "";
+  const Icon = CATEGORY_ICONS.find(([keys]) => keys.some((k) => slug.includes(k)))?.[1] ?? Heart;
+  const title = active.gig?.service_category?.name ?? "Visit";
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
@@ -733,30 +742,59 @@ function NextVisitBlock({
 
       {/* card-content */}
       <div className="grow p-5">
-        <div className="flex items-start gap-4">
-          <div className="flex w-16 shrink-0 flex-col items-center rounded-xl border border-border bg-muted/40 py-2.5">
-            <span className="text-2xl leading-none font-bold tabular-nums text-foreground">
-              {day}
-            </span>
-            <span className="mt-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              {month}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-lg font-semibold tracking-tight text-foreground">
-              {active.gig?.service_category?.name ?? "Visit"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {dateLine} · {timeLine}
-              <span className="text-foreground/70"> · {relativeWhen(start)}</span>
-            </p>
+        {/* Hero — tear-off calendar token + service title + when */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-primary/[0.07] via-card to-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+          <div className="flex items-start gap-4">
+            {/* tear-off calendar token */}
+            <div className="flex w-[4.25rem] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_6px_18px_-8px_rgba(10,14,40,0.35)]">
+              <span className="bg-primary py-1 text-center text-[10px] font-semibold tracking-[0.2em] text-primary-foreground uppercase">
+                {month}
+              </span>
+              <span className="py-2 text-center text-[1.75rem] leading-none font-bold tabular-nums text-foreground">
+                {day}
+              </span>
+            </div>
+            {/* title + meta */}
+            <div className="min-w-0 pt-0.5">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="truncate text-xl font-semibold tracking-tight text-foreground">
+                  {title}
+                </p>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                <span className="tabular-nums">{dateLine}</span>
+                <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+                <span className="tabular-nums">{timeLine}</span>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary tabular-nums ring-1 ring-primary/15">
+                  {relativeWhen(start)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-border bg-border">
-          <VisitFact label="Length" value={formatHours(active.duration_minutes)} />
-          <VisitFact label="Area" value={active.address_neighbourhood} />
-          <VisitFact label="Payout" value={formatCents(active.caregiver_payout_cents)} />
+        <dl className="mt-4 grid grid-cols-3 gap-2.5">
+          <VisitFact
+            icon={Clock}
+            tone="primary"
+            label="Length"
+            value={formatHours(active.duration_minutes)}
+          />
+          <VisitFact
+            icon={MapPin}
+            tone="neutral"
+            label="Area"
+            value={active.address_neighbourhood}
+          />
+          <VisitFact
+            icon={Wallet}
+            tone="success"
+            label="Payout"
+            value={formatCents(active.caregiver_payout_cents)}
+          />
         </dl>
 
         <div className="mt-4">
@@ -818,13 +856,40 @@ function relativeWhen(date: Date): string {
   return past ? `${phrase} ago` : `in ${phrase}`;
 }
 
-function VisitFact({ label, value }: { label: string; value: string }) {
+const VISIT_FACT_TONES: Record<
+  "primary" | "neutral" | "success",
+  { card: string; chip: string }
+> = {
+  primary: { card: "border-primary/15 bg-primary/[0.06]", chip: "bg-primary/15 text-primary ring-primary/20" },
+  neutral: { card: "border-border/70 bg-muted/60", chip: "bg-foreground/10 text-foreground/70 ring-foreground/10" },
+  success: { card: "border-success/20 bg-success/[0.07]", chip: "bg-success/15 text-success ring-success/25" },
+};
+
+function VisitFact({
+  label,
+  value,
+  icon: Icon,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  tone?: "primary" | "neutral" | "success";
+}) {
+  const s = VISIT_FACT_TONES[tone];
   return (
-    <div className="bg-card px-3 py-2.5 text-center">
-      <p className="truncate text-sm font-semibold tabular-nums text-foreground">{value}</p>
-      <p className="mt-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </p>
+    <div className={cn("flex items-center gap-2.5 rounded-xl border p-3", s.card)}>
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg ring-1", s.chip)}>
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold leading-tight tabular-nums text-foreground">
+          {value}
+        </p>
+        <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+          {label}
+        </p>
+      </div>
     </div>
   );
 }
@@ -1228,7 +1293,7 @@ function FamilyDashboard() {
 
   return (
     <DashboardShell pageTitle="Dashboard" navBadges={navBadges}>
-      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome, ${firstName}.`}
           meta="Browse the marketplace, book a visit, and track it through to completion."
@@ -1393,15 +1458,30 @@ function FamilyNextVisitBlock({ booking }: { booking: Booking | undefined }) {
  * there's no history yet.
  * ───────────────────────────────────────────────────────────── */
 
+const ACTIVITY_PAGE_SIZE = 4;
+
 function RecentActivity({ bookings, role }: { bookings: Booking[]; role: "caregiver" | "family" }) {
+  // Hook stays above the early return so the order is stable across renders.
+  const [page, setPage] = useState(0);
+
   const recent = useMemo(() => {
     return [...bookings]
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-      .slice(0, 5);
+      .slice(0, 12);
   }, [bookings]);
 
+  // Paginate 4 rows per page, mirroring the profile-completion card. safePage
+  // clamps the stored page in case the list shrank since the last render.
+  const totalPages = Math.max(1, Math.ceil(recent.length / ACTIVITY_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = safePage * ACTIVITY_PAGE_SIZE;
+  const pageItems = recent.slice(pageStart, pageStart + ACTIVITY_PAGE_SIZE);
+  // Pad to a full 4-row page (only when there's more than one page) so the
+  // card never resizes as you flip between pages.
+  const fillerRows = totalPages > 1 ? ACTIVITY_PAGE_SIZE - pageItems.length : 0;
+
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
       {/* card-header */}
       <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
         <h3 className="text-base font-semibold leading-none tracking-tight">Recent activity</h3>
@@ -1416,71 +1496,194 @@ function RecentActivity({ bookings, role }: { bookings: Booking[]; role: "caregi
         )}
       </div>
 
-      {/* card-content */}
-      <div className="grow p-5">
-        {recent.length === 0 ? (
+      {recent.length === 0 ? (
+        <div className="p-5">
           <p className="text-sm leading-relaxed text-muted-foreground">
             Nothing to show yet — {role === "caregiver" ? "offers and visits" : "bookings"} will
             appear here as soon as they&rsquo;re in motion.
           </p>
-        ) : (
-          <ul className="divide-y divide-border/60">
-            {recent.map((booking) => (
-              <li key={booking.id}>
-                <Link
-                  href={`/bookings/${booking.id}`}
-                  className="group flex items-center gap-4 rounded-xl px-3 py-3 transition-colors hover:bg-muted/50"
+        </div>
+      ) : (
+        // Table view — same structure as the My-gigs list page (full-bleed
+        // table, muted header row, zebra striping, trailing action column).
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30 text-left">
+                  <th className="py-3 pr-4 pl-5 text-[11px] font-semibold tracking-wide text-foreground capitalize sm:pl-6">
+                    {role === "caregiver" ? "Visit" : "Caregiver"}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize whitespace-nowrap">
+                    When
+                  </th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold tracking-wide text-foreground capitalize">
+                    Amount
+                  </th>
+                  <th className="py-3 pr-5 pl-4 sm:pr-6" />
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((booking) => (
+                  <ActivityRow key={booking.id} booking={booking} role={role} />
+                ))}
+                {/* Filler rows hold a constant 4-row height across pages so the
+                    card never resizes when paginating. */}
+                {fillerRows > 0 &&
+                  Array.from({ length: fillerRows }).map((_, i) => (
+                    <tr
+                      key={`filler-${i}`}
+                      aria-hidden
+                      className="border-b border-border/60 even:bg-muted/30 last:border-0"
+                    >
+                      <td className="py-3 pr-4 pl-5 sm:pl-6">
+                        <div className="flex items-center gap-3">
+                          <span className="size-9 shrink-0" />
+                          <span className="text-sm">&nbsp;</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" />
+                      <td className="px-4 py-3" />
+                      <td className="px-4 py-3" />
+                      <td className="py-3 pr-5 pl-4 sm:pr-6" />
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* card-footer — pager, same treatment as the profile-completion card */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-end gap-1 border-t border-border px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                aria-label="Previous page"
+                className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPage(i)}
+                  aria-label={`Page ${i + 1}`}
+                  aria-current={i === safePage ? "page" : undefined}
+                  className={cn(
+                    "grid size-7 cursor-pointer place-items-center rounded-md text-[12px] font-semibold tabular-nums transition-colors",
+                    i === safePage
+                      ? "bg-primary/10 text-primary ring-1 ring-primary/30"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "grid size-8 shrink-0 place-items-center rounded-full text-[10px] font-semibold tracking-tight",
-                      activityTone(booking.status).well,
-                      activityTone(booking.status).text,
-                    )}
-                  >
-                    {activityLetter(booking.status)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {role === "caregiver"
-                        ? (booking.gig?.service_category?.name ?? "Visit")
-                        : (booking.caregiver?.name ?? "Caregiver")}
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        · {statusLabel(booking.status)}
-                      </span>
-                    </p>
-                    <p className="mt-0.5 text-[12px] text-muted-foreground">
-                      {new Date(booking.scheduled_start).toLocaleDateString("en-CA", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                      {" · "}
-                      {booking.address_neighbourhood}
-                    </p>
-                  </div>
-                  <div className="hidden shrink-0 text-right text-sm tabular-nums sm:block">
-                    <span className="font-semibold">
-                      {formatCents(
-                        role === "caregiver"
-                          ? booking.caregiver_payout_cents
-                          : booking.subtotal_cents,
-                      )}
-                    </span>
-                  </div>
-                  <ArrowUpRight
-                    className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground"
-                    strokeWidth={1.75}
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage === totalPages - 1}
+                aria-label="Next page"
+                className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
+  );
+}
+
+function ActivityRow({ booking, role }: { booking: Booking; role: "caregiver" | "family" }) {
+  const tone = activityTone(booking.status);
+  const title =
+    role === "caregiver"
+      ? (booking.gig?.service_category?.name ?? "Visit")
+      : (booking.caregiver?.name ?? "Caregiver");
+  const whenLine = new Date(booking.scheduled_start).toLocaleDateString("en-CA", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const amount = formatCents(
+    role === "caregiver" ? booking.caregiver_payout_cents : booking.subtotal_cents,
+  );
+
+  return (
+    <tr className="group border-b border-border/60 transition-colors even:bg-muted/30 last:border-0 hover:bg-muted/60">
+      {/* Activity — status avatar + title, with the area as a subtitle */}
+      <td className="py-3 pr-4 pl-5 sm:pl-6">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-full text-[11px] font-semibold tracking-tight",
+              tone.well,
+              tone.text,
+            )}
+          >
+            {activityLetter(booking.status)}
+          </span>
+          <div className="min-w-0">
+            <Link
+              href={`/bookings/${booking.id}`}
+              className="block truncate text-sm font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+            >
+              {title}
+            </Link>
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+              {booking.address_neighbourhood}
+            </p>
+          </div>
+        </div>
+      </td>
+
+      {/* Status */}
+      <td className="px-4 py-3 align-middle">
+        <StatusChip status={booking.status} />
+      </td>
+
+      {/* When */}
+      <td className="px-4 py-3 align-middle whitespace-nowrap">
+        <span className="text-sm text-muted-foreground tabular-nums">{whenLine}</span>
+      </td>
+
+      {/* Amount */}
+      <td className="px-4 py-3 text-right align-middle whitespace-nowrap">
+        <span className="text-sm font-semibold text-foreground tabular-nums">{amount}</span>
+      </td>
+
+      {/* Action — 3-dot kebab dropdown, same pattern as the My-gigs table */}
+      <td className="py-3 pr-5 pl-4 text-right align-middle sm:pr-6">
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Activity actions"
+              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              <MoreVertical className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-auto min-w-40">
+              <DropdownMenuItem
+                render={<Link href={`/bookings/${booking.id}`} />}
+                className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+              >
+                <Eye className="size-4" />
+                View
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1550,7 +1753,7 @@ function AdminDashboard() {
   return (
     <DashboardShell pageTitle="Admin" navBadges={{ verification: verificationsTotal }}>
       <div className="relative">
-        <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+        <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
           <AdminHeader asOf={data?.as_of ?? null} />
 
           {state === "loading" && <AdminLoading />}

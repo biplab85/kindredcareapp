@@ -8,11 +8,13 @@ import {
   AlertTriangle,
   ArrowLeft,
   BadgeCheck,
+  Calendar,
   Check,
   CheckCircle2,
   Circle,
   ClipboardList,
   Clock,
+  type LucideIcon,
   MapPin,
   MapPinOff,
   MessageCircle,
@@ -20,6 +22,8 @@ import {
   PlayCircle,
   Star,
   StopCircle,
+  Tag,
+  Timer,
   Trash2,
   X,
 } from "lucide-react";
@@ -32,13 +36,11 @@ import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
 import {
-  acceptBooking,
   type Booking,
   cancelBooking,
   checkInBooking,
   checkOutBooking,
   confirmBooking,
-  declineBooking,
   flagReasonLabel,
   formatCents,
   formatHours,
@@ -136,10 +138,10 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
         }}
       />
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <Link
           href="/bookings"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
           Back to bookings
@@ -149,23 +151,61 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
 
         <ArrivalBanner booking={booking} role={role} />
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
+        <div className="mt-6 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
           <div className="space-y-6">
             <ReceiptBlock booking={booking} role={role} />
             <VisitBlock booking={booking} role={role} onChanged={reload} />
-            <MessagesBlock bookingId={booking.id} />
+            {/* Inline messages card hidden (kept mounted) — chat now lives in the floating panel. */}
+            <div className="hidden">
+              <MessagesBlock bookingId={booking.id} />
+            </div>
             <FamilyConfirmBlock booking={booking} role={role} onChanged={reload} />
             <RatingPromptBlock booking={booking} />
             <PartyBlock booking={booking} role={role} />
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24">
-            <TimelineBlock booking={booking} />
-            <ActionBlock booking={booking} role={role} onChanged={reload} />
+            <TimelineBlock booking={booking} role={role} onChanged={reload} />
           </aside>
         </div>
       </div>
+
+      <FloatingMessages bookingId={booking.id} />
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Floating messages — a bottom-right launcher that opens the
+ * existing Messages card in a floating panel with a close button.
+ * The inline Messages card stays exactly where it is.
+ * ───────────────────────────────────────────────────────────── */
+
+function FloatingMessages({ bookingId }: { bookingId: number }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      {open && (
+        <div className="animate-in fade-in-0 slide-in-from-bottom-2 fixed right-4 bottom-24 z-50 w-[min(380px,calc(100vw-2rem))] duration-200 sm:right-6">
+          <MessagesBlock bookingId={bookingId} />
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={open ? "Close messages" : "Open messages"}
+        aria-expanded={open}
+        className="fixed right-4 bottom-6 z-50 grid size-12 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-100 sm:right-6"
+      >
+        {open ? (
+          <X className="size-5" strokeWidth={2.25} />
+        ) : (
+          <MessageCircle className="size-5" strokeWidth={2} />
+        )}
+      </button>
+    </>
   );
 }
 
@@ -182,34 +222,35 @@ function DetailHeader({
 }) {
   const tone = statusTone(booking.status);
   const accentClass: Record<typeof tone, string> = {
-    pending: "text-accent",
-    positive: "text-success",
-    warning: "text-muted-foreground",
-    neutral: "text-muted-foreground",
+    pending: "bg-accent/10 text-accent ring-accent/30",
+    positive: "bg-success/10 text-success ring-success/30",
+    warning: "bg-muted text-muted-foreground ring-border",
+    neutral: "bg-muted text-muted-foreground ring-border",
   };
 
   const start = new Date(booking.scheduled_start);
 
   return (
-    <header>
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-          <span className={cn("font-normal italic", accentClass[tone])}>
-            {statusLabel(booking.status)}.
-          </span>
-        </h1>
-        <span className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-          #{String(booking.id).padStart(5, "0")}
-        </span>
-      </div>
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1",
+          accentClass[tone],
+        )}
+      >
+        <span className="size-1.5 rounded-full bg-current opacity-70" />
+        {statusLabel(booking.status)}
+      </span>
 
-      <p className="mt-3 text-sm text-muted-foreground">
+      <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
         {start.toLocaleDateString("en-CA", {
           weekday: "long",
           month: "long",
           day: "numeric",
         })}
-        {" · "}
+      </h1>
+
+      <span className="text-sm text-muted-foreground">
         {start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}
         {" · "}
         {formatHours(booking.duration_minutes)}
@@ -218,13 +259,20 @@ function DetailHeader({
           booking.status === "pending_caregiver" && (
             <>
               {" · "}
-              <span className="font-mono tabular-nums">
+              <span className="tabular-nums">
                 {booking.fallback_queue_size} caregiver
                 {booking.fallback_queue_size === 1 ? "" : "s"} on standby
               </span>
             </>
           )}
-      </p>
+      </span>
+
+      <span className="ml-auto text-xs font-medium text-muted-foreground">
+        Booking ID{" "}
+        <span className="font-semibold text-foreground tabular-nums">
+          #{String(booking.id).padStart(5, "0")}
+        </span>
+      </span>
     </header>
   );
 }
@@ -290,55 +338,68 @@ function ReceiptBlock({
   return (
     <section
       aria-label="Receipt"
-      className="relative rounded-3xl border border-border/60 bg-card p-6 sm:p-8"
+      className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
     >
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Order of service
+      {/* Card header */}
+      <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-4 sm:px-8">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Order of service</h2>
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase ring-1 ring-border">
+          Receipt
+        </span>
       </div>
 
-      <dl className="mt-6 space-y-3 text-sm">
-        <Line label="Service" value={booking.gig?.service_category?.name ?? "Gig"} />
-        <Line
-          label="When"
-          value={new Date(booking.scheduled_start).toLocaleString("en-CA", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        />
-        <Line label="Duration" value={formatHours(booking.duration_minutes)} />
-        <Line
-          label={booking.address_full ? "Address" : "Neighbourhood"}
-          value={booking.address_full ?? booking.address_neighbourhood}
-        />
-      </dl>
+      {/* Card content */}
+      <div className="px-6 py-6 sm:px-8">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DetailRow
+            icon={Tag}
+            label="Service"
+            value={booking.gig?.service_category?.name ?? "Gig"}
+          />
+          <DetailRow
+            icon={Calendar}
+            label="When"
+            value={new Date(booking.scheduled_start).toLocaleString("en-CA", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+          />
+          <DetailRow icon={Timer} label="Duration" value={formatHours(booking.duration_minutes)} />
+          <DetailRow
+            icon={MapPin}
+            label={booking.address_full ? "Address" : "Neighbourhood"}
+            value={booking.address_full ?? booking.address_neighbourhood}
+          />
+        </div>
 
-      <div className="my-8 border-t-2 border-dashed border-border/60" />
-
-      <dl className="space-y-3 text-sm">
-        <Line label="Rate" value={`${formatCents(booking.hourly_rate_cents)} / hour`} tabular />
-        <Line label="Subtotal" value={formatCents(booking.subtotal_cents)} tabular />
-        <Line
-          label="Platform fee (7.5%)"
-          value={`− ${formatCents(booking.platform_fee_cents)}`}
-          tabular
-          muted
-        />
-      </dl>
-
-      <div className="my-6 border-t border-border/60" />
-
-      <div className="flex items-baseline justify-between font-mono tabular-nums">
-        <p className="text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-          Caregiver payout
-        </p>
-        <p className="text-3xl font-semibold">{formatCents(booking.caregiver_payout_cents)}</p>
+        <div className="mt-5 rounded-xl bg-muted/30 p-4 ring-1 ring-border/60">
+          <dl className="space-y-2.5 text-sm">
+            <Line label="Rate" value={`${formatCents(booking.hourly_rate_cents)} / hour`} tabular />
+            <Line label="Subtotal" value={formatCents(booking.subtotal_cents)} tabular />
+            <Line
+              label="Platform fee (7.5%)"
+              value={`− ${formatCents(booking.platform_fee_cents)}`}
+              tabular
+              muted
+            />
+          </dl>
+        </div>
       </div>
 
-      <PaymentStatusNote booking={booking} role={role} />
+      {/* Card footer */}
+      <div className="border-t border-border bg-muted/30 px-6 py-5 sm:px-8">
+        <div className="flex items-baseline justify-between">
+          <p className="text-sm font-medium text-muted-foreground">Caregiver payout</p>
+          <p className="text-3xl font-bold tracking-tight tabular-nums">
+            {formatCents(booking.caregiver_payout_cents)}
+          </p>
+        </div>
+
+        <PaymentStatusNote booking={booking} role={role} />
+      </div>
     </section>
   );
 }
@@ -442,16 +503,40 @@ function Line({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">{label}</dt>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "text-right text-sm",
-          tabular ? "font-mono tabular-nums" : "",
+          tabular ? "tabular-nums" : "",
           muted ? "text-muted-foreground" : "text-foreground",
         )}
       >
         {value}
       </dd>
+    </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" strokeWidth={1.75} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="mt-0.5 text-sm font-medium text-foreground">{value}</p>
+      </div>
     </div>
   );
 }
@@ -1109,75 +1194,85 @@ function FlagPill({ reasons }: { reasons: VisitFlagReason[] }) {
 
 function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        {role === "caregiver" ? "The gig" : "The caregiver"}
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      {/* Card header */}
+      <div className="border-b border-border px-6 py-4 sm:px-8">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          {role === "caregiver" ? "The gig" : "The caregiver"}
+        </h2>
       </div>
 
-      {role === "caregiver" ? (
-        <div className="mt-5 space-y-2 text-sm">
-          <p className="text-lg font-semibold tracking-tight">
-            {booking.gig?.service_category?.name ?? "Gig"}
-          </p>
-          <p className="text-muted-foreground italic">&ldquo;{booking.gig?.description}&rdquo;</p>
-          <div className="mt-3 flex items-center gap-2 text-sm text-foreground/80">
-            <MapPin className="size-4 text-muted-foreground" strokeWidth={1.75} />
-            <span>{booking.address_full ?? booking.address_neighbourhood}</span>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-5 flex items-start gap-5">
-          <div className="relative shrink-0">
-            <div className="relative size-20 overflow-hidden rounded-2xl bg-muted ring-1 ring-border/60">
-              {booking.caregiver.photo_url ? (
-                <Image
-                  src={booking.caregiver.photo_url}
-                  alt={booking.caregiver.name}
-                  fill
-                  sizes="80px"
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground">
-                  {initials(booking.caregiver.name)}
-                </div>
-              )}
+      {/* Card content */}
+      <div className="px-6 py-6 sm:px-8">
+        {role === "caregiver" ? (
+          <div className="space-y-3">
+            <p className="text-lg font-semibold tracking-tight text-foreground">
+              {booking.gig?.service_category?.name ?? "Gig"}
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {booking.gig?.description}
+            </p>
+            <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm text-foreground/80 ring-1 ring-border/60">
+              <MapPin className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+              <span>{booking.address_full ?? booking.address_neighbourhood}</span>
             </div>
-            <span
-              title="Basic Verified"
-              className="absolute -right-1.5 -bottom-1.5 grid size-7 place-items-center rounded-full bg-success text-success-foreground ring-2 ring-background"
-            >
-              <BadgeCheck className="size-4" strokeWidth={2.25} />
-            </span>
           </div>
-          <div className="min-w-0 flex-1 pt-1">
-            <p className="text-lg font-semibold tracking-tight">{booking.caregiver.name}</p>
-            <p className="mt-1 font-mono text-sm tabular-nums text-muted-foreground">
-              {booking.caregiver.hourly_rate !== null
-                ? `$${booking.caregiver.hourly_rate.toFixed(2)} / hour`
-                : "—"}
-            </p>
-            <p className="mt-2 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-              Rank #{booking.match_rank}
-            </p>
+        ) : (
+          <div className="flex items-start gap-5">
+            <div className="relative shrink-0">
+              <div className="relative size-20 overflow-hidden rounded-2xl bg-muted ring-1 ring-border/60">
+                {booking.caregiver.photo_url ? (
+                  <Image
+                    src={booking.caregiver.photo_url}
+                    alt={booking.caregiver.name}
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground">
+                    {initials(booking.caregiver.name)}
+                  </div>
+                )}
+              </div>
+              <span
+                title="Basic Verified"
+                className="absolute -right-1.5 -bottom-1.5 grid size-7 place-items-center rounded-full bg-success text-success-foreground ring-2 ring-background"
+              >
+                <BadgeCheck className="size-4" strokeWidth={2.25} />
+              </span>
+            </div>
+            <div className="min-w-0 flex-1 pt-1">
+              <p className="text-lg font-semibold tracking-tight">{booking.caregiver.name}</p>
+              <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+                {booking.caregiver.hourly_rate !== null
+                  ? `$${booking.caregiver.hourly_rate.toFixed(2)} / hour`
+                  : "—"}
+              </p>
+              <p className="mt-2.5 inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground ring-1 ring-border">
+                Rank #{booking.match_rank}
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <button
-        type="button"
-        disabled
-        title="Messaging arrives in Phase 10"
-        className="mt-6 inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground"
-      >
-        <MessageCircle className="size-4" />
-        Messages
-        <span className="ml-1 font-mono text-[9px] tracking-[0.14em] uppercase opacity-70">
-          soon
-        </span>
-      </button>
+      {/* Card footer */}
+      <div className="border-t border-border bg-muted/30 px-6 py-4 sm:px-8">
+        <button
+          type="button"
+          disabled
+          title="Messaging arrives in Phase 10"
+          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground"
+        >
+          <MessageCircle className="size-4" />
+          Messages
+          <span className="ml-1 text-[9px] font-semibold tracking-wide uppercase opacity-70">
+            soon
+          </span>
+        </button>
+      </div>
     </section>
   );
 }
@@ -1186,57 +1281,108 @@ function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
  * Timeline
  * ───────────────────────────────────────────────────────────── */
 
-function TimelineBlock({ booking }: { booking: Booking }) {
+function TimelineBlock({
+  booking,
+  role,
+  onChanged,
+}: {
+  booking: Booking;
+  role: "family" | "caregiver" | "admin";
+  onChanged: () => void;
+}) {
   const events = buildTimeline(booking);
+  const [cancelling, setCancelling] = useState(false);
+
+  const canCancel =
+    (role === "family" || role === "caregiver") &&
+    (booking.status === "pending_caregiver" || booking.status === "confirmed");
+
+  // Snapshot "now" at mount so render stays pure; the 24h fee-cutoff copy
+  // doesn't need per-second accuracy — the backend is the source of truth.
+  const [nowMs] = useState(() => Date.now());
+  const feeRetained =
+    role === "family" && (new Date(booking.scheduled_start).getTime() - nowMs) / 3_600_000 < 24;
+
+  async function handleCancel() {
+    if (cancelling) return;
+    const note = feeRetained
+      ? " You're within 24 hours of the visit, so the platform fee is retained."
+      : "";
+    if (!window.confirm(`Cancel this booking?${note}`)) return;
+    setCancelling(true);
+    try {
+      await cancelBooking(booking.id);
+      onChanged();
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Timeline
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      {/* Card header */}
+      <div className="border-b border-border px-6 py-4">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Timeline</h2>
       </div>
 
-      <ol className="mt-5 space-y-4">
-        {events.map((e, i) => (
-          <li key={i} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {e.state === "done" ? (
-                <CheckCircle2 className="size-4 shrink-0 text-success" strokeWidth={2} />
-              ) : e.state === "active" ? (
-                <span className="relative flex size-4 shrink-0 items-center justify-center">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-primary/40" />
-                  <span className="relative size-2.5 rounded-full bg-primary" />
-                </span>
-              ) : (
-                <Circle className="size-4 shrink-0 text-muted-foreground/40" strokeWidth={1.5} />
-              )}
-              {i < events.length - 1 && (
-                <span
-                  className={cn(
-                    "mt-1 w-px flex-1",
-                    e.state === "done" ? "bg-success/40" : "bg-border/60",
-                  )}
-                  style={{ minHeight: "1.5rem" }}
-                />
-              )}
-            </div>
-            <div className="min-w-0 flex-1 pb-2">
-              <p
-                className={cn(
-                  "text-sm font-medium",
-                  e.state === "pending" && "text-muted-foreground",
+      {/* Card content */}
+      <div className="px-6 py-5">
+        <ol className="space-y-4">
+          {events.map((e, i) => (
+            <li key={i} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                {e.state === "done" ? (
+                  <CheckCircle2 className="size-4 shrink-0 text-success" strokeWidth={2} />
+                ) : e.state === "active" ? (
+                  <span className="relative flex size-4 shrink-0 items-center justify-center">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-primary/40" />
+                    <span className="relative size-2.5 rounded-full bg-primary" />
+                  </span>
+                ) : (
+                  <Circle className="size-4 shrink-0 text-muted-foreground/40" strokeWidth={1.5} />
                 )}
-              >
-                {e.title}
-              </p>
-              {e.meta && (
-                <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground uppercase">
-                  {e.meta}
+                {i < events.length - 1 && (
+                  <span
+                    className={cn(
+                      "mt-1 w-px flex-1",
+                      e.state === "done" ? "bg-success/40" : "bg-border/60",
+                    )}
+                    style={{ minHeight: "1.5rem" }}
+                  />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 pb-2">
+                <p
+                  className={cn(
+                    "text-sm font-medium",
+                    e.state === "pending" && "text-muted-foreground",
+                  )}
+                >
+                  {e.title}
                 </p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
+                {e.meta && (
+                  <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">{e.meta}</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {/* Card footer */}
+      {canCancel && (
+        <div className="border-t border-border bg-muted/30 px-6 py-4">
+          <Button
+            onClick={handleCancel}
+            disabled={cancelling}
+            variant="outline"
+            className="w-full text-destructive hover:bg-destructive/5 hover:text-destructive"
+          >
+            <Trash2 className="size-4" />
+            {cancelling ? "Cancelling…" : "Cancel booking"}
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
@@ -1326,223 +1472,12 @@ function buildTimeline(booking: Booking): TimelineEvent[] {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Actions
- * ───────────────────────────────────────────────────────────── */
-
-function ActionBlock({
-  booking,
-  role,
-  onChanged,
-}: {
-  booking: Booking;
-  role: "family" | "caregiver" | "admin";
-  onChanged: () => void;
-}) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [mode, setMode] = useState<"idle" | "decline" | "cancel">("idle");
-
-  async function run(action: "accept" | "decline" | "cancel") {
-    setBusy(action);
-    try {
-      if (action === "accept") await acceptBooking(booking.id);
-      else if (action === "decline") await declineBooking(booking.id, reason || undefined);
-      else await cancelBooking(booking.id, reason || undefined);
-      setMode("idle");
-      setReason("");
-      onChanged();
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const isCaregiver = role === "caregiver";
-  const isFamily = role === "family";
-  const canRespond = isCaregiver && booking.status === "pending_caregiver" && !booking.is_expired;
-  const canCancel =
-    (isFamily || isCaregiver) &&
-    (booking.status === "pending_caregiver" || booking.status === "confirmed");
-
-  // Snapshot "now" at mount so render stays pure. The 24h cutoff copy doesn't
-  // need per-second accuracy — the backend is the source of truth on cancel.
-  const [nowMs] = useState(() => Date.now());
-  const hoursToStart = useMemo(
-    () => (new Date(booking.scheduled_start).getTime() - nowMs) / 3_600_000,
-    [booking.scheduled_start, nowMs],
-  );
-  const feeRetained = isFamily && hoursToStart < 24;
-
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Actions
-      </div>
-
-      {mode === "idle" && (
-        <div className="mt-5 flex flex-col gap-2">
-          {canRespond && (
-            <>
-              <Button
-                onClick={() => run("accept")}
-                disabled={busy !== null}
-                size="lg"
-                className="w-full"
-              >
-                {busy === "accept" ? "…" : <Check className="size-4" strokeWidth={2.25} />}
-                Accept this offer
-              </Button>
-              <Button
-                onClick={() => setMode("decline")}
-                disabled={busy !== null}
-                variant="outline"
-                size="lg"
-                className="w-full"
-              >
-                <X className="size-4" />
-                Decline
-              </Button>
-            </>
-          )}
-
-          {canCancel && (
-            <Button
-              onClick={() => setMode("cancel")}
-              disabled={busy !== null}
-              variant="outline"
-              size="lg"
-              className="w-full text-destructive hover:text-destructive"
-            >
-              <Trash2 className="size-4" />
-              Cancel booking
-            </Button>
-          )}
-
-          {!canRespond && !canCancel && (
-            <p className="text-sm text-muted-foreground italic">
-              No actions available for this state.
-            </p>
-          )}
-        </div>
-      )}
-
-      {mode === "decline" && (
-        <ReasonForm
-          title="Decline this offer?"
-          description="If you decline, the booking moves on to the next ranked caregiver automatically."
-          ctaLabel="Confirm decline"
-          tone="warning"
-          reason={reason}
-          onReasonChange={setReason}
-          busy={busy === "decline"}
-          onConfirm={() => run("decline")}
-          onCancel={() => {
-            setMode("idle");
-            setReason("");
-          }}
-        />
-      )}
-
-      {mode === "cancel" && (
-        <ReasonForm
-          title="Cancel this booking?"
-          description={
-            feeRetained
-              ? `You're cancelling less than ${Math.max(0, Math.floor(hoursToStart))}h before the visit — the platform fee will be retained.`
-              : "You're outside the 24-hour free-cancel window. No fee is retained."
-          }
-          ctaLabel="Confirm cancellation"
-          tone="destructive"
-          reason={reason}
-          onReasonChange={setReason}
-          busy={busy === "cancel"}
-          onConfirm={() => run("cancel")}
-          onCancel={() => {
-            setMode("idle");
-            setReason("");
-          }}
-        />
-      )}
-
-      {booking.cancellation_reason && mode === "idle" && (
-        <div className="mt-5 rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">
-          <p className="mb-1 font-mono text-[10px] tracking-[0.16em] uppercase">Reason given</p>
-          <p className="italic">&ldquo;{booking.cancellation_reason}&rdquo;</p>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ReasonForm({
-  title,
-  description,
-  ctaLabel,
-  tone,
-  reason,
-  onReasonChange,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  title: string;
-  description: string;
-  ctaLabel: string;
-  tone: "warning" | "destructive";
-  reason: string;
-  onReasonChange: (s: string) => void;
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="mt-5 space-y-4">
-      <div className="flex items-start gap-2">
-        <AlertCircle
-          className={cn(
-            "mt-0.5 size-4 shrink-0",
-            tone === "destructive" ? "text-destructive" : "text-accent",
-          )}
-        />
-        <div>
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-        </div>
-      </div>
-
-      <textarea
-        value={reason}
-        onChange={(e) => onReasonChange(e.target.value)}
-        rows={3}
-        maxLength={255}
-        placeholder="Reason (optional)"
-        className="w-full resize-none rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none ring-primary/30 transition-shadow focus:ring-2"
-      />
-
-      <div className="flex gap-2">
-        <Button
-          onClick={onConfirm}
-          disabled={busy}
-          variant={tone === "destructive" ? "destructive" : "default"}
-          className="flex-1"
-        >
-          {busy ? "…" : ctaLabel}
-        </Button>
-        <Button onClick={onCancel} disabled={busy} variant="outline">
-          Never mind
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
  * States
  * ───────────────────────────────────────────────────────────── */
 
 function LoadingScreen() {
   return (
-    <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
         <span className="h-px w-8 bg-foreground/30" />
         Loading booking

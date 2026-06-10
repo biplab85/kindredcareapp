@@ -5,9 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  BadgeCheck,
   Briefcase,
+  Check,
   CheckCircle2,
   ClipboardCheck,
+  Copy,
   DollarSign,
   Eye,
   EyeOff,
@@ -16,6 +19,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  Pencil,
   Sparkles,
   Star,
   UserCircle,
@@ -36,12 +40,7 @@ import api from "@/lib/api";
 /**
  * /profile is the read-only view of who you are on KindredCare. All
  * mutations live at /profile/edit — keeping the surfaces separate means
- * the view doesn't fight the editor for screen real estate, and the
- * editor doesn't have to render dual modes.
- *
- * Matchability is signaled as a single status pill (MATCHABLE / SETUP
- * NEEDED) rather than a percentage ring. Numbers belong on the editor
- * where they're actionable; on the view they're just noise.
+ * the view doesn't fight the editor for screen real estate.
  */
 export default function ProfilePage() {
   return (
@@ -77,9 +76,7 @@ function ProfileView() {
   const [completion, setCompletion] = useState<ProfileCompletionPayload | null>(null);
 
   // Just fetch the completion payload. The user object is already loaded by
-  // AuthGuard, so we don't need to refetch it here. The earlier version
-  // called fetchUser() in parallel — but fetchUser's catch wipes auth on
-  // any non-2xx response, which logged out users on transient errors.
+  // AuthGuard, so we don't refetch it here.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -89,8 +86,8 @@ function ProfileView() {
           setCompletion(res.data.profile_completion);
         }
       } catch {
-        // Failures here just leave completion null — the status pill
-        // falls back to "SETUP NEEDED" and the cards still render.
+        // Failures leave completion null — the status falls back to "Setup
+        // needed" and the cards still render.
       }
     })();
     return () => {
@@ -109,80 +106,27 @@ function ProfileView() {
   }
 
   const isCaregiver = user.role === "caregiver";
-  const photoUrl = isCaregiver ? resolvePhotoUrl(user.caregiver_profile?.photo_path) : null;
+  const profile = isCaregiver ? (user.caregiver_profile ?? null) : null;
+  const photoUrl = isCaregiver ? resolvePhotoUrl(profile?.photo_path) : null;
   const matchable = isCaregiver ? (completion?.is_matchable ?? false) : true;
 
   return (
     <DashboardShell pageTitle="Profile">
-      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        {/* ─── Editorial header ─── */}
-        <div className="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-          <span className="h-px w-6 bg-foreground/30" />
-          § 01 · Your profile
-        </div>
+      <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+        <ProfileHero
+          user={user}
+          isCaregiver={isCaregiver}
+          profile={profile}
+          photoUrl={photoUrl}
+          matchable={matchable}
+          completion={completion}
+        />
 
-        <header className="mt-3 flex flex-wrap items-start justify-between gap-6">
-          <div className="flex items-center gap-5">
-            {photoUrl ? (
-              <div className="relative size-20 overflow-hidden rounded-2xl bg-muted ring-2 ring-foreground/10 sm:size-24">
-                {/* `unoptimized` bypasses Next's image proxy. Required in
-                    dev because the API serves photos from localhost — Next
-                    16's SSRF guard refuses to fetch from private IPs even
-                    when the host is whitelisted in remotePatterns. The
-                    photos are already small (<5MB upload, 96px display),
-                    so the optimizer's savings aren't worth the complexity
-                    of dev/prod branching. */}
-                <Image
-                  src={photoUrl}
-                  alt={user.name}
-                  fill
-                  className="object-cover"
-                  sizes="96px"
-                  unoptimized
-                />
-              </div>
-            ) : (
-              <div className="grid size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/10 via-card to-card text-xl font-semibold tracking-tight text-foreground ring-2 ring-foreground/10 sm:size-24 sm:text-2xl">
-                {initials(user.name)}
-              </div>
-            )}
-
-            <div className="min-w-0">
-              <h1 className="text-3xl leading-[1.05] font-semibold tracking-tight sm:text-4xl">
-                <span className="text-foreground">{firstName(user.name)} </span>
-                <span className="italic text-primary">{lastName(user.name) || "Profile"}</span>
-              </h1>
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-                  {isCaregiver ? "Caregiver" : "Family · Host"}
-                </span>
-                <span className="h-3 w-px bg-border" aria-hidden />
-                {isCaregiver ? (
-                  <StatusPill matchable={matchable} />
-                ) : (
-                  <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-                    Booking on KindredCare
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <Link href="/profile/edit" className="shrink-0">
-            <Button className="h-11 gap-2 px-5">
-              <Sparkles className="size-4" strokeWidth={2.25} />
-              Edit profile
-              <ArrowRight className="size-4" strokeWidth={2.25} />
-            </Button>
-          </Link>
-        </header>
-
-        <div className="mt-10 grid gap-5 sm:gap-6">
-          <ContactCard user={user} />
+        <div className="mt-6">
           {isCaregiver ? (
-            <CaregiverSections profile={user.caregiver_profile ?? null} />
+            <CaregiverLayout user={user} profile={profile} />
           ) : (
-            <FamilySections profile={user.family_profile ?? null} />
+            <FamilyLayout user={user} profile={user.family_profile ?? null} />
           )}
         </div>
       </div>
@@ -191,20 +135,200 @@ function ProfileView() {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Status pill (replaces ProfileCompletionRing)
+ * Hero
  * ───────────────────────────────────────────────────────────── */
+
+function ProfileHero({
+  user,
+  isCaregiver,
+  profile,
+  photoUrl,
+  matchable,
+  completion,
+}: {
+  user: { name: string };
+  isCaregiver: boolean;
+  profile: CaregiverProfileSummary | null;
+  photoUrl: string | null;
+  matchable: boolean;
+  completion: ProfileCompletionPayload | null;
+}) {
+  const rate =
+    profile?.hourly_rate != null && profile.hourly_rate !== ""
+      ? `$${Number(profile.hourly_rate).toFixed(0)}`
+      : "—";
+  const years = profile?.years_of_experience != null ? `${profile.years_of_experience}` : "—";
+  const languageCount = normalizeStringArray(profile?.languages).length;
+  const serviceCount = (profile?.services ?? []).length;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      {/* Cover band */}
+      <div className="relative h-24 bg-gradient-to-r from-primary/20 via-primary/8 to-accent/15 sm:h-28">
+        <div className="absolute inset-0 bg-[radial-gradient(120%_140%_at_80%_0%,oklch(1_0_0/0.35),transparent_55%)]" />
+      </div>
+
+      <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex items-end gap-4">
+            {/* Avatar overlapping the cover */}
+            <div className="relative -mt-12 shrink-0 sm:-mt-14">
+              {photoUrl ? (
+                <div className="relative size-24 overflow-hidden rounded-2xl bg-muted shadow-md ring-4 ring-card">
+                  <Image
+                    src={photoUrl}
+                    alt={user.name}
+                    fill
+                    className="object-cover"
+                    sizes="96px"
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <div className="grid size-24 place-items-center rounded-2xl bg-gradient-to-br from-primary/15 to-card text-2xl font-semibold tracking-tight text-foreground shadow-md ring-4 ring-card">
+                  {initials(user.name)}
+                </div>
+              )}
+              {isCaregiver && matchable && (
+                <span
+                  title="Matchable"
+                  className="absolute -right-1.5 -bottom-1.5 grid size-7 place-items-center rounded-full bg-success text-success-foreground ring-2 ring-card"
+                >
+                  <BadgeCheck className="size-4" strokeWidth={2.25} />
+                </span>
+              )}
+            </div>
+
+            <div className="min-w-0 pb-1">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                {user.name}
+              </h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-border">
+                  {isCaregiver ? "Caregiver" : "Family · Host"}
+                </span>
+                {isCaregiver ? (
+                  <StatusPill matchable={matchable} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Booking on KindredCare</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Link href="/profile/edit" className="shrink-0">
+            <Button className="gap-2">
+              <Pencil className="size-4" strokeWidth={2.25} />
+              Edit profile
+              <ArrowRight className="size-4" strokeWidth={2.25} />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Profile strength */}
+        {isCaregiver && completion && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-muted-foreground">Profile strength</span>
+              <span className="font-semibold text-foreground tabular-nums">
+                {completion.percentage}%
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-[width] duration-700 ease-out"
+                style={{ width: `${Math.min(100, Math.max(0, completion.percentage))}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Stat tiles */}
+        {isCaregiver && profile && (
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatTile
+              icon={DollarSign}
+              label="Hourly rate"
+              value={rate}
+              suffix={rate !== "—" ? "/hr" : ""}
+              tone="emerald"
+            />
+            <StatTile
+              icon={Briefcase}
+              label="Experience"
+              value={years}
+              suffix={years !== "—" ? "yrs" : ""}
+              tone="sky"
+            />
+            <StatTile icon={Globe} label="Languages" value={String(languageCount)} tone="violet" />
+            <StatTile icon={Heart} label="Services" value={String(serviceCount)} tone="amber" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const STAT_TONES: Record<"emerald" | "sky" | "violet" | "amber", { wrap: string; icon: string }> = {
+  emerald: {
+    wrap: "from-emerald-50 ring-emerald-200/70",
+    icon: "bg-emerald-500/15 text-emerald-600",
+  },
+  sky: { wrap: "from-sky-50 ring-sky-200/70", icon: "bg-sky-500/15 text-sky-600" },
+  violet: { wrap: "from-violet-50 ring-violet-200/70", icon: "bg-violet-500/15 text-violet-600" },
+  amber: { wrap: "from-amber-50 ring-amber-200/70", icon: "bg-amber-500/15 text-amber-600" },
+};
+
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  suffix,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  value: string;
+  suffix?: string;
+  tone: keyof typeof STAT_TONES;
+}) {
+  const t = STAT_TONES[tone];
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-transparent bg-gradient-to-br to-card p-3 ring-1 transition-shadow hover:shadow-sm",
+        t.wrap,
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className={cn("grid size-7 shrink-0 place-items-center rounded-lg", t.icon)}>
+          <Icon className="size-3.5" strokeWidth={2.25} />
+        </span>
+        <span className="truncate text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+          {label}
+        </span>
+      </div>
+      <p className="mt-2 text-lg font-bold tracking-tight text-foreground tabular-nums">
+        {value}
+        {suffix ? (
+          <span className="ml-0.5 text-xs font-medium text-muted-foreground">{suffix}</span>
+        ) : null}
+      </p>
+    </div>
+  );
+}
 
 function StatusPill({ matchable }: { matchable: boolean }) {
   if (matchable) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.18em] text-success uppercase ring-1 ring-success/30">
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success ring-1 ring-success/30">
         <CheckCircle2 className="size-3" strokeWidth={2.5} />
         Matchable
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.18em] text-muted-foreground uppercase ring-1 ring-foreground/15">
+    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground ring-1 ring-border">
       Setup needed
     </span>
   );
@@ -214,40 +338,26 @@ function StatusPill({ matchable }: { matchable: boolean }) {
  * Shared chrome
  * ───────────────────────────────────────────────────────────── */
 
-function Eyebrow({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-      <span className="h-px w-6 bg-foreground/30" />
-      {label}
-    </div>
-  );
-}
-
 function Card({
-  eyebrow,
   title,
   icon: Icon,
   children,
 }: {
-  eyebrow: string;
   title: string;
   icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] ring-1 ring-foreground/[0.02] sm:p-6">
-      <div className="flex items-center gap-3">
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
         {Icon ? (
-          <div className="grid size-9 place-items-center rounded-xl bg-muted/60 text-foreground/80">
-            <Icon className="size-4" strokeWidth={1.75} />
+          <div className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="size-4" strokeWidth={2} />
           </div>
         ) : null}
-        <div>
-          <Eyebrow label={eyebrow} />
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">{title}</h2>
-        </div>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="px-5 py-5">{children}</div>
     </section>
   );
 }
@@ -255,55 +365,109 @@ function Card({
 function Row({
   label,
   value,
-  mono,
   verified,
+  copyable,
 }: {
   label: string;
   value: React.ReactNode;
-  mono?: boolean;
   verified?: boolean;
+  copyable?: string;
 }) {
   const isEmpty = value === null || value === undefined || value === "";
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-dashed border-border/60 py-3 last:border-b-0">
-      <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-        {label}
-      </span>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 py-3 first:pt-0 last:border-0 last:pb-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
       <div className="flex items-center gap-2">
         {isEmpty ? (
-          <span className="text-sm text-muted-foreground/70 italic">not set yet</span>
+          <span className="text-sm text-muted-foreground/60">Not set yet</span>
         ) : (
-          <span
-            className={cn("text-sm text-foreground", mono && "font-mono text-[13px] tracking-wide")}
-          >
-            {value}
-          </span>
+          <span className="text-sm font-medium text-foreground">{value}</span>
         )}
-        {verified && !isEmpty ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-success uppercase ring-1 ring-success/30">
-            <CheckCircle2 className="size-3" strokeWidth={2.5} />
-            Verified
-          </span>
-        ) : null}
+        {verified && !isEmpty ? <VerifiedBadge /> : null}
+        {copyable && !isEmpty ? <CopyButton value={copyable} /> : null}
       </div>
     </div>
   );
 }
 
-function Empty({ message }: { message: string }) {
-  return <p className="text-sm text-muted-foreground/80 italic">{message}</p>;
+function VerifiedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success ring-1 ring-success/30">
+      <CheckCircle2 className="size-3" strokeWidth={2.5} />
+      Verified
+    </span>
+  );
 }
 
-function ChipRow({ items }: { items: string[] }) {
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    try {
+      navigator.clipboard?.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable — quietly no-op.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? "Copied" : "Copy"}
+      className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      {copied ? (
+        <Check className="size-3.5 text-success" strokeWidth={2.5} />
+      ) : (
+        <Copy className="size-3.5" strokeWidth={2} />
+      )}
+    </button>
+  );
+}
+
+function Empty({
+  message,
+  icon: Icon,
+}: {
+  message: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+      <span className="grid size-11 place-items-center rounded-full bg-gradient-to-br from-muted to-card text-muted-foreground/70 ring-1 ring-border">
+        <Icon className="size-5" strokeWidth={1.75} />
+      </span>
+      <p className="text-sm text-muted-foreground">{message}</p>
+      <Link
+        href="/profile/edit"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-primary/80"
+      >
+        Add from Edit profile
+        <ArrowRight className="size-3.5" strokeWidth={2.5} />
+      </Link>
+    </div>
+  );
+}
+
+function ChipRow({
+  items,
+  emptyIcon,
+}: {
+  items: string[];
+  emptyIcon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}) {
   if (items.length === 0) {
-    return <Empty message="Nothing added yet." />;
+    return <Empty message="Nothing added yet." icon={emptyIcon} />;
   }
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
         <span
           key={item}
-          className="inline-flex items-center rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-medium text-foreground"
+          className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/[0.04]"
         >
           {item}
         </span>
@@ -328,86 +492,122 @@ function ContactCard({
   };
 }) {
   return (
-    <Card eyebrow="§ 02 · Contact" title="How we reach you" icon={Mail}>
+    <Card title="Contact" icon={Mail}>
       <Row label="Name" value={user.name} />
-      <Row label="Email" value={user.email} mono verified={user.email_verified_at !== null} />
-      <Row label="Phone" value={user.phone} mono verified={user.phone_verified_at !== null} />
+      <Row
+        label="Email"
+        value={user.email}
+        verified={user.email_verified_at !== null}
+        copyable={user.email}
+      />
+      <Row
+        label="Phone"
+        value={user.phone}
+        verified={user.phone_verified_at !== null}
+        copyable={user.phone ?? undefined}
+      />
     </Card>
   );
 }
 
-function CaregiverSections({ profile }: { profile: CaregiverProfileSummary | null }) {
+function GetStartedCard({ role }: { role: "caregiver" | "family" }) {
+  return (
+    <Card title="Get started" icon={Sparkles}>
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {role === "caregiver"
+          ? "You haven’t started your caregiver profile yet. Head to the editor to introduce yourself to families."
+          : "You haven’t started your family profile yet. Head to the editor to tell us who you’re booking care for."}
+      </p>
+      <Link href="/profile/edit" className="mt-4 inline-block">
+        <Button>
+          Start editing
+          <ArrowRight className="size-4" strokeWidth={2.25} />
+        </Button>
+      </Link>
+    </Card>
+  );
+}
+
+function CaregiverLayout({
+  user,
+  profile,
+}: {
+  user: {
+    name: string;
+    email: string;
+    phone: string | null;
+    email_verified_at: string | null;
+    phone_verified_at: string | null;
+  };
+  profile: CaregiverProfileSummary | null;
+}) {
   if (!profile) {
-    return (
-      <Card eyebrow="§ 03 · Profile setup" title="Get started" icon={Sparkles}>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          You haven&rsquo;t started your caregiver profile yet. Head to the editor to introduce
-          yourself to families.
-        </p>
-        <Link href="/profile/edit" className="mt-4 inline-block">
-          <Button>
-            Start editing
-            <ArrowRight className="size-4" strokeWidth={2.25} />
-          </Button>
-        </Link>
-      </Card>
-    );
+    return <GetStartedCard role="caregiver" />;
   }
 
   return (
-    <>
-      <Card eyebrow="§ 03 · Location" title="Where you work" icon={MapPin}>
-        <Row label="Address" value={profile.address ?? null} />
-        <Row label="Postal code" value={profile.postal_code ?? null} mono />
-        <Row
-          label="Travel radius"
-          value={profile.travel_radius_km ? `${profile.travel_radius_km} km` : null}
-          mono
-        />
-      </Card>
+    <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
+      {/* Main column */}
+      <div className="space-y-5 lg:col-span-2">
+        <ContactCard user={user} />
 
-      <Card eyebrow="§ 04 · About you" title="Bio & experience" icon={UserCircle}>
-        <div className="space-y-4">
-          <div>
-            <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Bio
-            </span>
-            <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-              {profile.bio ?? (
-                <span className="text-muted-foreground/70 italic">
-                  No bio yet — families love seeing your voice come through here.
-                </span>
-              )}
-            </p>
+        <Card title="Location" icon={MapPin}>
+          <Row label="Address" value={profile.address ?? null} />
+          <Row label="Postal code" value={profile.postal_code ?? null} />
+          <Row
+            label="Travel radius"
+            value={profile.travel_radius_km ? `${profile.travel_radius_km} km` : null}
+          />
+        </Card>
+
+        <Card title="Bio & experience" icon={UserCircle}>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Bio
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                {profile.bio ?? (
+                  <span className="text-muted-foreground/70">
+                    No bio yet — families love seeing your voice come through here.
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="border-t border-border/60 pt-3">
+              <Row label="Years of experience" value={profile.years_of_experience ?? null} />
+            </div>
           </div>
-          <Row label="Years of experience" value={profile.years_of_experience ?? null} mono />
-        </div>
-      </Card>
+        </Card>
 
-      <Card eyebrow="§ 05 · Rate" title="What you charge" icon={DollarSign}>
-        <RateBlock hourlyRate={profile.hourly_rate ?? null} />
-      </Card>
+        <Card title="Rate" icon={DollarSign}>
+          <RateBlock hourlyRate={profile.hourly_rate ?? null} />
+        </Card>
 
-      <Card eyebrow="§ 06 · Languages" title="Conversation" icon={Globe}>
-        <ChipRow items={normalizeStringArray(profile.languages)} />
-      </Card>
+        <Card title="Certifications" icon={ClipboardCheck}>
+          <CertificationsList certifications={profile.certifications ?? []} />
+        </Card>
 
-      <Card eyebrow="§ 07 · Services" title="What you offer" icon={Briefcase}>
-        <ChipRow items={(profile.services ?? []).map((s) => s.name)} />
-      </Card>
+        <Card title="References" icon={Star}>
+          <ReferencesList references={profile.references ?? []} />
+        </Card>
+      </div>
 
-      <Card eyebrow="§ 08 · Personality" title="Vibes" icon={Heart}>
-        <ChipRow items={normalizeStringArray(profile.personality_tags)} />
-      </Card>
+      {/* Sidebar */}
+      <aside className="space-y-5 lg:sticky lg:top-24">
+        <Card title="Languages" icon={Globe}>
+          <ChipRow items={normalizeStringArray(profile.languages)} emptyIcon={Globe} />
+        </Card>
 
-      <Card eyebrow="§ 09 · Certifications" title="Training on file" icon={ClipboardCheck}>
-        <CertificationsList certifications={profile.certifications ?? []} />
-      </Card>
+        <Card title="Services" icon={Briefcase}>
+          <ChipRow items={(profile.services ?? []).map((s) => s.name)} emptyIcon={Briefcase} />
+        </Card>
 
-      <Card eyebrow="§ 10 · References" title="Vouches" icon={Star}>
-        <ReferencesList references={profile.references ?? []} />
-      </Card>
-    </>
+        <Card title="Personality" icon={Heart}>
+          <ChipRow items={normalizeStringArray(profile.personality_tags)} emptyIcon={Heart} />
+        </Card>
+      </aside>
+    </div>
   );
 }
 
@@ -419,32 +619,50 @@ function RateBlock({ hourlyRate }: { hourlyRate: string | number | null }) {
   })();
 
   if (rateNumber === null) {
-    return <Empty message="Hourly rate not set yet." />;
+    return <Empty message="Hourly rate not set yet." icon={DollarSign} />;
   }
 
   const familyPays = rateNumber * 1.075;
 
   return (
-    <div className="flex flex-wrap items-end gap-6">
-      <div>
-        <div className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+    <div className="grid gap-4 sm:grid-cols-2">
+      {/* Featured rate */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/12 to-primary/[0.02] p-5 ring-1 ring-primary/15">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-8 -right-8 size-24 rounded-full bg-primary/15 blur-2xl"
+        />
+        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-primary uppercase">
+          <DollarSign className="size-3.5" strokeWidth={2.5} />
           Your hourly rate
         </div>
-        <div className="mt-1 font-semibold text-foreground">
-          <span className="text-4xl tracking-tight italic">${rateNumber.toFixed(2)}</span>
-          <span className="ml-1 text-base font-normal text-muted-foreground">/ hour</span>
-        </div>
+        <p className="mt-2 font-bold tracking-tight text-foreground">
+          <span className="text-4xl tabular-nums">${rateNumber.toFixed(2)}</span>
+          <span className="ml-1 text-sm font-normal text-muted-foreground">/ hour</span>
+        </p>
       </div>
-      <div className="space-y-1 border-l border-dashed border-border/60 pl-6">
-        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-          You keep <span className="text-foreground/90">${rateNumber.toFixed(2)}</span>
-        </p>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-          Family pays <span className="text-foreground/90">${familyPays.toFixed(2)}</span>
-        </p>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground/70 uppercase">
-          7.5% fee added on top
-        </p>
+
+      {/* Breakdown */}
+      <div className="rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex items-center justify-between gap-4 border-b border-border/60 py-2 first:pt-0">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className="size-3.5 text-success" strokeWidth={2.5} />
+            You keep
+          </span>
+          <span className="text-sm font-bold text-success tabular-nums">
+            ${rateNumber.toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 border-b border-border/60 py-2">
+          <span className="text-sm text-muted-foreground">Family pays</span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            ${familyPays.toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 pt-2">
+          <span className="text-sm text-muted-foreground">Platform fee</span>
+          <span className="text-sm font-medium text-muted-foreground tabular-nums">+7.5%</span>
+        </div>
       </div>
     </div>
   );
@@ -456,14 +674,14 @@ function CertificationsList({
   certifications: NonNullable<CaregiverProfileSummary["certifications"]>;
 }) {
   if (certifications.length === 0) {
-    return <Empty message="No certifications added yet." />;
+    return <Empty message="No certifications added yet." icon={ClipboardCheck} />;
   }
 
-  // Verified first, then pending, then rejected/self-reported. Reading
-  // top-down should match the order of trust signals families see on the
-  // public card — and surfacing pending here is helpful for the caregiver
-  // so they know what's in flight.
-  const rank: Record<NonNullable<CaregiverProfileSummary["certifications"]>[number]["status"], number> = {
+  // Verified first, then pending, then rejected/self-reported.
+  const rank: Record<
+    NonNullable<CaregiverProfileSummary["certifications"]>[number]["status"],
+    number
+  > = {
     verified: 0,
     pending_review: 1,
     rejected: 2,
@@ -473,23 +691,21 @@ function CertificationsList({
   const sorted = [...certifications].sort((a, b) => rank[a.status] - rank[b.status]);
 
   return (
-    <div className="divide-y divide-dashed divide-border/60">
+    <div className="space-y-2">
       {sorted.map((c) => (
         <div
           key={c.id}
-          className="flex flex-wrap items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 transition-colors hover:bg-muted/40"
         >
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">
+            <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
               {c.name}
               <CertStatusPill status={c.status} />
             </p>
-            {c.issuer ? <p className="text-xs text-muted-foreground">{c.issuer}</p> : null}
+            {c.issuer ? <p className="mt-0.5 text-xs text-muted-foreground">{c.issuer}</p> : null}
           </div>
           {c.year ? (
-            <span className="font-mono text-[11px] tracking-wide text-muted-foreground">
-              {c.year}
-            </span>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">{c.year}</span>
           ) : null}
         </div>
       ))}
@@ -505,7 +721,7 @@ function ReferencesList({
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
 
   if (references.length === 0) {
-    return <Empty message="No references on file yet." />;
+    return <Empty message="No references on file yet." icon={Star} />;
   }
 
   return (
@@ -515,49 +731,49 @@ function ReferencesList({
         return (
           <div
             key={`${r.name}-${i}`}
-            className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4"
+            className="rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/40"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-foreground">{r.name}</p>
                 {r.relationship ? (
-                  <p className="text-xs text-muted-foreground italic">{r.relationship}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{r.relationship}</p>
                 ) : null}
               </div>
               <button
                 type="button"
                 onClick={() => setRevealed((prev) => ({ ...prev, [i]: !isOpen }))}
-                className="inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase transition-colors hover:text-foreground"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 {isOpen ? (
                   <>
-                    <EyeOff className="size-3" strokeWidth={2.5} />
+                    <EyeOff className="size-3.5" strokeWidth={2.25} />
                     Hide
                   </>
                 ) : (
                   <>
-                    <Eye className="size-3" strokeWidth={2.5} />
+                    <Eye className="size-3.5" strokeWidth={2.25} />
                     Show contact
                   </>
                 )}
               </button>
             </div>
             {isOpen ? (
-              <div className="mt-3 space-y-1.5 font-mono text-xs text-foreground/90">
+              <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3 text-xs text-foreground/90">
                 {r.email ? (
-                  <p>
-                    <span className="text-muted-foreground">email · </span>
+                  <p className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Email</span>
                     {r.email}
                   </p>
                 ) : null}
                 {r.phone ? (
-                  <p>
-                    <span className="text-muted-foreground">phone · </span>
+                  <p className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Phone</span>
                     {r.phone}
                   </p>
                 ) : null}
                 {!r.email && !r.phone ? (
-                  <p className="text-muted-foreground italic">No contact info on file.</p>
+                  <p className="text-muted-foreground">No contact info on file.</p>
                 ) : null}
               </div>
             ) : null}
@@ -568,53 +784,52 @@ function ReferencesList({
   );
 }
 
-function FamilySections({ profile }: { profile: FamilyProfileSummary | null }) {
-  if (!profile) {
-    return (
-      <Card eyebrow="§ 03 · Profile setup" title="Get started" icon={Sparkles}>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          You haven&rsquo;t started your family profile yet. Head to the editor to tell us who
-          you&rsquo;re booking care for.
-        </p>
-        <Link href="/profile/edit" className="mt-4 inline-block">
-          <Button>
-            Start editing
-            <ArrowRight className="size-4" strokeWidth={2.25} />
-          </Button>
-        </Link>
-      </Card>
-    );
-  }
-
+function FamilyLayout({
+  user,
+  profile,
+}: {
+  user: {
+    name: string;
+    email: string;
+    phone: string | null;
+    email_verified_at: string | null;
+    phone_verified_at: string | null;
+  };
+  profile: FamilyProfileSummary | null;
+}) {
   return (
-    <Card eyebrow="§ 03 · Care recipients" title="Who you book for" icon={Users}>
-      <RecipientsList recipients={profile.care_recipients ?? []} />
-    </Card>
+    <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
+      <div className="space-y-5 lg:col-span-2">
+        <ContactCard user={user} />
+        <Card title="Care recipients" icon={Users}>
+          <RecipientsList recipients={profile?.care_recipients ?? []} />
+        </Card>
+      </div>
+      <aside className="space-y-5">{!profile ? <GetStartedCard role="family" /> : null}</aside>
+    </div>
   );
 }
 
 function RecipientsList({ recipients }: { recipients: CareRecipientSummary[] }) {
   if (recipients.length === 0) {
-    return <Empty message="No care recipients added yet." />;
+    return <Empty message="No care recipients added yet." icon={Users} />;
   }
   return (
     <div className="space-y-3">
       {recipients.map((r) => (
         <div
           key={r.id}
-          className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4"
+          className="rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/40"
         >
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">{r.name}</p>
-            <p className="mt-1 font-mono text-[11px] tracking-wide text-muted-foreground">
-              {[r.age ? `${r.age} yrs` : null, r.language || null, r.postal_code || null]
-                .filter(Boolean)
-                .join(" · ") || "Details not set yet"}
-            </p>
-            {r.street_address ? (
-              <p className="mt-2 text-xs text-muted-foreground italic">{r.street_address}</p>
-            ) : null}
-          </div>
+          <p className="text-sm font-semibold text-foreground">{r.name}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {[r.age ? `${r.age} yrs` : null, r.language || null, r.postal_code || null]
+              .filter(Boolean)
+              .join(" · ") || "Details not set yet"}
+          </p>
+          {r.street_address ? (
+            <p className="mt-2 text-xs text-muted-foreground">{r.street_address}</p>
+          ) : null}
         </div>
       ))}
     </div>
@@ -624,14 +839,6 @@ function RecipientsList({ recipients }: { recipients: CareRecipientSummary[] }) 
 /* ─────────────────────────────────────────────────────────────
  * Helpers
  * ───────────────────────────────────────────────────────────── */
-
-function firstName(name: string): string {
-  return (name.split(/\s+/)[0] ?? "").trim();
-}
-
-function lastName(name: string): string {
-  return name.split(/\s+/).slice(1).join(" ").trim();
-}
 
 function initials(name: string): string {
   return name
@@ -659,31 +866,16 @@ function CertStatusPill({
   status: NonNullable<CaregiverProfileSummary["certifications"]>[number]["status"];
 }) {
   const map: Record<typeof status, { label: string; cls: string }> = {
-    verified: {
-      label: "Verified",
-      cls: "bg-success/10 text-success ring-success/30",
-    },
-    pending_review: {
-      label: "Pending",
-      cls: "bg-primary/10 text-primary ring-primary/30",
-    },
-    rejected: {
-      label: "Rejected",
-      cls: "bg-destructive/10 text-destructive ring-destructive/30",
-    },
-    self_reported: {
-      label: "Self-reported",
-      cls: "bg-muted text-muted-foreground ring-foreground/15",
-    },
-    expired: {
-      label: "Expired",
-      cls: "bg-accent/10 text-accent ring-accent/30",
-    },
+    verified: { label: "Verified", cls: "bg-success/10 text-success ring-success/30" },
+    pending_review: { label: "Pending", cls: "bg-primary/10 text-primary ring-primary/30" },
+    rejected: { label: "Rejected", cls: "bg-destructive/10 text-destructive ring-destructive/30" },
+    self_reported: { label: "Self-reported", cls: "bg-muted text-muted-foreground ring-border" },
+    expired: { label: "Expired", cls: "bg-accent/10 text-accent ring-accent/30" },
   };
   const { label, cls } = map[status];
   return (
     <span
-      className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.14em] uppercase ring-1 ${cls}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${cls}`}
     >
       {label}
     </span>

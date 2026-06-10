@@ -52,7 +52,12 @@ export async function createCertification(input: NewCertificationInput): Promise
   if (input.issuer) fd.append("issuer", input.issuer);
   if (input.year !== null && input.year !== undefined) fd.append("year", String(input.year));
   if (input.document) fd.append("document", input.document);
-  const res = await api.post<SingleResponse>("/api/me/certifications", fd);
+  // Explicit multipart Content-Type so axios doesn't inherit the
+  // instance-level application/json default — Laravel reads $_POST/$_FILES
+  // from the multipart parser, and the JSON Content-Type leaves both empty.
+  const res = await api.post<SingleResponse>("/api/me/certifications", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return res.data.data;
 }
 
@@ -70,7 +75,10 @@ export async function uploadCertificationDocument(
 ): Promise<Certification> {
   const fd = new FormData();
   fd.append("document", document);
-  const res = await api.post<SingleResponse>(`/api/me/certifications/${id}/document`, fd);
+  // Same Content-Type override as createCertification — see note above.
+  const res = await api.post<SingleResponse>(`/api/me/certifications/${id}/document`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return res.data.data;
 }
 

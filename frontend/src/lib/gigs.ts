@@ -50,6 +50,8 @@ export interface Gig {
   caregiver?: GigCaregiverSummary;
   created_at: string;
   updated_at: string;
+  /** Present only when the request specified ?recipient_id=. 0–100. */
+  match_score?: number | null;
 }
 
 export interface CreateGigPayload {
@@ -117,6 +119,34 @@ export async function listGigs(category?: string): Promise<Gig[]> {
   const res = await api.get<GigListResponse>("/api/gigs", {
     params: category ? { category } : undefined,
   });
+  return res.data.data;
+}
+
+/**
+ * All published gigs from a single caregiver, by user_id (matches the
+ * /caregivers/{id} route param). Powers the "Services offered" section
+ * on the public caregiver profile.
+ */
+export async function listGigsByCaregiver(caregiverUserId: number | string): Promise<Gig[]> {
+  const res = await api.get<GigListResponse>("/api/gigs", {
+    params: { caregiver_id: caregiverUserId },
+  });
+  return res.data.data;
+}
+
+/**
+ * Published gigs ranked for one of the authed family's recipients via
+ * MatchingEngine::gigsForRecipient. Each row in the response carries a
+ * `match_score` 0–100 that the marketplace card surfaces as a badge.
+ * Server sorts by score descending — caller shouldn't re-sort.
+ */
+export async function listGigsForRecipient(
+  recipientId: number,
+  rateMax?: number,
+): Promise<Gig[]> {
+  const params: Record<string, number> = { recipient_id: recipientId };
+  if (rateMax !== undefined) params.rate_max = rateMax;
+  const res = await api.get<GigListResponse>("/api/gigs", { params });
   return res.data.data;
 }
 
