@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 
 /**
  * @property int $id
@@ -375,5 +376,21 @@ class Booking extends Model
     public function scopePending(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PENDING_CAREGIVER);
+    }
+
+    /**
+     * Signed magic-link URL the caregiver lands on from a shift-reminder
+     * email. Valid for 2h past scheduled_end so the same link sent at
+     * T-24h still works through the visit. The VisitAuthController layers
+     * a tighter runtime window on top — see that class for the actual
+     * access guard.
+     */
+    public function visitMagicLinkUrl(): string
+    {
+        return URL::temporarySignedRoute(
+            'visit.auth',
+            $this->scheduled_end->copy()->addHours(2),
+            ['booking' => $this->id],
+        );
     }
 }
