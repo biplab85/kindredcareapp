@@ -34,11 +34,32 @@ interface Recipient {
   id: number;
   name: string;
   street_address: string | null;
+  city: string | null;
+  province: string | null;
+  postal_code: string | null;
   age: number | null;
   language: string | null;
   interests: string[] | null;
   accessibility_notes: string | null;
 }
+
+const PROVINCES: { value: string; label: string }[] = [
+  { value: "ON", label: "Ontario" },
+  { value: "QC", label: "Quebec" },
+  { value: "BC", label: "British Columbia" },
+  { value: "AB", label: "Alberta" },
+  { value: "MB", label: "Manitoba" },
+  { value: "SK", label: "Saskatchewan" },
+  { value: "NS", label: "Nova Scotia" },
+  { value: "NB", label: "New Brunswick" },
+  { value: "NL", label: "Newfoundland & Labrador" },
+  { value: "PE", label: "Prince Edward Island" },
+  { value: "YT", label: "Yukon" },
+  { value: "NT", label: "Northwest Territories" },
+  { value: "NU", label: "Nunavut" },
+];
+
+const CANADIAN_POSTAL_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
 
 const LANGUAGES = [
   "English",
@@ -79,6 +100,9 @@ function CareRecipientsContent() {
 
   const [name, setName] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("ON");
+  const [postalCode, setPostalCode] = useState("");
   const [age, setAge] = useState("");
   const [language, setLanguage] = useState("English");
   const [interests, setInterests] = useState<string[]>([]);
@@ -106,6 +130,9 @@ function CareRecipientsContent() {
   const resetForm = () => {
     setName("");
     setStreetAddress("");
+    setCity("");
+    setProvince("ON");
+    setPostalCode("");
     setAge("");
     setLanguage("English");
     setInterests([]);
@@ -118,6 +145,9 @@ function CareRecipientsContent() {
   const startEdit = (r: Recipient) => {
     setName(r.name);
     setStreetAddress(r.street_address || "");
+    setCity(r.city || "");
+    setProvince(r.province || "ON");
+    setPostalCode(r.postal_code || "");
     setAge(r.age?.toString() || "");
     setLanguage(r.language || "English");
     setInterests(r.interests || []);
@@ -140,11 +170,26 @@ function CareRecipientsContent() {
       return;
     }
 
+    const trimmedPostal = postalCode.trim().toUpperCase();
+    if (trimmedPostal && !CANADIAN_POSTAL_REGEX.test(trimmedPostal)) {
+      toast.error("Postal code must be a valid Canadian format (e.g. L1H 7K4).");
+      return;
+    }
+
     setIsSaving(true);
     try {
+      const trimmedStreet = streetAddress.trim();
+      const trimmedCity = city.trim();
+      // Province only travels with a real address — sending "ON" alongside an
+      // otherwise-blank address would pollute the record with a default that
+      // means nothing to the matcher.
+      const hasAnyAddress = !!(trimmedStreet || trimmedCity || trimmedPostal);
       const data = {
         name,
-        street_address: streetAddress.trim() || null,
+        street_address: trimmedStreet || null,
+        city: trimmedCity || null,
+        province: hasAnyAddress ? province : null,
+        postal_code: trimmedPostal || null,
         age: age ? parseInt(age) : null,
         language,
         interests,
@@ -239,19 +284,71 @@ function CareRecipientsContent() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="rstreet">Street Address (optional)</Label>
-              <Input
-                id="rstreet"
-                className="h-12"
-                value={streetAddress}
-                onChange={(e) => setStreetAddress(e.target.value)}
-                placeholder="123 Main Street"
-              />
-              <p className="text-xs text-muted-foreground">
-                Where visits happen. The booking form pre-fills from this; you can override per
-                visit.
-              </p>
+            <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4 sm:p-5">
+              <div className="flex items-center gap-2">
+                <MapPin className="size-3.5 text-primary" />
+                <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+                  Address
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="rstreet">Street (optional)</Label>
+                <Input
+                  id="rstreet"
+                  className="h-12"
+                  value={streetAddress}
+                  onChange={(e) => setStreetAddress(e.target.value)}
+                  placeholder="123 Main Street"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+                <div className="space-y-1.5">
+                  <Label htmlFor="rcity">City (optional)</Label>
+                  <Input
+                    id="rcity"
+                    className="h-12"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Oshawa"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rprov">Province</Label>
+                  <select
+                    id="rprov"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    className="h-12 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+                  >
+                    {PROVINCES.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
+                <div className="space-y-1.5">
+                  <Label htmlFor="rpostal">Postal code (optional)</Label>
+                  <Input
+                    id="rpostal"
+                    className="h-12 font-mono uppercase tracking-wider"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                    placeholder="L1H 7K4"
+                    maxLength={7}
+                    autoComplete="postal-code"
+                  />
+                </div>
+                <p className="self-end pb-2 text-xs leading-relaxed text-muted-foreground">
+                  Where visits happen. The booking form pre-fills from this; you can override per
+                  visit. Postal code sharpens caregiver-distance matching.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -355,9 +452,29 @@ function CareRecipientsContent() {
                   </div>
 
                   <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-                    {r.street_address && (
+                    {(r.street_address || r.city || r.postal_code) && (
                       <div className="flex items-start gap-1.5">
-                        <MapPin className="mt-0.5 size-3.5 shrink-0" /> {r.street_address}
+                        <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                        <span>
+                          {r.street_address && <span>{r.street_address}</span>}
+                          {r.street_address && (r.city || r.postal_code) && (
+                            <span className="text-muted-foreground/60"> · </span>
+                          )}
+                          {r.city && (
+                            <span>
+                              {r.city}
+                              {r.province && `, ${r.province}`}
+                            </span>
+                          )}
+                          {r.city && r.postal_code && (
+                            <span className="text-muted-foreground/60"> · </span>
+                          )}
+                          {r.postal_code && (
+                            <span className="font-mono text-xs tracking-wider">
+                              {r.postal_code}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     )}
                     {r.language && (
