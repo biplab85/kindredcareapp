@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * Magic-link auto-login for caregivers landing from a shift-reminder email.
@@ -16,10 +15,12 @@ use Illuminate\Support\Facades\Auth;
  * 2h before scheduled_start through 1h after scheduled_end — so a leaked
  * link from an old reminder can't be replayed after the visit closes.
  *
- * The link bootstraps a normal Sanctum session as the booking's caregiver,
- * then redirects to the SPA. From there every check-in/check-out event is
- * recorded against the caregiver's user id, preserving the audit trail
- * (no anonymous "someone with a link did this" events).
+ * The SPA runs on Sanctum personal access tokens (Bearer auth), not the
+ * session cookie guard, so this controller issues a short-lived token for
+ * the caregiver and hands it off to the /auth/magic SPA page via query
+ * params. That page persists the token to the auth store and bounces to
+ * /bookings/[id]. From there every check-in/check-out event is recorded
+ * against the caregiver's user id, preserving the audit trail.
  */
 class VisitAuthController extends Controller
 {
@@ -45,9 +46,19 @@ class VisitAuthController extends Controller
             return redirect()->away($frontend.'/login?error=visit_unavailable');
         }
 
-        Auth::login($booking->caregiver, remember: false);
-        $request->session()->regenerate();
+        // Short-lived token — 4h is enough to cover the visit window with
+        // slack on either side, but tight enough that a leaked token from
+        // mid-shift can't be reused tomorrow. Sanctum's `expiresAt` arg
+        // overrides the global `expiration` config.
+        $token = $booking->caregiver
+            ->createToken('visit-magic-link', ['*'], now()->addHours(4))
+            ->plainTextToken;
 
-        return redirect()->away($frontend.'/bookings/'.$booking->id);
+        $params = http_build_query([
+            'token' => $token,
+            'redirect' => '/bookings/'.$booking->id,
+        ]);
+
+        return redirect()->away($frontend.'/auth/magic?'.$params);
     }
 }
