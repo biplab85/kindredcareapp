@@ -287,7 +287,7 @@ function VerificationView() {
 
                       {type === "reference" && status === "not_started" && (
                         <Link
-                          href="/onboarding?step=5"
+                          href="/profile/edit?step=5"
                           className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary underline decoration-dotted underline-offset-4 hover:text-primary/80"
                         >
                           Add references in your profile
