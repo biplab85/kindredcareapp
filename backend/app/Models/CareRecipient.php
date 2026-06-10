@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $family_profile_id
  * @property string $name
  * @property string|null $street_address
+ * @property string|null $city
+ * @property string|null $province
  * @property int|null $age
  * @property string|null $postal_code
  * @property string|null $language
@@ -23,6 +25,8 @@ class CareRecipient extends Model
         'family_profile_id',
         'name',
         'street_address',
+        'city',
+        'province',
         'age',
         'postal_code',
         'language',
