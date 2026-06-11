@@ -54,9 +54,14 @@ class VisitAuthController extends Controller
             ->createToken('visit-magic-link', ['*'], now()->addHours(4))
             ->plainTextToken;
 
+        // The caregiver lands on the focused /visits/[id] page — a stripped
+        // mobile-first surface (no DashboardShell) that shows just the
+        // address and the single status-appropriate panel for the moment
+        // they're in. From there a "Full booking" link bridges to the
+        // detailed /bookings/[id] page if they need more context.
         $params = http_build_query([
             'token' => $token,
-            'redirect' => '/bookings/'.$booking->id,
+            'redirect' => '/visits/'.$booking->id,
         ]);
 
         return redirect()->away($frontend.'/auth/magic?'.$params);
