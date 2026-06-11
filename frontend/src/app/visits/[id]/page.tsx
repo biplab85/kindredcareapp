@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Clock, Loader2, MapPin } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -113,11 +114,18 @@ function VisitView({ bookingId }: { bookingId: number }) {
       />
 
       <div className="mx-auto max-w-2xl px-4 pt-5 pb-12 sm:px-6 sm:pt-8 sm:pb-16">
-        {/* Top strip — minimal, just enough to escape if they need the full booking */}
+        {/* Top strip — brand on the left, escape hatch on the right */}
         <div className="flex items-center justify-between gap-3">
-          <p className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground uppercase">
-            Visit — § {booking.id.toString().padStart(3, "0")}
-          </p>
+          <Link href="/dashboard" aria-label="KindredCare home" className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="KindredCare"
+              width={180}
+              height={40}
+              priority
+              className="h-7 w-auto sm:h-8"
+            />
+          </Link>
           <Link
             href={`/bookings/${booking.id}`}
             className="inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase transition-colors hover:text-foreground"
@@ -127,8 +135,13 @@ function VisitView({ bookingId }: { bookingId: number }) {
           </Link>
         </div>
 
+        {/* Editorial § marker */}
+        <p className="mt-5 font-mono text-[10px] tracking-[0.24em] text-muted-foreground uppercase">
+          Visit — § {booking.id.toString().padStart(3, "0")}
+        </p>
+
         {/* "Whose door am I at" anchor */}
-        <div className="mt-5 rounded-3xl border border-border/60 bg-card p-5 sm:p-6">
+        <div className="mt-3 rounded-3xl border border-border/60 bg-card p-5 sm:p-6">
           <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
             You&rsquo;re visiting
           </p>
