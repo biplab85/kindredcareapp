@@ -7,13 +7,16 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  ArrowUpRight,
   BadgeCheck,
   Check,
   CheckCircle2,
   Circle,
+  ClipboardList,
   Clock,
   MapPin,
   MessageCircle,
+  PlayCircle,
   Star,
   Trash2,
   X,
@@ -24,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { IncidentReportTrigger } from "@/components/bookings/incident-form";
 import { MessagesBlock } from "@/components/bookings/messages-block";
 import { PanicButton } from "@/components/bookings/panic-button";
-import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
 import {
   acceptBooking,
@@ -42,7 +44,6 @@ import {
 } from "@/lib/bookings";
 import { getPendingReviews, submitReview } from "@/lib/reviews";
 import { cn } from "@/lib/utils";
-import { VisitLiveLog, VisitStartPanel } from "./_components/visit-panels";
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell
@@ -143,7 +144,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
           <div className="space-y-6">
             <ReceiptBlock booking={booking} role={role} />
-            <VisitBlock booking={booking} role={role} onChanged={reload} />
+            <VisitBlock booking={booking} role={role} />
             <MessagesBlock bookingId={booking.id} />
             <FamilyConfirmBlock booking={booking} role={role} onChanged={reload} />
             <RatingPromptBlock booking={booking} />
@@ -454,33 +455,18 @@ function Line({
 function VisitBlock({
   booking,
   role,
-  onChanged,
 }: {
   booking: Booking;
   role: "family" | "caregiver" | "admin";
-  onChanged: () => void;
 }) {
   const { status } = booking;
   const isCaregiver = role === "caregiver";
 
-  if (status === "confirmed" && isCaregiver) {
+  if ((status === "confirmed" || status === "in_progress") && isCaregiver) {
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
-        {booking.safety_acknowledged_at ? (
-          <VisitStartPanel booking={booking} onChanged={onChanged} />
-        ) : (
-          <SafetyGate bookingId={booking.id} onAcknowledged={onChanged} />
-        )}
-      </>
-    );
-  }
-
-  if (status === "in_progress" && isCaregiver) {
-    return (
-      <>
-        <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
-        <VisitLiveLog booking={booking} onChanged={onChanged} />
+        <OpenVisitLogCta booking={booking} />
       </>
     );
   }
@@ -494,6 +480,82 @@ function VisitBlock({
   }
 
   return null;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Caregiver hand-off to the focused /visits/[id] surface.
+ * The booking page is the rich detail view; the actual check-in,
+ * task log, and check-out live one screen away.
+ * ───────────────────────────────────────────────────────────── */
+
+function OpenVisitLogCta({ booking }: { booking: Booking }) {
+  const isLive = booking.status === "in_progress";
+  return (
+    <Link
+      href={`/visits/${booking.id}`}
+      className={cn(
+        "group block overflow-hidden rounded-3xl ring-1 transition-shadow",
+        isLive
+          ? "bg-gradient-to-br from-success/[0.06] via-card to-card ring-success/30 hover:shadow-[0_4px_18px_rgba(46,154,93,0.12)]"
+          : "bg-gradient-to-br from-primary/[0.05] via-card to-card ring-primary/30 hover:shadow-[0_4px_18px_rgba(60,107,196,0.12)]",
+      )}
+    >
+      <div className="flex items-center gap-5 p-6 sm:p-8">
+        <span
+          className={cn(
+            "relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1",
+            isLive
+              ? "bg-success/10 text-success ring-success/30"
+              : "bg-primary/10 text-primary ring-primary/30",
+          )}
+        >
+          {isLive ? (
+            <>
+              <span className="absolute inset-0 animate-ping rounded-2xl bg-success/15" />
+              <ClipboardList className="relative size-6" strokeWidth={1.75} />
+            </>
+          ) : (
+            <PlayCircle className="size-6" strokeWidth={1.75} />
+          )}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p
+            className={cn(
+              "font-mono text-[10px] tracking-[0.22em] uppercase",
+              isLive ? "text-success" : "text-muted-foreground",
+            )}
+          >
+            {isLive ? "Visit — live" : "Visit — ready"}
+          </p>
+          <h3 className="mt-1 text-xl font-semibold tracking-tight">
+            {isLive ? (
+              <>
+                Open the live log <span className="font-normal italic">to finish your visit</span>.
+              </>
+            ) : (
+              <>
+                Open the visit page <span className="font-normal italic">to check in</span>.
+              </>
+            )}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {isLive
+              ? "Tasks, notes, and the end-visit button live on the focused visit page."
+              : "GPS check-in, task checklist, and notes all live on the focused visit page."}
+          </p>
+        </div>
+
+        <ArrowUpRight
+          className={cn(
+            "size-5 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5",
+            isLive ? "text-success" : "text-primary",
+          )}
+          strokeWidth={2.25}
+        />
+      </div>
+    </Link>
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────

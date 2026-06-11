@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Clock, Loader2, MapPin } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { SafetyGate } from "@/components/bookings/safety-gate";
 import { type Booking, getBooking } from "@/lib/bookings";
 import {
   VisitLiveLog,
@@ -164,11 +165,17 @@ function VisitView({ bookingId }: { bookingId: number }) {
           </p>
         </div>
 
-        {/* The single status-appropriate panel */}
+        {/* The single status-appropriate panel. Safety gate runs before
+            the start panel — caregivers can't check in until they
+            acknowledge the briefing. The flag travels with the booking
+            record so once cleared it stays cleared. */}
         <div className="mt-6">
-          {booking.status === "confirmed" && (
-            <VisitStartPanel booking={booking} onChanged={reload} />
-          )}
+          {booking.status === "confirmed" &&
+            (booking.safety_acknowledged_at ? (
+              <VisitStartPanel booking={booking} onChanged={reload} />
+            ) : (
+              <SafetyGate bookingId={booking.id} onAcknowledged={reload} />
+            ))}
           {booking.status === "in_progress" && (
             <VisitLiveLog booking={booking} onChanged={reload} />
           )}
