@@ -116,14 +116,18 @@ function VisitView({ bookingId }: { bookingId: number }) {
       <div className="mx-auto max-w-2xl px-4 pt-5 pb-12 sm:px-6 sm:pt-8 sm:pb-16">
         {/* Top strip — brand on the left, escape hatch on the right */}
         <div className="flex items-center justify-between gap-3">
-          <Link href="/dashboard" aria-label="KindredCare home" className="flex items-center">
+          <Link
+            href="/dashboard"
+            aria-label="KindredCare home"
+            className="inline-flex items-center rounded-full bg-background px-3 py-1.5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] ring-1 ring-border/60 transition-shadow hover:shadow-[0_2px_8px_rgba(10,14,40,0.06)]"
+          >
             <Image
               src="/logo.png"
               alt="KindredCare"
               width={180}
               height={40}
               priority
-              className="h-7 w-auto sm:h-8"
+              className="h-5 w-auto sm:h-6"
             />
           </Link>
           <Link
