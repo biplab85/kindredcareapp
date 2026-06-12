@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Clock, Loader2, MapPin } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { SafetyGate } from "@/components/bookings/safety-gate";
+import { EASTERN_TZ } from "@/lib/eastern-time";
 import { type Booking, getBooking } from "@/lib/bookings";
 import {
   VisitLiveLog,
@@ -98,7 +99,7 @@ function VisitView({ bookingId }: { bookingId: number }) {
   }
 
   const start = new Date(booking.scheduled_start);
-  const startCopy = start.toLocaleString(undefined, {
+  const startCopy = start.toLocaleString(undefined, { timeZone: EASTERN_TZ,
     weekday: "short",
     month: "short",
     day: "numeric",

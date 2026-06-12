@@ -31,6 +31,7 @@ import {
 } from "@/lib/gigs";
 import { listPaymentMethods } from "@/lib/payments";
 import api from "@/lib/api";
+import { easternDateTime, easternTodayIso, formatEastern } from "@/lib/eastern-time";
 import { cn } from "@/lib/utils";
 
 /** Stable empty array so the off-dates state's identity doesn't churn each render. */
@@ -152,7 +153,9 @@ function BookGigView({ gigId }: { gigId: number }) {
   const availabilityHint = useMemo(() => {
     if (!gig || !date || !time) return null;
 
-    const start = new Date(`${date}T${time}`);
+    // Same Eastern-interpretation rule as the submit handler — picker
+    // input is Eastern wall-clock, not browser-local.
+    const start = easternDateTime(date, time);
     if (Number.isNaN(start.getTime())) return null;
     const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
 
@@ -228,9 +231,13 @@ function BookGigView({ gigId }: { gigId: number }) {
     e.preventDefault();
     if (!canSubmit || !gig) return;
 
-    const start = new Date(`${date}T${time}`);
+    // Interpret picker input as Ontario time so a 9 AM pick always means
+    // 9 AM Eastern, regardless of where the browser is sitting. Otherwise
+    // someone testing from Bangladesh or anywhere east of EST gets a
+    // silent shift that fails the backend's `after:now` check.
+    const start = easternDateTime(date, time);
     if (Number.isNaN(start.getTime()) || start.getTime() < Date.now()) {
-      toast.error("Pick a start time in the future.");
+      toast.error("Pick a start time in the future (Eastern time).");
       return;
     }
 
@@ -383,7 +390,7 @@ function BookGigView({ gigId }: { gigId: number }) {
               <Input
                 id="date"
                 type="date"
-                min={todayIso()}
+                min={easternTodayIso()}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="mt-1.5 h-11"
@@ -664,10 +671,6 @@ function Section({
   );
 }
 
-function todayIso(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 const DAY_LABELS: Record<WeekdayKey, string> = {
   sun: "Sun",
@@ -700,11 +703,13 @@ function formatHHMM(s: string): string {
 
 /** ISO-8601 datetime → "Tue May 5, 2:00 p.m." for the conflict callout. */
 function formatLocalDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const date = d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
-  return `${date}, ${time}`;
+  return formatEastern(iso, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 /** YYYY-MM-DD → "Tue May 5, 2026" for the date-off callout. */

@@ -54,6 +54,7 @@ import {
 } from "@/lib/bookings";
 import { getPendingReviews, submitReview } from "@/lib/reviews";
 import { cn } from "@/lib/utils";
+import { EASTERN_TZ } from "@/lib/eastern-time";
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell
@@ -232,7 +233,7 @@ function DetailHeader({
       </span>
 
       <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-        {start.toLocaleDateString("en-CA", {
+        {start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ,
           weekday: "long",
           month: "long",
           day: "numeric",
@@ -240,7 +241,7 @@ function DetailHeader({
       </h1>
 
       <span className="text-sm text-muted-foreground">
-        {start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}
+        {start.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })}
         {" · "}
         {formatHours(booking.duration_minutes)}
         {role === "family" &&
@@ -293,7 +294,7 @@ function ArrivalBanner({ booking, role }: { booking: Booking; role: string }) {
           <p className="text-sm font-semibold tracking-tight text-foreground">
             {caregiverName} arrived at{" "}
             <span className="tabular-nums">
-              {checkIn.toLocaleTimeString("en-CA", {
+              {checkIn.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ,
                 hour: "numeric",
                 minute: "2-digit",
               })}
@@ -343,7 +344,7 @@ function ReceiptBlock({
           <DetailRow
             icon={Calendar}
             label="When"
-            value={new Date(booking.scheduled_start).toLocaleString("en-CA", {
+            value={new Date(booking.scheduled_start).toLocaleString("en-CA", { timeZone: EASTERN_TZ,
               weekday: "short",
               month: "short",
               day: "numeric",
@@ -1052,7 +1053,7 @@ function VisitSummary({
           tone="text-success"
           value={
             checkIn
-              ? checkIn.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
+              ? checkIn.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })
               : "—"
           }
         />
@@ -1061,7 +1062,7 @@ function VisitSummary({
           tone="text-primary"
           value={
             checkOut
-              ? checkOut.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
+              ? checkOut.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })
               : "—"
           }
         />
@@ -1383,7 +1384,7 @@ type TimelineEvent = {
 
 function buildTimeline(booking: Booking): TimelineEvent[] {
   const fmtMeta = (d: Date) =>
-    d.toLocaleString("en-CA", {
+    d.toLocaleString("en-CA", { timeZone: EASTERN_TZ,
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -1619,7 +1620,7 @@ function FamilyConfirmBlock({
 }
 
 function formatLongTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-CA", {
+  return new Date(iso).toLocaleString("en-CA", { timeZone: EASTERN_TZ,
     weekday: "short",
     month: "short",
     day: "numeric",
