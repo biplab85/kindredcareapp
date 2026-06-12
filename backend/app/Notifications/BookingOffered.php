@@ -28,7 +28,10 @@ class BookingOffered extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $b = $this->booking;
-        $start = $b->scheduled_start->format('l F j, Y @ g:i A');
+        $start = $b->scheduled_start
+            ->copy()
+            ->setTimezone(config('app.display_timezone'))
+            ->format('l F j, Y @ g:i A');
         $total = number_format($b->subtotal_cents / 100, 2);
         $payout = number_format($b->caregiver_payout_cents / 100, 2);
         $deadline = $b->response_deadline_at->diffForHumans();

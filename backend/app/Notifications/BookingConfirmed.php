@@ -29,7 +29,10 @@ class BookingConfirmed extends Notification
     {
         $b = $this->booking;
         $caregiverName = $b->caregiver->name;
-        $start = $b->scheduled_start->format('l F j, Y @ g:i A');
+        $start = $b->scheduled_start
+            ->copy()
+            ->setTimezone(config('app.display_timezone'))
+            ->format('l F j, Y @ g:i A');
         $total = number_format($b->subtotal_cents / 100, 2);
 
         $msg = (new MailMessage)
