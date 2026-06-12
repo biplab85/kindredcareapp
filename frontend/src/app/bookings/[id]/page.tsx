@@ -126,18 +126,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
   }
 
   return (
-    <div className="relative">
-      {/* Paper wash */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
-
+    <>
       <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <Link
           href="/bookings"
@@ -171,7 +160,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
       </div>
 
       <FloatingMessages bookingId={booking.id} />
-    </div>
+    </>
   );
 }
 
@@ -293,33 +282,28 @@ function ArrivalBanner({ booking, role }: { booking: Booking; role: string }) {
     <div
       role="status"
       aria-live="polite"
-      className="mt-6 overflow-hidden rounded-2xl border border-success/30 bg-success/5"
+      className="mt-6 rounded-xl border border-success/30 bg-success/5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
     >
-      <div className="flex items-center gap-4 px-5 py-3 sm:px-6">
+      <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
         <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success ring-1 ring-success/30">
           {live && <span className="absolute inset-0 animate-ping rounded-full bg-success/30" />}
           <Check className="relative size-4" strokeWidth={2.5} />
         </span>
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <p className="text-sm font-semibold tracking-tight">
+          <p className="text-sm font-semibold tracking-tight text-foreground">
             {caregiverName} arrived at{" "}
-            <span className="font-mono tabular-nums">
+            <span className="tabular-nums">
               {checkIn.toLocaleTimeString("en-CA", {
                 hour: "numeric",
                 minute: "2-digit",
               })}
             </span>
           </p>
-          <p className="font-mono text-[10px] tracking-[0.22em] text-success/80 uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-success/80 uppercase">
             {live ? "Visit in progress" : "Visit recorded"}
           </p>
         </div>
       </div>
-      {/* Perforated "stamp" bottom edge */}
-      <div
-        aria-hidden
-        className="h-1.5 w-full bg-[radial-gradient(circle_at_6px_50%,theme(colors.background)_3px,transparent_3.5px)] bg-[length:12px_100%]"
-      />
     </div>
   );
 }
@@ -625,7 +609,7 @@ function VisitStartPanel({ booking, onChanged }: { booking: Booking; onChanged: 
   return (
     <section
       aria-label="Start visit"
-      className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.04] via-card to-card p-6 sm:p-8"
+      className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-primary/[0.04] via-card to-card p-6 sm:p-8"
     >
       {/* Radar tint — visible only while locating */}
       {phase === "locating" && (
@@ -635,12 +619,7 @@ function VisitStartPanel({ booking, onChanged }: { booking: Booking; onChanged: 
         />
       )}
 
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-primary/40" />
-        Visit — § 11
-      </div>
-
-      <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-start">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
         <div className="relative shrink-0">
           <span
             className={cn(
@@ -699,7 +678,7 @@ function VisitStartPanel({ booking, onChanged }: { booking: Booking; onChanged: 
               <PlayCircle className="size-4" strokeWidth={2.25} />
               {phase === "error" ? "Try again" : "Start visit"}
             </Button>
-            <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+            <span className="text-[11px] font-medium tracking-[0.1em] text-muted-foreground uppercase">
               GPS required
             </span>
           </div>
@@ -801,20 +780,20 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
   return (
     <section
       aria-label="Live visit log"
-      className="relative overflow-hidden rounded-3xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card"
+      className="relative overflow-hidden rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card"
     >
       {/* Header strip */}
-      <div className="flex items-center justify-between border-b border-dashed border-success/30 px-6 py-4 sm:px-8">
+      <div className="flex items-center justify-between border-b border-success/30 px-6 py-4 sm:px-8">
         <div className="flex items-center gap-3">
           <span className="relative flex size-2.5 items-center justify-center">
             <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
             <span className="relative size-2.5 rounded-full bg-success" />
           </span>
-          <p className="font-mono text-[11px] tracking-[0.22em] text-success uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
             Visit — live
           </p>
         </div>
-        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+        <p className="text-xs tabular-nums text-muted-foreground">
           {elapsedMin < 60
             ? `${elapsedMin} min elapsed`
             : `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m elapsed`}
@@ -825,7 +804,7 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
         {/* Task checklist */}
         <div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+            <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
               <ClipboardList className="size-3.5" />
               What you&rsquo;re covering
             </div>
@@ -833,7 +812,7 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
           </div>
 
           {allTasks.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground italic">
+            <p className="mt-4 text-sm text-muted-foreground">
               No task suggestions for this category. Use the notes below to describe what you helped
               with.
             </p>
@@ -851,7 +830,7 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
                         "hover:bg-success/5",
                       )}
                     >
-                      <span className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                      <span className="mt-0.5 text-[11px] tabular-nums text-muted-foreground/70">
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       <span
@@ -887,9 +866,9 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
         <div>
           <label
             htmlFor="caregiver-notes"
-            className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase"
+            className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
           >
-            <span className="h-px w-6 bg-foreground/30" />A note for the family
+            A note for the family
           </label>
           <textarea
             id="caregiver-notes"
@@ -903,7 +882,7 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
         </div>
 
         {/* End visit CTA */}
-        <div className="border-t-2 border-dashed border-success/30 pt-6">
+        <div className="border-t-2 border-success/30 pt-6">
           {endError && (
             <div className="mb-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
               <p className="flex items-start gap-2">
@@ -936,7 +915,7 @@ function VisitLiveLog({ booking, onChanged }: { booking: Booking; onChanged: () 
             </Button>
           </div>
 
-          <div className="mt-5 border-t border-dashed border-border/60 pt-4">
+          <div className="mt-5 border-t border-border/60 pt-4">
             <IncidentReportTrigger bookingId={booking.id} />
           </div>
         </div>
@@ -955,7 +934,9 @@ function SaveIndicator({ state }: { state: SaveState }) {
       : state === "saved"
         ? "text-success"
         : "text-accent";
-  return <p className={cn("font-mono text-[10px] tracking-[0.16em] uppercase", tone)}>{label}</p>;
+  return (
+    <p className={cn("text-[11px] font-semibold tracking-[0.1em] uppercase", tone)}>{label}</p>
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -969,7 +950,7 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
   return (
     <section
       aria-label="Visit in progress"
-      className="rounded-3xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
+      className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -977,7 +958,7 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
             <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
             <span className="relative size-2.5 rounded-full bg-success" />
           </span>
-          <p className="font-mono text-[11px] tracking-[0.22em] text-success uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
             Visit — in progress
           </p>
         </div>
@@ -990,7 +971,7 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
 
       {(tasks.length > 0 || defaultTasks.length > 0) && (
         <div className="mt-6 rounded-2xl bg-background/60 p-4 ring-1 ring-border/40">
-          <p className="mb-3 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          <p className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             Progress so far
           </p>
           <ul className="space-y-1.5 text-sm">
@@ -1056,16 +1037,19 @@ function VisitSummary({
   return (
     <section
       aria-label="Visit summary"
-      className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8"
+      className="rounded-xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6"
     >
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Visit log — § 12
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-success/10 text-success">
+          <ClipboardList className="size-4" strokeWidth={2} />
+        </span>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Visit log</h2>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-4">
         <StatCell
           label="Checked in"
+          tone="text-success"
           value={
             checkIn
               ? checkIn.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
@@ -1074,6 +1058,7 @@ function VisitSummary({
         />
         <StatCell
           label="Checked out"
+          tone="text-primary"
           value={
             checkOut
               ? checkOut.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
@@ -1082,6 +1067,7 @@ function VisitSummary({
         />
         <StatCell
           label="Actual"
+          tone="text-accent"
           value={
             actualMinutes !== null
               ? actualMinutes < 60
@@ -1090,14 +1076,18 @@ function VisitSummary({
               : "—"
           }
         />
-        <StatCell label="Booked" value={formatHours(booking.duration_minutes)} />
+        <StatCell
+          label="Booked"
+          tone="text-[oklch(0.55_0.16_295)]"
+          value={formatHours(booking.duration_minutes)}
+        />
       </div>
 
       {displayTasks.length > 0 && (
         <>
-          <div className="my-7 border-t border-dashed border-border/60" />
+          <div className="my-5 border-t border-border/60" />
           <div>
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
               Tasks
             </p>
             <ul className="mt-3 space-y-1.5 text-sm">
@@ -1131,14 +1121,14 @@ function VisitSummary({
 
       {visit.caregiver_notes && (
         <>
-          <div className="my-7 border-t border-dashed border-border/60" />
+          <div className="my-5 border-t border-border/60" />
           <div>
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
               Note from the caregiver
             </p>
-            <blockquote className="mt-3 border-l-2 border-primary/30 pl-4 text-sm leading-relaxed text-foreground/90 italic">
-              &ldquo;{visit.caregiver_notes}&rdquo;
-            </blockquote>
+            <p className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+              {visit.caregiver_notes}
+            </p>
           </div>
         </>
       )}
@@ -1148,7 +1138,7 @@ function VisitSummary({
       )}
 
       {role !== "admin" && (
-        <div className="mt-7 border-t border-dashed border-border/60 pt-5">
+        <div className="mt-7 border-t border-border/60 pt-5">
           <IncidentReportTrigger bookingId={booking.id} />
         </div>
       )}
@@ -1156,13 +1146,11 @@ function VisitSummary({
   );
 }
 
-function StatCell({ label, value }: { label: string; value: string }) {
+function StatCell({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
     <div>
-      <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p className="mt-1.5 font-mono text-xl tabular-nums">{value}</p>
+      <p className={cn("text-[11px] font-semibold tracking-[0.12em] uppercase", tone)}>{label}</p>
+      <p className="mt-1.5 text-base font-bold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }
@@ -1478,14 +1466,11 @@ function buildTimeline(booking: Booking): TimelineEvent[] {
 function LoadingScreen() {
   return (
     <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Loading booking
-      </div>
+      <div className="mb-6 h-5 w-32 animate-pulse rounded bg-muted" />
       <div className="h-14 w-2/3 animate-pulse rounded-lg bg-muted" />
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
-        <div className="h-96 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
-        <div className="h-80 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+        <div className="h-96 animate-pulse rounded-xl bg-muted/40 ring-1 ring-border/50" />
+        <div className="h-80 animate-pulse rounded-xl bg-muted/40 ring-1 ring-border/50" />
       </div>
     </div>
   );
@@ -1564,69 +1549,71 @@ function FamilyConfirmBlock({
   return (
     <section
       aria-label="Confirm this visit"
-      className={cn(
-        "relative overflow-hidden rounded-3xl border bg-card p-6 sm:p-8",
-        isConfirmed ? "border-success/35" : "border-success/25",
-      )}
+      className="rounded-xl border border-success/30 bg-success/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
     >
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-success/50" />
-        Closing the loop — § 12
-      </div>
+      <div className="flex items-start gap-3.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-success/15 text-success">
+          <CheckCircle2 className="size-5" strokeWidth={2} />
+        </span>
+        <div className="min-w-0 flex-1">
+          {isConfirmed ? (
+            <>
+              <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
+                Confirmed
+              </p>
+              <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
+                Visit confirmed.
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                You released the {payout} payout on {formatLongTime(confirmedAt!)}. Thanks — your
+                caregiver will see the funds on their next payout cycle.
+              </p>
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                <CheckCircle2 className="size-3" strokeWidth={2.5} />
+                Payout released early
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
+                Confirm visit
+              </p>
+              <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
+                Was this visit all good?
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Confirming releases the {payout} payout to your caregiver right away instead of
+                waiting on the 24-hour hold. You still have 48 hours to open a dispute either way.
+              </p>
 
-      {isConfirmed ? (
-        <>
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
-            <span className="italic text-success">Visit confirmed.</span>
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-            You released the {payout} payout on {formatLongTime(confirmedAt!)}. Thanks — your
-            caregiver will see the funds on their next payout cycle.
-          </p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <Button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={busy}
+                  size="sm"
+                  className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
+                >
+                  <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
+                  {busy ? "Confirming…" : "Yes, this visit happened as described"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Optional · skip and the payout still releases at the 24 h mark
+                </p>
+              </div>
 
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-success/30 bg-success/[0.06] px-3 py-1 text-[11px] tracking-[0.18em] text-success uppercase">
-            <CheckCircle2 className="size-3.5" strokeWidth={2.5} />
-            Payout released early
-          </div>
-        </>
-      ) : (
-        <>
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
-            Was this visit <span className="italic text-success">all good?</span>
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Confirming releases the {payout} payout to your caregiver right away instead of waiting
-            on the 24-hour hold. You still have 48 hours to open a dispute either way.
-          </p>
-
-          <div className="my-7 border-t-2 border-dashed border-success/20" />
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleConfirm}
-              disabled={busy}
-              className="border-success/40 text-success hover:bg-success/[0.08] hover:text-success focus-visible:ring-success/30"
-            >
-              <CheckCircle2 className="size-4" strokeWidth={2.25} />
-              {busy ? "Confirming…" : "Yes, this visit happened as described"}
-            </Button>
-            <p className="text-[11px] tracking-[0.18em] text-muted-foreground/80 uppercase">
-              Optional · skip and the payout still releases at the 24 h mark
-            </p>
-          </div>
-
-          {errorMsg !== null && (
-            <p
-              role="alert"
-              className="mt-4 rounded-xl border border-destructive/30 bg-destructive/[0.04] px-4 py-2 text-sm text-destructive"
-            >
-              {errorMsg}
-            </p>
+              {errorMsg !== null && (
+                <p
+                  role="alert"
+                  className="mt-3 rounded-lg border border-destructive/30 bg-destructive/[0.04] px-3 py-2 text-sm text-destructive"
+                >
+                  {errorMsg}
+                </p>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -1731,38 +1718,37 @@ function RatingPromptInner({ booking }: { booking: Booking }) {
   return (
     <section
       aria-label="Rate this visit"
-      className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.04] via-card to-card p-6 sm:p-8"
+      className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6"
     >
-      {/* Corner bloom */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-8 -right-8 size-32 rotate-6 rounded-full bg-primary/[0.05] blur-3xl"
-      />
-
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-primary/40" />
-        Your turn — § 13
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <Star className="size-5" strokeWidth={2} />
+        </span>
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
+            Your turn
+          </p>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
+            A word on how it went?
+          </h3>
+        </div>
       </div>
-
-      <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight sm:text-3xl">
-        A word on <span className="italic text-primary">how it went?</span>
-      </h2>
 
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
         Your rating lands on the other party&rsquo;s profile once both of you have weighed in, or
         automatically after seven days — whichever comes first. Honest is what helps.
       </p>
 
-      <div className="my-7 border-t-2 border-dashed border-primary/20" />
-
-      <StarPicker value={stars} onChange={setStars} disabled={submitting} />
+      <div className="mt-5">
+        <StarPicker value={stars} onChange={setStars} disabled={submitting} />
+      </div>
 
       <div className="mt-7">
         <label
           htmlFor="review-body"
-          className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase"
+          className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
         >
-          <span className="h-px w-6 bg-foreground/30" />A note (optional)
+          A note (optional)
         </label>
         <textarea
           id="review-body"
@@ -1772,9 +1758,9 @@ function RatingPromptInner({ booking }: { booking: Booking }) {
           maxLength={2000}
           placeholder="What stood out? Anything the next person should know?"
           disabled={submitting}
-          className="mt-3 w-full resize-none rounded-xl border border-border/60 bg-background px-3.5 py-2.5 text-sm leading-relaxed outline-none ring-primary/30 transition-shadow focus:ring-2 disabled:opacity-60"
+          className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/50 disabled:opacity-60"
         />
-        <p className="mt-1 text-right font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums">
+        <p className="mt-1 text-right text-xs text-muted-foreground tabular-nums">
           {body.length} / 2000
         </p>
       </div>
@@ -1851,7 +1837,7 @@ function StarPicker({
 
   return (
     <div>
-      <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+      <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         How many stars?
       </p>
       <div
@@ -1896,13 +1882,13 @@ function StarPicker({
         })}
       </div>
       <p
-        className="mt-3 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums"
+        className="mt-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase tabular-nums"
         aria-live="polite"
       >
         {display > 0 ? (
           <>
             <span className="text-foreground">{display}</span> of 5 ·{" "}
-            <span className="italic">{labels[display - 1]}</span>
+            <span className="text-foreground/70">{labels[display - 1]}</span>
           </>
         ) : (
           <span>Tap a star or use arrow keys</span>
@@ -1920,18 +1906,16 @@ function ThanksCard() {
   return (
     <section
       aria-label="Review sent"
-      className="relative overflow-hidden rounded-3xl border border-success/25 bg-gradient-to-br from-success/[0.05] via-card to-card p-6 sm:p-8"
+      className="relative overflow-hidden rounded-xl border border-success/25 bg-gradient-to-br from-success/[0.05] via-card to-card p-6 sm:p-8"
     >
       <div className="flex items-start gap-5">
         <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-success/10 text-success ring-1 ring-success/25">
           <CheckCircle2 className="size-6" strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-6 bg-success/40" />
-            Received
-          </div>
-          <h2 className="mt-2 text-xl font-semibold tracking-tight">Thanks for weighing in.</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            Thanks for weighing in.
+          </h2>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
             Your review lands on their profile once your counterpart rates too, or automatically
             after seven days. Either way — it counts toward their Trust Score from now.
@@ -1951,11 +1935,11 @@ function SkippedCard({ onUndo }: { onUndo: () => void }) {
   return (
     <section
       aria-label="Review deferred"
-      className="rounded-3xl border border-dashed border-border/70 bg-card/50 p-5 sm:p-6"
+      className="rounded-xl border border-border/70 bg-card/50 p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             No review yet
           </p>
           <p className="mt-1 text-sm text-foreground/80">

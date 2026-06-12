@@ -39,13 +39,16 @@ class ShiftReminder extends Notification
         $time = $b->scheduled_start->format('l F j, g:i A');
         $lead = $this->window === self::WINDOW_24H ? 'tomorrow' : 'in an hour';
 
+        // Magic link bootstraps a Sanctum session as the caregiver and drops
+        // them on the booking page, so they don't have to type a password
+        // mid-shift. VisitAuthController enforces the window + status guards.
         return (new MailMessage)
             ->subject("Reminder: visit {$lead}")
             ->greeting("Your next visit is {$lead}.")
             ->line("When: {$time}")
             ->line("Where: {$b->address_full}")
-            ->line('You can start the visit from the booking page when you arrive.')
-            ->action('View booking', config('app.frontend_url')."/bookings/{$b->id}");
+            ->line('Tap below to jump straight to the visit page — no password needed.')
+            ->action('Open visit', $b->visitMagicLinkUrl());
     }
 
     /**
