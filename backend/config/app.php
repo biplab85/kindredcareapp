@@ -67,7 +67,11 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // KindredCare serves Ontario — pull from .env so prod can override.
+    // Database datetimes are stored as UTC via Eloquent casts; this only
+    // affects what now(), date formatters, and validators like `after:now`
+    // treat as "current time".
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

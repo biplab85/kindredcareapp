@@ -15,6 +15,7 @@ import {
   statusTone,
 } from "@/lib/bookings";
 import { cn } from "@/lib/utils";
+import { EASTERN_TZ } from "@/lib/eastern-time";
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell — caregiver-only view of their confirmed + pending
@@ -209,7 +210,7 @@ function DayColumn({
   bookings: Booking[];
   isToday: boolean;
 }) {
-  const weekday = day.toLocaleDateString("en-CA", { weekday: "short" });
+  const weekday = day.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ, weekday: "short" });
   const dayNum = day.getDate();
 
   return (

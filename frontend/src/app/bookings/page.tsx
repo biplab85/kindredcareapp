@@ -43,6 +43,7 @@ import {
   statusTone,
 } from "@/lib/bookings";
 import { cn } from "@/lib/utils";
+import { EASTERN_TZ } from "@/lib/eastern-time";
 
 type Tab = "upcoming" | "active" | "past";
 type ViewMode = "grid" | "table";
@@ -315,8 +316,8 @@ function BookingTableRow({
   onChanged: () => void;
 }) {
   const start = new Date(booking.scheduled_start);
-  const dateShort = start.toLocaleDateString("en-CA", { month: "short", day: "numeric" });
-  const time = start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const dateShort = start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ, month: "short", day: "numeric" });
+  const time = start.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" });
 
   const isCaregiver = viewerRole === "caregiver";
   const isPending = booking.status === "pending_caregiver";
@@ -397,10 +398,10 @@ function BookingRow({
   onChanged: () => void;
 }) {
   const start = new Date(booking.scheduled_start);
-  const weekday = start.toLocaleDateString("en-CA", { weekday: "short" });
-  const dayNum = start.toLocaleDateString("en-CA", { day: "numeric" });
-  const month = start.toLocaleDateString("en-CA", { month: "short" }).toUpperCase();
-  const time = start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const weekday = start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ, weekday: "short" });
+  const dayNum = start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ, day: "numeric" });
+  const month = start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ, month: "short" }).toUpperCase();
+  const time = start.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" });
 
   const isCaregiver = viewerRole === "caregiver";
   const isPending = booking.status === "pending_caregiver";
