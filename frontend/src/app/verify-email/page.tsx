@@ -300,16 +300,6 @@ function PostSignupPrompt() {
           )}
           Resend verification email
         </Button>
-
-        <Link href="/dashboard" className="block">
-          <Button
-            variant="ghost"
-            className="h-12 w-full text-base text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Continue to dashboard
-            <ArrowRight className="ml-1 size-4 transition-transform duration-200 group-hover/button:translate-x-0.5" />
-          </Button>
-        </Link>
       </div>
     </AuthLayout>
   );
