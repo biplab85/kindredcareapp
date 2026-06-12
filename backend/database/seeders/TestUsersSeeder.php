@@ -323,6 +323,14 @@ class TestUsersSeeder extends Seeder
                     'photo_status' => 'approved',
                     'availability' => self::STANDARD_AVAILABILITY,
                     'onboarding_complete' => true,
+                    // GigController gates publish on this flag — without it,
+                    // a fresh seed produces zero published gigs and an empty
+                    // marketplace in dev. The fake account id is a marker
+                    // that the seeded caregiver is "Stripe-ready" for tests,
+                    // not a real Connect account.
+                    'payouts_enabled' => true,
+                    'stripe_connect_account_id' => 'acct_seed_'.$user->id,
+                    'connect_onboarded_at' => now(),
                 ],
             );
 

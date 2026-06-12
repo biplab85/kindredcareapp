@@ -16,9 +16,11 @@ import {
   X,
   Plus,
   Check,
+  CreditCard,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,6 +88,10 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
   );
 
   const isEmailUnverified = !useAuthStore((s) => s.user?.email_verified_at);
+  // Stripe Connect is required to publish — the form only ever submits as
+  // published, so block submit when payouts aren't enabled. The backend
+  // enforces the same rule with a 422; this is the polite-warning layer.
+  const payoutsReady = useAuthStore((s) => s.user?.caregiver_profile?.payouts_enabled ?? false);
 
   const canSubmit =
     categoryId !== null &&
@@ -93,7 +99,8 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
     description.trim().length >= 20 &&
     hourlyRate >= 18 &&
     hourlyRate <= 50 &&
-    !isEmailUnverified;
+    !isEmailUnverified &&
+    payoutsReady;
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,6 +196,7 @@ export function GigListingForm({ mode, initialGig }: GigListingFormProps) {
         {/* Form column */}
         <form onSubmit={handleSubmit} className="order-2 space-y-6 lg:order-1">
           {isEmailUnverified && <EmailVerifyBanner context="gig" />}
+          {!payoutsReady && !isEmailUnverified && <StripeRequiredBanner />}
 
           {/* Step 1 — category */}
           <Section number="01" eyebrow="A service" title="Which service is this gig for?">
@@ -595,6 +603,31 @@ function GigPreview({
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
         Updates live as you fill out the form — this is what families see in the marketplace.
       </p>
+    </div>
+  );
+}
+
+function StripeRequiredBanner() {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-accent/30 bg-accent/[0.04] p-4 ring-1 ring-accent/15">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent">
+        <CreditCard className="size-5" strokeWidth={2} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">
+          Connect your payout account before publishing.
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Families pay through the platform — without Stripe Connect we have nowhere to send your
+          share. It takes about 5 minutes.
+        </p>
+        <Link
+          href="/settings/payouts"
+          className="mt-3 inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.22em] text-accent uppercase transition-colors hover:text-accent/80"
+        >
+          Set up Stripe Connect →
+        </Link>
+      </div>
     </div>
   );
 }
