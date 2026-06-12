@@ -127,4 +127,21 @@ class CaregiverProfile extends Model
     {
         return $this->hasMany(Certification::class)->orderByDesc('created_at');
     }
+
+    /**
+     * Whether the caregiver may publish (or keep published) gigs.
+     *
+     * Stripe Connect must be set up and payouts enabled — otherwise a
+     * family booking would charge them but the platform has nowhere to
+     * route the caregiver's share. The matching engine already filters
+     * unverified caregivers; this is the parallel gate for the money
+     * flow.
+     *
+     * Used by GigController::store and update to reject publish, and by
+     * the auto-unpublish migration that runs when this rule first lands.
+     */
+    public function canPublishGigs(): bool
+    {
+        return $this->payouts_enabled === true;
+    }
 }

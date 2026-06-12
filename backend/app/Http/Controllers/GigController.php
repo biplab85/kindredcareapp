@@ -145,6 +145,17 @@ class GigController extends Controller
 
         $status = (string) $request->input('status', Gig::STATUS_PUBLISHED);
 
+        // Caregivers must have Stripe Connect set up + payouts enabled before
+        // a gig can be published. Without it, a family booking would charge
+        // them but we'd have no account to route the caregiver's share to.
+        if ($status === Gig::STATUS_PUBLISHED && ! $profile->canPublishGigs()) {
+            return response()->json([
+                'message' => 'Connect your payout account before publishing gigs. Families pay through the platform — without Stripe Connect we have nowhere to send your share.',
+                'code' => 'stripe_not_connected',
+                'payouts_url' => '/settings/payouts',
+            ], 422);
+        }
+
         $gig = Gig::create([
             'caregiver_profile_id' => $profile->id,
             'service_category_id' => $request->integer('service_category_id'),
@@ -200,6 +211,17 @@ class GigController extends Controller
 
         if ($request->filled('hourly_rate_dollars')) {
             $payload['hourly_rate_cents'] = $this->dollarsToCents($request->input('hourly_rate_dollars'));
+        }
+
+        // Same Stripe gate as store() — block publish + re-publish on update.
+        if (array_key_exists('status', $payload)
+            && $payload['status'] === Gig::STATUS_PUBLISHED
+            && ! $gig->caregiverProfile->canPublishGigs()) {
+            return response()->json([
+                'message' => 'Connect your payout account before publishing gigs. Families pay through the platform — without Stripe Connect we have nowhere to send your share.',
+                'code' => 'stripe_not_connected',
+                'payouts_url' => '/settings/payouts',
+            ], 422);
         }
 
         if (array_key_exists('status', $payload) && $payload['status'] === Gig::STATUS_PUBLISHED && $gig->published_at === null) {
