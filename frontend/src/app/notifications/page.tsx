@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  Award,
   AlertCircle,
   AlertOctagon,
   Bell,
   CalendarClock,
   CheckCheck,
   CheckCircle2,
+  FileText,
   MessageSquare,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
   XCircle,
 } from "lucide-react";
@@ -320,12 +323,18 @@ function TypeIcon({ type }: { type: NotificationType | string }) {
   if (type === "booking_declined" || type === "booking_expired" || type === "booking_cancelled")
     return <XCircle {...props} />;
   if (type === "booking_checked_in") return <Sparkles {...props} />;
+  if (type === "certification_verified") return <Award {...props} />;
+  if (type === "certification_rejected") return <XCircle {...props} />;
+  if (type === "certification_document_submitted") return <FileText {...props} />;
+  if (type === "verification_documents_submitted") return <ShieldCheck {...props} />;
   return <Bell {...props} />;
 }
 
 function toneFor(type: NotificationType | string): "alarm" | "good" | "neutral" {
   if (type === "panic_triggered" || type === "incident_reported") return "alarm";
   if (type === "booking_confirmed" || type === "visit_completed") return "good";
+  if (type === "certification_verified") return "good";
+  if (type === "certification_rejected") return "alarm";
   return "neutral";
 }
 

@@ -15,7 +15,13 @@ export type NotificationType =
   | "shift_reminder"
   | "incident_reported"
   | "panic_triggered"
-  | "message_received";
+  | "message_received"
+  // Caregiver-facing certification lifecycle.
+  | "certification_verified"
+  | "certification_rejected"
+  // Admin-facing review queues.
+  | "certification_document_submitted"
+  | "verification_documents_submitted";
 
 export interface NotificationItem {
   id: string;
@@ -55,9 +61,15 @@ export interface NotificationDisplay {
 }
 
 export function renderNotification(n: NotificationItem): NotificationDisplay {
-  const d = n.data as Record<string, string | number>;
+  const d = n.data as Record<string, string | number | boolean | null>;
   const bookingId = typeof d.booking_id === "number" ? d.booking_id : undefined;
   const bookingHref = bookingId !== undefined ? `/bookings/${bookingId}` : null;
+  const certName = typeof d.cert_name === "string" ? d.cert_name : (typeof d.name === "string" ? d.name : null);
+  const caregiverName = typeof d.caregiver_name === "string" ? d.caregiver_name : null;
+  const certificationId =
+    typeof d.certification_id === "number" ? d.certification_id : null;
+  const verificationId = typeof d.verification_id === "number" ? d.verification_id : null;
+  const checkType = typeof d.check_type === "string" ? d.check_type : null;
 
   switch (n.type) {
     case "booking_offered":
@@ -130,6 +142,49 @@ export function renderNotification(n: NotificationItem): NotificationDisplay {
         body: typeof d.preview === "string" ? d.preview : "Open the conversation to read.",
         href: bookingHref,
       };
+    case "certification_verified":
+      return {
+        title: certName ? `Certification verified — ${certName}` : "Certification verified",
+        body: "Your credential is now visible to families on your profile.",
+        href: "/profile/edit?step=3",
+      };
+    case "certification_rejected": {
+      const reason =
+        typeof d.rejection_reason === "string" && d.rejection_reason.trim().length > 0
+          ? d.rejection_reason
+          : null;
+      return {
+        title: certName ? `Certification rejected — ${certName}` : "Certification rejected",
+        body: reason
+          ? `Reason: ${reason}. You can resubmit with an updated document.`
+          : "You can resubmit with an updated document.",
+        href: "/profile/edit?step=3",
+      };
+    }
+    case "certification_document_submitted": {
+      const isResubmit = d.is_resubmit === true;
+      return {
+        title: caregiverName
+          ? `${caregiverName} submitted a certification`
+          : "Certification submitted for review",
+        body: certName
+          ? `${isResubmit ? "Resubmission" : "New document"}: ${certName}.`
+          : `A caregiver ${isResubmit ? "resubmitted" : "submitted"} a certification for review.`,
+        href: certificationId !== null ? `/admin/certifications/${certificationId}` : "/admin/certifications",
+      };
+    }
+    case "verification_documents_submitted": {
+      const checkLabel = checkType
+        ? checkType.charAt(0).toUpperCase() + checkType.slice(1)
+        : "Verification";
+      return {
+        title: caregiverName
+          ? `${caregiverName} submitted ${checkLabel.toLowerCase()} docs`
+          : `${checkLabel} documents submitted`,
+        body: "Awaiting admin review.",
+        href: verificationId !== null ? `/admin/verifications/${verificationId}` : "/admin/verifications",
+      };
+    }
     default:
       return {
         title: "Notification",
