@@ -14,6 +14,7 @@ import {
   Circle,
   ClipboardList,
   Clock,
+  Loader2,
   type LucideIcon,
   MapPin,
   MapPinOff,
@@ -36,11 +37,13 @@ import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
 import {
+  acceptBooking,
   type Booking,
   cancelBooking,
   checkInBooking,
   checkOutBooking,
   confirmBooking,
+  declineBooking,
   flagReasonLabel,
   formatCents,
   formatHours,
@@ -138,6 +141,15 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
         </Link>
 
         <DetailHeader booking={booking} role={role} />
+
+        {/* Caregiver-only respond panel — visible while the offer is open
+            and unexpired. Previously the accept/decline controls only
+            existed on the /bookings list page, so a caregiver who
+            deep-linked into the detail (from email, notification, magic
+            link) had to back out to take action. */}
+        {role === "caregiver" &&
+          booking.status === "pending_caregiver" &&
+          !booking.is_expired && <OfferRespondPanel booking={booking} onChanged={reload} />}
 
         <ArrivalBanner booking={booking} role={role} />
 
@@ -264,6 +276,126 @@ function DetailHeader({
         </span>
       </span>
     </header>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Offer respond panel — caregiver-only, visible while the
+ * booking is pending and unexpired. The list-page row has
+ * compact accept/decline; this is the deep-link equivalent
+ * so a caregiver landing here from email/notification has
+ * the action right there.
+ * ───────────────────────────────────────────────────────────── */
+
+function OfferRespondPanel({
+  booking,
+  onChanged,
+}: {
+  booking: Booking;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<"accept" | "decline" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handle(action: "accept" | "decline") {
+    setBusy(action);
+    setError(null);
+    try {
+      if (action === "accept") {
+        await acceptBooking(booking.id);
+      } else {
+        await declineBooking(booking.id);
+      }
+      onChanged();
+    } catch (e: unknown) {
+      const message =
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Couldn't submit that response. Try again in a moment.";
+      setError(message);
+      setBusy(null);
+    }
+  }
+
+  const deadline = new Date(booking.response_deadline_at);
+  const deadlineCopy = deadline.toLocaleString("en-CA", {
+    timeZone: EASTERN_TZ,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const total = formatCents(booking.subtotal_cents);
+  const payout = formatCents(booking.caregiver_payout_cents);
+
+  return (
+    <section
+      aria-label="Respond to booking offer"
+      className="mt-5 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.04] via-card to-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-dashed border-primary/30 px-5 py-3 sm:px-7">
+        <span className="font-mono text-[11px] tracking-[0.22em] text-primary uppercase">
+          New offer
+        </span>
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          Respond by {deadlineCopy}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-6">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
+            A family booked you for this visit.
+          </h2>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+            <span>
+              <span className="font-semibold text-foreground tabular-nums">{total}</span> total
+            </span>
+            <span className="text-muted-foreground/60">·</span>
+            <span>
+              You receive{" "}
+              <span className="font-semibold text-foreground tabular-nums">{payout}</span>
+            </span>
+          </p>
+          {error && (
+            <p className="mt-3 flex items-start gap-2 rounded-lg bg-destructive/[0.06] px-3 py-2 text-xs text-destructive ring-1 ring-destructive/20">
+              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={() => handle("decline")}
+            disabled={busy !== null}
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            {busy === "decline" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <X className="size-4" />
+            )}
+            Decline
+          </Button>
+          <Button
+            size="lg"
+            onClick={() => handle("accept")}
+            disabled={busy !== null}
+            className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
+          >
+            {busy === "accept" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Check className="size-4" strokeWidth={2.25} />
+            )}
+            Accept
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }
 
