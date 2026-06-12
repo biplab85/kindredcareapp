@@ -4,21 +4,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
-  ArrowRight,
   BadgeCheck,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  LayoutGrid,
   Mail,
+  MoreVertical,
   Phone,
   RefreshCw,
   Search,
   ShieldOff,
+  Table as TableIcon,
   UserMinus,
   UsersRound,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SlideTabs } from "@/components/ui/slide-tabs";
 import {
   type AdminUserCard,
   type AdminUserListQuery,
@@ -49,6 +59,7 @@ export default function AdminUsersPage() {
  * ───────────────────────────────────────────────────────────── */
 
 type LoadState = "loading" | "ready" | "error";
+type ViewMode = "grid" | "table";
 
 interface FilterState {
   q: string;
@@ -73,7 +84,9 @@ function UsersView() {
   // Controlled inputs. Like /admin/revenue, all reloads are explicit.
   const [filters, setFilters] = useState<FilterState>({ q: "", role: "all", status: "all" });
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<ViewMode>("grid");
   const [state, setState] = useState<LoadState>("loading");
+  const [refreshing, setRefreshing] = useState(false);
   const [resp, setResp] = useState<AdminUserListResponse | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -155,178 +168,178 @@ function UsersView() {
     void reload(filters, page);
   }
 
+  async function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await reload(filters, page);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const total = resp?.meta.total ?? 0;
   const lastPage = resp?.meta.last_page ?? 1;
   const hasResults = (resp?.data.length ?? 0) > 0;
 
   return (
-    <div className="relative">
-      {/* Paper wash */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold leading-[1.15] tracking-tight text-foreground">
+          Users
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Search across name, email, phone, and ID, then filter by role and status. Suspended
+          caregivers drop out of matching the moment the kill-switch flips.
+        </p>
+      </div>
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Header />
-        <SearchBar value={filters.q} onChange={onSearchChange} />
-        <FilterBar
-          role={filters.role}
-          status={filters.status}
-          onRoleChange={onRoleChange}
-          onStatusChange={onStatusChange}
-          onRefresh={retry}
-        />
-
-        <ResultMeta total={total} state={state} filters={filters} />
-
-        <div className="mt-6">
-          {state === "loading" && !resp && <LoadingView />}
-          {state === "error" && <ErrorCard onRetry={retry} />}
-          {state !== "error" && resp && (
-            <>
-              {hasResults ? <UserList rows={resp.data} /> : <EmptyState filters={filters} />}
-              {hasResults && lastPage > 1 && (
-                <Pagination page={page} lastPage={lastPage} onChange={onPageChange} />
-              )}
-            </>
-          )}
+      {/* Filter toolbar */}
+      <section
+        aria-label="Search & filters"
+        className="rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-5"
+      >
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+            strokeWidth={2}
+          />
+          <input
+            type="search"
+            value={filters.q}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search by name, email, phone, or ID…"
+            aria-label="Search users"
+            className="h-11 w-full rounded-lg border border-input bg-background pr-4 pl-10 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/50"
+          />
         </div>
+
+        <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-4">
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+              Role
+            </p>
+            <SlideTabs
+              ariaLabel="Role"
+              value={filters.role}
+              options={ROLE_OPTIONS}
+              onChange={onRoleChange}
+              tabWidthClass="w-[88px]"
+            />
+          </div>
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+              Status
+            </p>
+            <SlideTabs
+              ariaLabel="Status"
+              value={filters.status}
+              options={STATUS_OPTIONS}
+              onChange={onStatusChange}
+              tabWidthClass="w-[92px]"
+            />
+          </div>
+          <div className="ml-auto">
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+            >
+              <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} strokeWidth={2} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6 mb-3 flex items-center justify-between gap-3">
+        <ResultMeta total={total} state={state} filters={filters} />
+        <ViewSwitcher view={view} onChange={setView} />
+      </div>
+
+      <div>
+        {state === "loading" && !resp && <LoadingView view={view} />}
+        {state === "error" && <ErrorCard onRetry={retry} />}
+        {state !== "error" && resp && (
+          <>
+            {hasResults ? (
+              view === "table" ? (
+                <UserTable rows={resp.data} />
+              ) : (
+                <UserList rows={resp.data} />
+              )
+            ) : (
+              <EmptyState filters={filters} />
+            )}
+            {hasResults && lastPage > 1 && (
+              <Pagination page={page} lastPage={lastPage} onChange={onPageChange} />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
- * Header
- * ───────────────────────────────────────────────────────────── */
-
-function Header() {
+function ViewSwitcher({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
+  const options: { value: ViewMode; label: string; icon: typeof LayoutGrid }[] = [
+    { value: "grid", label: "Grid view", icon: LayoutGrid },
+    { value: "table", label: "Table view", icon: TableIcon },
+  ];
   return (
-    <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">Search the bench,</span> open a record.
-      </h1>
-
-      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Free-text search across name, email, phone, and ID. Role and status filters narrow the
-        slice. Suspended caregivers drop out of matching the moment the kill-switch flips.
-      </p>
-    </header>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Search bar — large, mono input. The headline action of the page.
- * ───────────────────────────────────────────────────────────── */
-
-function SearchBar({ value, onChange }: { value: string; onChange: (next: string) => void }) {
-  return (
-    <section aria-label="Search" className="mt-8">
-      <div className="relative rounded-2xl border border-border/70 bg-card shadow-sm">
-        <Search
-          className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground"
-          strokeWidth={2}
-        />
-        <input
-          type="search"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Name, email, phone, or ID…"
-          aria-label="Search users"
-          className="w-full bg-transparent py-4 pr-5 pl-12 font-mono text-sm tracking-tight outline-none placeholder:text-muted-foreground/60"
-        />
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Filter bar — role + status pills.
- * ───────────────────────────────────────────────────────────── */
-
-function FilterBar({
-  role,
-  status,
-  onRoleChange,
-  onStatusChange,
-  onRefresh,
-}: {
-  role: AdminUserRole | "all";
-  status: AdminUserStatus | "all";
-  onRoleChange: (r: AdminUserRole | "all") => void;
-  onStatusChange: (s: AdminUserStatus | "all") => void;
-  onRefresh: () => void;
-}) {
-  return (
-    <section
-      aria-label="Filters"
-      className="mt-4 rounded-2xl border border-border/60 bg-card p-4 sm:p-5"
+    <div
+      role="group"
+      aria-label="View"
+      className="inline-flex shrink-0 gap-1 rounded-xl border border-border bg-muted/40 p-1"
     >
-      <div className="flex flex-wrap items-end gap-6">
-        <FilterPills
-          label="Role"
-          value={role}
-          options={ROLE_OPTIONS}
-          onChange={(v) => onRoleChange(v as AdminUserRole | "all")}
-        />
-        <FilterPills
-          label="Status"
-          value={status}
-          options={STATUS_OPTIONS}
-          onChange={(v) => onStatusChange(v as AdminUserStatus | "all")}
-        />
-        <div className="ml-auto">
-          <Button onClick={onRefresh} variant="outline" size="sm">
-            <RefreshCw className="size-3.5" strokeWidth={2} />
-            Refresh
-          </Button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FilterPills<V extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: V;
-  options: Array<{ value: V; label: string }>;
-  onChange: (v: V) => void;
-}) {
-  return (
-    <div>
-      <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-        {label}
-      </p>
-      <div className="mt-2 inline-flex flex-wrap rounded-full border border-border/70 bg-background p-1">
-        {options.map((opt) => (
+      {options.map((o) => {
+        const Icon = o.icon;
+        const active = view === o.value;
+        return (
           <button
-            key={opt.value}
+            key={o.value}
             type="button"
-            onClick={() => onChange(opt.value)}
-            aria-pressed={opt.value === value}
+            onClick={() => onChange(o.value)}
+            aria-label={o.label}
+            aria-pressed={active}
+            title={o.label}
             className={cn(
-              "rounded-full px-3 py-1 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors",
-              opt.value === value
-                ? "bg-foreground text-background"
+              "grid size-8 cursor-pointer place-items-center rounded-lg transition-colors",
+              active
+                ? "bg-card text-foreground shadow-xs ring-1 ring-border"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {opt.label}
+            <Icon className="size-4" strokeWidth={1.75} />
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
+  );
+}
+
+function UserActionsMenu({ userId }: { userId: number }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="User actions"
+        className="inline-grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <MoreVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto min-w-32">
+        <DropdownMenuItem
+          render={<Link href={`/admin/users/${userId}`} />}
+          className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+        >
+          <Eye className="size-4 text-muted-foreground" />
+          View
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -346,26 +359,24 @@ function ResultMeta({
   const hasFilters = filters.q.trim() !== "" || filters.role !== "all" || filters.status !== "all";
 
   return (
-    <div className="mt-8 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-      <span className="h-px w-8 bg-foreground/30" />
-      <span>
-        {state === "loading" ? (
-          "Searching…"
-        ) : (
-          <>
-            <span className="font-mono tabular-nums text-foreground/80">{total}</span>{" "}
-            {total === 1 ? "match" : "matches"}
-            {hasFilters && <span className="text-foreground/40"> · filtered</span>}
-          </>
-        )}
-      </span>
-      <span className="text-foreground/30">— § 23</span>
+    <div className="flex items-center gap-2 text-sm">
+      {state === "loading" ? (
+        <span className="text-muted-foreground">Searching…</span>
+      ) : (
+        <>
+          <span className="font-semibold tabular-nums text-foreground">{total}</span>
+          <span className="text-muted-foreground">
+            {total === 1 ? "user" : "users"}
+            {hasFilters && " · filtered"}
+          </span>
+        </>
+      )}
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Results list — ticket-stub rows
+ * Results list — premium cards with avatars
  * ───────────────────────────────────────────────────────────── */
 
 function UserList({ rows }: { rows: AdminUserCard[] }) {
@@ -380,34 +391,129 @@ function UserList({ rows }: { rows: AdminUserCard[] }) {
   );
 }
 
-function UserRow({ user }: { user: AdminUserCard }) {
-  const isSuspended = user.status === "suspended";
+function UserTable({ rows }: { rows: AdminUserCard[] }) {
+  const th = "px-4 py-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase";
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/30 text-left">
+              <th className={cn(th, "pl-5")}>User</th>
+              <th className={th}>Role</th>
+              <th className={th}>Status</th>
+              <th className={th}>Contact</th>
+              <th className={th}>Checks</th>
+              <th className={cn(th, "pr-5")} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((u) => (
+              <UserTableRow key={u.id} user={u} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function UserTableRow({ user }: { user: AdminUserCard }) {
+  const isDeleted = user.status === "deleted";
   const isCaregiver = user.role === "caregiver";
 
   return (
-    <Link
-      href={`/admin/users/${user.id}`}
+    <tr className="border-b border-border/60 align-middle transition-colors even:bg-muted/30 last:border-0 hover:bg-muted/60">
+      <td className="px-4 py-3 pl-5">
+        <Link href={`/admin/users/${user.id}`} className="group flex items-center gap-3">
+          <span
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold",
+              isDeleted ? "bg-muted text-muted-foreground" : AVATAR_TONES[user.role],
+            )}
+          >
+            {initialsOf(user.name)}
+          </span>
+          <span className="min-w-0">
+            <span
+              className={cn(
+                "block truncate font-semibold text-foreground group-hover:text-primary",
+                isDeleted && "text-muted-foreground line-through",
+              )}
+            >
+              {user.name}
+            </span>
+            <span className="block text-xs tabular-nums text-muted-foreground/70">
+              #{String(user.id).padStart(5, "0")}
+            </span>
+          </span>
+        </Link>
+      </td>
+      <td className="px-4 py-3">
+        <RolePill role={user.role} />
+      </td>
+      <td className="px-4 py-3">
+        <StatusPill status={user.status} />
+      </td>
+      <td className="px-4 py-3">
+        <div className="text-[13px] text-foreground/80">{user.email}</div>
+        {user.phone && (
+          <div className="text-xs tabular-nums text-muted-foreground">{user.phone}</div>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {isCaregiver ? (
+          <span className="text-sm font-medium tabular-nums text-muted-foreground">
+            {user.cleared_checks}/{user.total_checks}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3 pr-5 text-right">
+        <UserActionsMenu userId={user.id} />
+      </td>
+    </tr>
+  );
+}
+
+const AVATAR_TONES: Record<AdminUserRole, string> = {
+  family: "bg-primary/10 text-primary",
+  caregiver: "bg-success/10 text-success",
+  admin: "bg-foreground/10 text-foreground/80",
+};
+
+function UserRow({ user }: { user: AdminUserCard }) {
+  const isSuspended = user.status === "suspended";
+  const isCaregiver = user.role === "caregiver";
+  const isDeleted = user.status === "deleted";
+
+  return (
+    <div
       className={cn(
-        "group relative block overflow-hidden rounded-2xl border bg-card transition-all",
+        "group flex items-center gap-4 rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(10,14,40,0.22)]",
         isSuspended
-          ? "border-accent/40 bg-accent/[0.02] hover:border-accent/60"
-          : "border-border/60 hover:border-foreground/30",
+          ? "border-accent/40 bg-accent/[0.03] hover:border-accent/60"
+          : "border-border hover:border-primary/30",
       )}
     >
-      {/* Perforated left edge */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-      />
+      {/* Identity (links to the detail record) */}
+      <Link href={`/admin/users/${user.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+        <span
+          className={cn(
+            "grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold",
+            isDeleted ? "bg-muted text-muted-foreground" : AVATAR_TONES[user.role],
+          )}
+        >
+          {initialsOf(user.name)}
+        </span>
 
-      <div className="flex items-center gap-4 py-4 pr-5 pl-9 sm:py-5 sm:pl-10">
-        {/* Identity */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
             <h3
               className={cn(
-                "text-base font-semibold tracking-tight sm:text-lg",
-                user.status === "deleted" && "text-muted-foreground line-through",
+                "text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary",
+                isDeleted && "text-muted-foreground line-through",
               )}
             >
               {user.name}
@@ -416,50 +522,47 @@ function UserRow({ user }: { user: AdminUserCard }) {
             <StatusPill status={user.status} />
           </div>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-            <span className="font-mono tabular-nums text-foreground/60">
-              ID {String(user.id).padStart(5, "0")}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+            <span className="font-medium tabular-nums text-muted-foreground/70">
+              #{String(user.id).padStart(5, "0")}
             </span>
             <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-            <span className="inline-flex items-center gap-1.5 normal-case tracking-[0.05em]">
-              <Mail className="size-3" strokeWidth={2} />
-              <span className="text-foreground/70">{user.email}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Mail className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
+              {user.email}
             </span>
             {user.phone && (
               <>
                 <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-                <span className="inline-flex items-center gap-1.5 normal-case tracking-[0.05em]">
-                  <Phone className="size-3" strokeWidth={2} />
-                  <span className="font-mono text-foreground/70 tabular-nums">{user.phone}</span>
+                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                  <Phone className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
+                  {user.phone}
                 </span>
               </>
             )}
           </div>
         </div>
+      </Link>
 
-        {/* Right rail: verification counter + chevron */}
-        <div className="flex shrink-0 items-center gap-4">
-          {isCaregiver && <VerificationCounter user={user} />}
-          <ArrowRight
-            className="size-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-foreground"
-            strokeWidth={2}
-          />
-        </div>
+      {/* Right rail: verification counter + actions */}
+      <div className="flex shrink-0 items-center gap-3">
+        {isCaregiver && <VerificationCounter user={user} />}
+        <UserActionsMenu userId={user.id} />
       </div>
-    </Link>
+    </div>
   );
 }
 
 function RolePill({ role }: { role: AdminUserRole }) {
   const styles: Record<AdminUserRole, string> = {
-    family: "border-primary/30 bg-primary/[0.06] text-primary",
-    caregiver: "border-success/40 bg-success/[0.07] text-success",
-    admin: "border-foreground/30 bg-foreground/[0.06] text-foreground",
+    family: "bg-primary/10 text-primary",
+    caregiver: "bg-success/10 text-success",
+    admin: "bg-foreground/10 text-foreground/80",
   };
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
         styles[role],
       )}
     >
@@ -471,7 +574,7 @@ function RolePill({ role }: { role: AdminUserRole }) {
 function StatusPill({ status }: { status: AdminUserStatus }) {
   if (status === "active") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-muted-foreground uppercase">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border">
         <span aria-hidden className="size-1.5 rounded-full bg-success" />
         Active
       </span>
@@ -479,15 +582,15 @@ function StatusPill({ status }: { status: AdminUserStatus }) {
   }
   if (status === "suspended") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-accent-foreground uppercase">
-        <ShieldOff className="size-2.5" strokeWidth={2.25} />
+      <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent ring-1 ring-accent/20">
+        <ShieldOff className="size-3" strokeWidth={2.25} />
         Suspended
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-foreground/60 uppercase">
-      <UserMinus className="size-2.5" strokeWidth={2.25} />
+    <span className="inline-flex items-center gap-1 rounded-full bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-foreground/60 ring-1 ring-foreground/15">
+      <UserMinus className="size-3" strokeWidth={2.25} />
       Deleted
     </span>
   );
@@ -501,18 +604,18 @@ function VerificationCounter({ user }: { user: AdminUserCard }) {
   return (
     <div
       className={cn(
-        "hidden items-center gap-2 rounded-lg border px-3 py-1.5 sm:inline-flex",
-        fully ? "border-success/40 bg-success/[0.07]" : "border-border/70 bg-background",
+        "hidden items-center gap-1.5 rounded-lg border px-2.5 py-1.5 sm:inline-flex",
+        fully ? "border-success/40 bg-success/[0.07]" : "border-border bg-muted/40",
       )}
       title={fully ? "Fully verified" : `Cleared ${cleared} of ${total} checks`}
     >
       <BadgeCheck
-        className={cn("size-3.5", fully ? "text-success" : "text-muted-foreground/60")}
+        className={cn("size-4", fully ? "text-success" : "text-muted-foreground/60")}
         strokeWidth={2}
       />
       <span
         className={cn(
-          "font-mono text-[11px] tabular-nums",
+          "text-xs font-semibold tabular-nums",
           fully ? "text-success" : "text-muted-foreground",
         )}
       >
@@ -541,34 +644,34 @@ function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="mt-8 flex items-center justify-between rounded-2xl border border-border/60 bg-card px-4 py-3"
+      className="mt-4 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
     >
       <button
         type="button"
         onClick={() => canPrev && onChange(page - 1)}
         disabled={!canPrev}
         className={cn(
-          "inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.22em] uppercase transition-colors",
-          canPrev ? "text-foreground hover:text-primary" : "text-muted-foreground/40",
+          "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
+          canPrev ? "cursor-pointer text-foreground hover:bg-muted" : "text-muted-foreground/40",
         )}
       >
-        <ChevronLeft className="size-3.5" strokeWidth={2} />
+        <ChevronLeft className="size-4" strokeWidth={2} />
         Prev
       </button>
-      <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
-        Page <span className="text-foreground">{page}</span> of {lastPage}
+      <p className="text-sm text-muted-foreground tabular-nums">
+        Page <span className="font-semibold text-foreground">{page}</span> of {lastPage}
       </p>
       <button
         type="button"
         onClick={() => canNext && onChange(page + 1)}
         disabled={!canNext}
         className={cn(
-          "inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.22em] uppercase transition-colors",
-          canNext ? "text-foreground hover:text-primary" : "text-muted-foreground/40",
+          "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
+          canNext ? "cursor-pointer text-foreground hover:bg-muted" : "text-muted-foreground/40",
         )}
       >
         Next
-        <ChevronRight className="size-3.5" strokeWidth={2} />
+        <ChevronRight className="size-4" strokeWidth={2} />
       </button>
     </nav>
   );
@@ -582,40 +685,49 @@ function EmptyState({ filters }: { filters: FilterState }) {
   const hasFilters = filters.q.trim() !== "" || filters.role !== "all" || filters.status !== "all";
 
   return (
-    <section className="rounded-3xl border border-dashed border-border/70 bg-background/50 p-10 text-center sm:p-14">
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted/60 text-muted-foreground">
-        <UsersRound className="size-6" strokeWidth={1.75} />
-      </div>
-      <h3 className="mt-5 text-xl font-semibold tracking-tight">
-        {hasFilters ? (
-          <>
-            No matches{" "}
-            <span className="font-normal italic text-muted-foreground">in this slice.</span>
-          </>
-        ) : (
-          <>
-            Nobody on the books{" "}
-            <span className="font-normal italic text-muted-foreground">yet.</span>
-          </>
-        )}
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-14 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+        <UsersRound className="size-7" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        {hasFilters ? "No matches in this slice." : "Nobody on the books yet."}
       </h3>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
         {hasFilters
           ? "Try a looser search or clear a filter — the roster might be quieter than you expected."
           : "Once families and caregivers sign up, they'll appear here."}
       </p>
-    </section>
+    </div>
   );
 }
 
-function LoadingView() {
+function LoadingView({ view }: { view: ViewMode }) {
+  if (view === "table") {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-card" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 border-b border-border/60 px-5 py-4 last:border-0"
+          >
+            <div className="size-9 shrink-0 animate-pulse rounded-full bg-muted" />
+            <div className="h-3.5 w-40 animate-pulse rounded bg-muted" />
+            <div className="ml-auto h-3.5 w-24 animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <ul className="space-y-3" aria-busy="true">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li
-          key={i}
-          className="h-[88px] animate-pulse rounded-2xl border border-border/60 bg-card/60"
-        />
+      {Array.from({ length: 5 }).map((_, i) => (
+        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
+          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+          </div>
+        </li>
       ))}
     </ul>
   );
@@ -623,25 +735,32 @@ function LoadingView() {
 
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <section className="rounded-2xl border border-accent/40 bg-accent/[0.04] p-6">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-accent/15 text-accent">
-          <AlertCircle className="size-4" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold tracking-tight">Couldn&apos;t load the roster.</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The server didn&apos;t answer. Try again — and if it keeps failing, ping the engineering
-            channel.
-          </p>
-          <div className="mt-4">
-            <Button onClick={onRetry} size="sm">
-              <RefreshCw className="size-3.5" strokeWidth={2} />
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <div className="flex flex-col items-center rounded-xl border border-accent/40 bg-accent/[0.04] px-6 py-12 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <AlertCircle className="size-7" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        Couldn&apos;t load the roster.
+      </h3>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        The server didn&apos;t answer. Try again — and if it keeps failing, ping the engineering
+        channel.
+      </p>
+      <Button onClick={onRetry} size="sm" className="mt-4 cursor-pointer">
+        <RefreshCw className="size-3.5" strokeWidth={2} />
+        Retry
+      </Button>
+    </div>
   );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Utils
+ * ───────────────────────────────────────────────────────────── */
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }

@@ -9,13 +9,17 @@ import {
   CalendarDays,
   ChevronsLeft,
   ChevronsRight,
+  ChevronsUpDown,
   ClipboardCheck,
   type LucideIcon,
   LayoutDashboard,
+  LogOut,
   PlusCircle,
   ScrollText,
   Search,
+  Settings,
   ShieldAlert,
+  User,
   UserCircle,
   UserCog,
   UsersRound,
@@ -23,6 +27,14 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /* ─────────────────────────────────────────────────────────────
  * DashboardSidebar — the left rail used across every signed-in
@@ -127,9 +139,20 @@ export function DashboardSidebar({
   badges,
   isMobileDrawer = false,
 }: DashboardSidebarProps) {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const pathname = usePathname();
   const sections = sectionsFor(user?.role);
+
+  const initials = initialsOf(user?.name);
+  const accountName = user?.name?.split(" ")[0] ?? "Account";
+  // Mirror the topbar: caregivers show their profile photo, everyone else initials.
+  const photoUrl =
+    user?.role === "caregiver" ? resolvePhotoUrl(user.caregiver_profile?.photo_path) : null;
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "/login";
+  };
 
   // Pick the single most-specific nav item for the current path so nested
   // routes (e.g. /gigs/new) don't also light up their parent (/gigs).
@@ -277,6 +300,105 @@ export function DashboardSidebar({
           ))}
         </ul>
       </nav>
+
+      {/* Account — pinned to the sidebar bottom, same menu as the topbar */}
+      <div className="shrink-0 border-t border-sidebar-border p-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                aria-label="Account menu"
+                title={labelsVisible ? undefined : (user?.name ?? "Account")}
+                className={cn(
+                  "flex w-full cursor-pointer items-center gap-2.5 rounded-xl text-sm transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-primary/40 focus-visible:outline-none",
+                  labelsVisible ? "px-2 py-2" : "justify-center px-0 py-2",
+                )}
+              >
+                {photoUrl ? (
+                  <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-full ring-1 ring-foreground/10">
+                    <Image
+                      src={photoUrl}
+                      alt={user?.name ?? "You"}
+                      fill
+                      sizes="32px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </span>
+                ) : (
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-sidebar-primary">
+                    {initials}
+                  </span>
+                )}
+                {labelsVisible && (
+                  <>
+                    <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
+                      <span className="truncate text-[13px] font-medium text-sidebar-foreground">
+                        {accountName}
+                      </span>
+                      <span className="truncate font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                        {user?.role}
+                      </span>
+                    </span>
+                    <ChevronsUpDown
+                      className="size-4 shrink-0 text-muted-foreground"
+                      strokeWidth={1.75}
+                    />
+                  </>
+                )}
+              </button>
+            }
+          />
+          <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56">
+            <DropdownMenuLabel className="flex flex-col gap-0.5">
+              <span className="font-semibold">{user?.name}</span>
+              <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                {user?.role}
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem render={<Link href="/profile" />} onClick={onDrawerClose}>
+              <UserCircle className="size-4" strokeWidth={1.75} />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/settings" />} onClick={onDrawerClose}>
+              <Settings className="size-4" strokeWidth={1.75} />
+              Settings
+            </DropdownMenuItem>
+            {user?.role === "caregiver" && (
+              <DropdownMenuItem render={<Link href="/verification" />} onClick={onDrawerClose}>
+                <User className="size-4" strokeWidth={1.75} />
+                Verification
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+              <LogOut className="size-4" strokeWidth={1.75} />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </aside>
   );
+}
+
+function initialsOf(name: string | undefined): string {
+  if (!name) return "·";
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((n) => n.charAt(0).toUpperCase())
+    .join("");
+}
+
+// Photo paths come back as a full URL (seeded placeholders) or a relative
+// public-disk path (uploads). Resolve the relative case through the API origin
+// so the sidebar renders the same asset as the topbar.
+function resolvePhotoUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
 }

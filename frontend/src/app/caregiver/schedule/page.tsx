@@ -2,15 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BadgeCheck,
-  CalendarDays,
-  Clock,
-  Loader2,
-  MapPin,
-} from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
@@ -26,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell — caregiver-only view of their confirmed + pending
- * bookings laid out on an old appointment-book week grid.
+ * bookings laid out on a weekly calendar grid.
  * ───────────────────────────────────────────────────────────── */
 
 export default function CaregiverSchedulePage() {
@@ -73,30 +65,21 @@ function ScheduleView() {
   const weekLabel = useMemo(() => formatWeekRange(weekStart), [weekStart]);
 
   return (
-    <div className="relative">
-      {/* Paper wash — matches the Phase 6/7 editorial family */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.04] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Link
+        href="/bookings"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to bookings
+      </Link>
 
-      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Link
-          href="/bookings"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back to bookings
-        </Link>
+      <ScheduleHeader />
 
-        <ScheduleHeader weekLabel={weekLabel} />
-
+      {/* Calendar card */}
+      <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <WeekNav
+          weekLabel={weekLabel}
           weekStart={weekStart}
           onChange={setWeekStart}
           onJumpToToday={() => setWeekStart(startOfWeek(new Date()))}
@@ -109,9 +92,9 @@ function ScheduleView() {
         ) : (
           <WeekGrid days={days} bookings={bookings} />
         )}
-
-        <Legend />
       </div>
+
+      <Legend />
     </div>
   );
 }
@@ -120,82 +103,79 @@ function ScheduleView() {
  * Header
  * ───────────────────────────────────────────────────────────── */
 
-function ScheduleHeader({ weekLabel }: { weekLabel: string }) {
+function ScheduleHeader() {
   return (
-    <header>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="max-w-2xl">
-          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-            Your week,{" "}
-            <span className="font-normal italic text-primary">ink-stamped and pencilled in.</span>
-          </h1>
-
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            Confirmed visits are inked. Pending offers are in pencil — they&rsquo;ll firm up once
-            you accept. Cancelled and declined visits stay here for the record.
-          </p>
-
-          <p className="mt-2 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            {weekLabel}
-          </p>
-        </div>
-
-        <Link href="/caregiver/availability">
-          <Button variant="outline" className="h-11">
-            Manage availability
-          </Button>
-        </Link>
+    <header className="flex flex-wrap items-start justify-between gap-4">
+      <div className="max-w-xl">
+        <h1 className="text-lg font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
+          Schedule
+        </h1>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          Your confirmed and pending visits, laid out by week. Confirmed visits are locked in;
+          pending offers firm up once you accept.
+        </p>
       </div>
+
+      <Link href="/caregiver/availability">
+        <Button variant="outline">
+          <CalendarDays className="size-4" />
+          Manage availability
+        </Button>
+      </Link>
     </header>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Week nav
+ * Week nav — calendar card header
  * ───────────────────────────────────────────────────────────── */
 
 function WeekNav({
+  weekLabel,
   weekStart,
   onChange,
   onJumpToToday,
 }: {
+  weekLabel: string;
   weekStart: Date;
   onChange: (d: Date) => void;
   onJumpToToday: () => void;
 }) {
   return (
-    <nav
-      aria-label="Week navigation"
-      className="mt-10 flex flex-wrap items-center justify-between gap-3 border-y border-border/60 py-3"
-    >
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => onChange(shiftWeek(weekStart, -1))}
-          className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-label="Previous week"
-        >
-          <ArrowLeft className="size-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(shiftWeek(weekStart, 1))}
-          className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-label="Next week"
-        >
-          <ArrowRight className="size-4" />
-        </button>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center rounded-lg border border-border bg-card p-0.5">
+          <button
+            type="button"
+            onClick={() => onChange(shiftWeek(weekStart, -1))}
+            aria-label="Previous week"
+            className="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(shiftWeek(weekStart, 1))}
+            aria-label="Next week"
+            className="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground tabular-nums">
+          {weekLabel}
+        </h2>
       </div>
 
       <button
         type="button"
         onClick={onJumpToToday}
-        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase transition-colors hover:bg-muted hover:text-foreground"
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
       >
         <CalendarDays className="size-3.5" />
-        Jump to this week
+        Today
       </button>
-    </nav>
+    </div>
   );
 }
 
@@ -205,7 +185,7 @@ function WeekNav({
 
 function WeekGrid({ days, bookings }: { days: Date[]; bookings: Booking[] }) {
   return (
-    <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-7 md:gap-px md:rounded-2xl md:bg-border/60 md:p-[1px] md:ring-1 md:ring-border/60">
+    <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-7 md:divide-x md:divide-y-0">
       {days.map((day) => {
         const dayBookings = bookings.filter((b) =>
           sameCalendarDay(new Date(b.scheduled_start), day),
@@ -229,25 +209,22 @@ function DayColumn({
   bookings: Booking[];
   isToday: boolean;
 }) {
-  const weekday = day.toLocaleDateString("en-CA", { weekday: "short" }).toLowerCase();
+  const weekday = day.toLocaleDateString("en-CA", { weekday: "short" });
   const dayNum = day.getDate();
 
   return (
     <div
       className={cn(
-        "flex min-h-[180px] flex-col bg-card p-3 md:min-h-[260px]",
-        "first:md:rounded-l-2xl last:md:rounded-r-2xl",
-        isToday && "bg-primary/[0.05]",
+        "flex min-h-[200px] flex-col p-3 md:min-h-[280px]",
+        isToday && "bg-primary/[0.04]",
       )}
     >
-      <header className="mb-3 flex items-baseline justify-between border-b border-border/50 pb-2">
-        <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-          {weekday}
-        </span>
+      <header className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{weekday}</span>
         <span
           className={cn(
-            "font-mono text-xl font-semibold tabular-nums",
-            isToday ? "text-primary" : "text-foreground/80",
+            "grid size-7 place-items-center rounded-full text-sm font-semibold tabular-nums",
+            isToday ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground",
           )}
         >
           {dayNum}
@@ -256,7 +233,7 @@ function DayColumn({
 
       {bookings.length === 0 ? (
         <div className="flex flex-1 items-center justify-center py-6">
-          <span className="text-[11px] italic text-muted-foreground/60">nothing scheduled</span>
+          <span className="text-xs text-muted-foreground/60">No visits</span>
         </div>
       ) : (
         <ol className="space-y-2">
@@ -278,62 +255,87 @@ function DayColumn({
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Booking block — inked for confirmed, pencilled for pending
+ * Booking block — status-coded event chip
  * ───────────────────────────────────────────────────────────── */
 
 function BookingBlock({ booking }: { booking: Booking }) {
   const tone = statusTone(booking.status);
   const start = new Date(booking.scheduled_start);
   const end = new Date(booking.scheduled_end);
-  const timeLabel =
-    start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }) +
-    " — " +
-    end.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const timeLabel = formatTimeRange(start, end);
 
-  const wrapperClass = cn(
-    "group block rounded-lg p-2.5 text-left text-xs transition-all hover:-translate-y-0.5",
-    tone === "positive" &&
-      "bg-success/10 ring-1 ring-success/40 text-success hover:shadow-[0_6px_20px_-6px_rgba(29,143,96,0.35)]",
-    tone === "pending" &&
-      "border border-dashed border-accent/60 bg-accent/[0.04] text-accent/90 hover:bg-accent/10",
-    tone === "warning" &&
-      "bg-muted text-muted-foreground line-through decoration-[1.5px] hover:no-underline hover:bg-muted/70",
-    tone === "neutral" && "bg-muted text-muted-foreground",
-  );
+  const styles: Record<typeof tone, { wrap: string; bar: string; badge: string; dot: string }> = {
+    positive: {
+      wrap: "border-success/30 from-success/[0.07] hover:border-success/50",
+      bar: "bg-success",
+      badge: "bg-success/15 text-success",
+      dot: "bg-success",
+    },
+    pending: {
+      wrap: "border-accent/30 from-accent/[0.07] hover:border-accent/50",
+      bar: "bg-accent",
+      badge: "bg-accent/15 text-accent",
+      dot: "bg-accent",
+    },
+    warning: {
+      wrap: "border-border from-muted/60 hover:border-foreground/20",
+      bar: "bg-muted-foreground/40",
+      badge: "bg-muted text-muted-foreground",
+      dot: "bg-muted-foreground/50",
+    },
+    neutral: {
+      wrap: "border-border from-muted/60 hover:border-foreground/20",
+      bar: "bg-muted-foreground/40",
+      badge: "bg-muted text-muted-foreground",
+      dot: "bg-muted-foreground/50",
+    },
+  };
+  const s = styles[tone];
 
   return (
-    <Link href={`/bookings/${booking.id}`} className={wrapperClass}>
-      <div className="flex items-center gap-1 font-mono text-[10px] tabular-nums tracking-tight opacity-90">
-        <Clock className="size-3 shrink-0" strokeWidth={1.75} />
-        {timeLabel}
-      </div>
-      <p className="mt-1 line-clamp-1 text-[13px] font-semibold tracking-tight text-foreground">
+    <Link
+      href={`/bookings/${booking.id}`}
+      className={cn(
+        "group relative block overflow-hidden rounded-xl border bg-gradient-to-br to-card py-2.5 pr-2.5 pl-3.5 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md",
+        s.wrap,
+      )}
+    >
+      <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", s.bar)} />
+
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+          s.badge,
+        )}
+      >
+        <span className={cn("size-1.5 shrink-0 rounded-full", s.dot)} />
+        {statusLabel(booking.status)}
+      </span>
+
+      <p className="mt-2 line-clamp-1 text-[13px] font-semibold tracking-tight text-foreground">
         {booking.gig?.service_category?.name ?? "Visit"}
       </p>
-      <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-        <MapPin className="size-3 shrink-0" strokeWidth={1.75} />
-        <span className="truncate">{booking.address_neighbourhood}</span>
+
+      <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+        <Clock className="size-3 shrink-0" strokeWidth={2} />
+        {timeLabel}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span
-          className={cn(
-            "inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.12em] uppercase ring-1",
-            tone === "positive" && "bg-success/15 text-success ring-success/40",
-            tone === "pending" && "bg-accent/15 text-accent ring-accent/40",
-            tone === "warning" && "bg-foreground/10 text-muted-foreground ring-foreground/15",
-            tone === "neutral" && "bg-foreground/10 text-muted-foreground ring-foreground/15",
-          )}
-        >
-          {statusLabel(booking.status)}
-        </span>
-        <span className="font-mono text-[11px] tabular-nums text-foreground/80">
+
+      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+        <MapPin className="size-3 shrink-0" strokeWidth={2} />
+        <span className="truncate">{booking.address_neighbourhood}</span>
+        <span className="text-muted-foreground/50">·</span>
+        <span className="shrink-0">{formatHours(booking.duration_minutes)}</span>
+      </div>
+
+      <div className="mt-2.5 flex items-baseline gap-1 border-t border-border/50 pt-2">
+        <span className="text-[13px] font-bold tabular-nums text-foreground">
           {formatCents(booking.caregiver_payout_cents)}
         </span>
+        <span className="text-[9px] font-medium tracking-wide text-muted-foreground uppercase">
+          payout
+        </span>
       </div>
-      <p className="mt-1 flex items-center gap-1 font-mono text-[9px] tracking-[0.14em] text-muted-foreground uppercase">
-        <BadgeCheck className="size-2.5 text-success" strokeWidth={2.25} />
-        {formatHours(booking.duration_minutes)}
-      </p>
     </Link>
   );
 }
@@ -344,60 +346,46 @@ function BookingBlock({ booking }: { booking: Booking }) {
 
 function Legend() {
   return (
-    <footer className="mt-12 grid gap-3 rounded-2xl border border-border/40 bg-card/60 p-5 sm:grid-cols-3">
-      <LegendItem
-        label="Confirmed"
-        hint="ink-stamped — the visit is on"
-        swatch="bg-success/10 ring-success/40"
-      />
-      <LegendItem
-        label="Pending offer"
-        hint="pencilled — awaiting your reply"
-        swatch="border border-dashed border-accent/60 bg-accent/[0.04]"
-      />
-      <LegendItem
-        label="Past / cancelled"
-        hint="for the record"
-        swatch="bg-muted ring-foreground/15"
-      />
-    </footer>
+    <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <LegendItem label="Confirmed" swatch="bg-success/15 ring-success/40" />
+      <LegendItem label="Pending offer" swatch="bg-accent/15 ring-accent/40" />
+      <LegendItem label="Past / cancelled" swatch="bg-muted ring-border" />
+    </div>
   );
 }
 
-function LegendItem({ label, hint, swatch }: { label: string; hint: string; swatch: string }) {
+function LegendItem({ label, swatch }: { label: string; swatch: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className={cn("size-6 shrink-0 rounded-md ring-1", swatch)} />
-      <div>
-        <p className="text-sm font-semibold">{label}</p>
-        <p className="text-[11px] italic text-muted-foreground">{hint}</p>
-      </div>
+    <div className="flex items-center gap-2">
+      <span className={cn("size-3.5 shrink-0 rounded-[4px] ring-1", swatch)} />
+      <span className="text-sm font-medium text-foreground">{label}</span>
     </div>
   );
 }
 
 function LoadingGrid() {
   return (
-    <div className="mt-8 grid grid-cols-7 gap-px overflow-hidden rounded-2xl bg-border/60 p-[1px] ring-1 ring-border/60">
+    <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-7 md:divide-x md:divide-y-0">
       {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="flex min-h-[220px] animate-pulse flex-col gap-2 bg-muted/40 p-3">
-          <div className="h-3 w-10 rounded bg-muted" />
-          <div className="h-10 rounded bg-muted/60" />
-          <div className="h-10 rounded bg-muted/60" />
+        <div
+          key={i}
+          className="flex min-h-[200px] animate-pulse flex-col gap-3 p-3 md:min-h-[280px]"
+        >
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-8 rounded bg-muted" />
+            <div className="size-7 rounded-full bg-muted" />
+          </div>
+          <div className="h-20 rounded-lg bg-muted/60" />
         </div>
       ))}
-      <div className="col-span-7 flex items-center justify-center py-3 text-sm text-muted-foreground">
-        <Loader2 className="mr-2 size-4 animate-spin text-primary" />
-        Laying out the week…
-      </div>
     </div>
   );
 }
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="mt-12 rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-destructive">
-      <p>{message}</p>
+    <div className="p-10 text-center">
+      <p className="text-sm text-destructive">{message}</p>
       <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
         Try again
       </Button>
@@ -438,6 +426,18 @@ function sameCalendarDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+function formatTimeRange(start: Date, end: Date): string {
+  const meridiem = (d: Date) => (d.getHours() < 12 ? "am" : "pm");
+  const clock = (d: Date) => {
+    const h = d.getHours() % 12 || 12;
+    const m = d.getMinutes();
+    return m === 0 ? `${h}` : `${h}:${String(m).padStart(2, "0")}`;
+  };
+  const sameMeridiem = meridiem(start) === meridiem(end);
+  const startLabel = sameMeridiem ? clock(start) : `${clock(start)} ${meridiem(start)}`;
+  return `${startLabel}–${clock(end)} ${meridiem(end)}`;
 }
 
 function formatWeekRange(weekStart: Date): string {

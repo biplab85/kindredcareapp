@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Camera,
@@ -422,13 +421,10 @@ export function OnboardingForm() {
     if (certBusy) return;
     // Resolve the actual cert name: dropdown value unless the caregiver
     // picked "Other", in which case the freeform input wins.
-    const finalName =
-      certName === CERT_OTHER_VALUE ? certCustomName.trim() : certName;
+    const finalName = certName === CERT_OTHER_VALUE ? certCustomName.trim() : certName;
     if (!finalName) {
       toast.error(
-        certName === CERT_OTHER_VALUE
-          ? "Type the certification name."
-          : "Pick a certification.",
+        certName === CERT_OTHER_VALUE ? "Type the certification name." : "Pick a certification.",
       );
       return;
     }
@@ -482,10 +478,7 @@ export function OnboardingForm() {
     }
   };
 
-  const handleRowDocChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    certId: number,
-  ) => {
+  const handleRowDocChange = async (e: React.ChangeEvent<HTMLInputElement>, certId: number) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -587,37 +580,29 @@ export function OnboardingForm() {
   const youKeep = hourlyRate;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-6 pb-32 sm:px-6 lg:px-8">
-      {/* ─── Editorial header ─── */}
-      <div className="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        § 01 · Your profile
-      </div>
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      {!isAlreadyOnboarded && (
+        <header>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            Set up your profile
+          </h1>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Walk through the steps — when each is filled out, families can find and book you.
+          </p>
+        </header>
+      )}
 
-      <header className="mt-3">
-        <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl">
-          {isAlreadyOnboarded ? (
-            <>
-              Tell families <span className="italic text-primary">who you are.</span>
-            </>
-          ) : (
-            <>
-              Let&rsquo;s set up <span className="italic text-primary">your profile.</span>
-            </>
-          )}
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          {isAlreadyOnboarded
-            ? "Switch tabs to edit any section. Changes save when you press the button at the bottom."
-            : "Walk through the tabs — when each is filled out, families can find and book you."}
-        </p>
-      </header>
-
-      <div className="my-6 border-t border-dashed border-border/60" />
-
-      {/* ─── Tab bar — clickable, no forced order ─── */}
-      <div className="-mx-1 overflow-x-auto">
-        <div role="tablist" className="flex min-w-max items-stretch gap-1 px-1">
+      <div
+        className={cn(
+          "grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start",
+          !isAlreadyOnboarded && "mt-6",
+        )}
+      >
+        {/* ─── Vertical step nav ─── */}
+        <nav
+          role="tablist"
+          className="space-y-1 rounded-2xl border border-border bg-card p-2 shadow-sm lg:sticky lg:top-20"
+        >
           {steps.map((tab, idx) => {
             const tabNum = idx + 1;
             const active = step === tabNum;
@@ -629,764 +614,850 @@ export function OnboardingForm() {
                 aria-selected={active}
                 onClick={() => setStep(tabNum)}
                 className={cn(
-                  "group relative flex items-baseline gap-2 px-3 py-3 transition-colors",
-                  "font-mono text-[11px] font-medium tracking-[0.18em] uppercase",
-                  "border-b-2",
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                  "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                  active ? "bg-primary/10" : "hover:bg-muted",
                 )}
               >
-                <span className={cn(active ? "text-primary" : "text-muted-foreground/60")}>
-                  {String(tabNum).padStart(2, "0")}
+                <span
+                  className={cn(
+                    "grid size-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tabNum}
                 </span>
-                <span>{tab.label}</span>
+                <span className="min-w-0 leading-tight">
+                  <span
+                    className={cn(
+                      "block truncate text-sm font-semibold",
+                      active ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {tab.label}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {tab.description}
+                  </span>
+                </span>
               </button>
             );
           })}
-        </div>
-      </div>
+        </nav>
 
-      {/* ─── Tab body ─── */}
-      <div className="mt-6">
-        <Card>
-          <CardContent className="p-6 sm:p-8">
-            {/* ─── STEP 1: Personal Info ─── */}
-            {step === 1 && (
-              <div className="space-y-6">
-                <div className="flex flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingPhoto}
-                    className="group relative mb-2 flex size-24 items-center justify-center overflow-hidden rounded-full bg-muted transition-colors hover:bg-muted/80 disabled:cursor-not-allowed"
-                  >
-                    {photoPreview ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={photoPreview} alt="Preview" className="size-full object-cover" />
-                    ) : (
-                      <Camera className="size-8 text-muted-foreground transition-colors group-hover:text-foreground" />
-                    )}
-                    {isUploadingPhoto && (
-                      <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur-sm">
-                        <Loader2 className="size-6 animate-spin text-primary" />
-                      </div>
-                    )}
-                  </button>
-                  <p className="text-xs text-muted-foreground">
-                    {isUploadingPhoto ? "Uploading…" : "Upload a profile photo"}
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoSelect}
-                    className="hidden"
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dob">Date of Birth</Label>
-                    <Input
-                      id="dob"
-                      type="date"
-                      className="h-12"
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="gender">Gender</Label>
-                    <select
-                      id="gender"
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                      className="h-12 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+        {/* ─── Tab body ─── */}
+        <div className="min-w-0">
+          <Card className="gap-0 border border-border py-0 shadow-sm ring-0">
+            <div className="border-b border-border px-6 py-4 sm:px-8">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">
+                {steps[step - 1].label}
+              </h2>
+            </div>
+            <CardContent className="p-6 sm:p-8">
+              {/* ─── STEP 1: Personal Info ─── */}
+              {step === 1 && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-5 rounded-xl border border-border bg-muted/20 p-4">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingPhoto}
+                      className="group relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-2xl bg-muted shadow-sm ring-2 ring-card transition-colors hover:bg-muted/80 disabled:cursor-not-allowed"
                     >
-                      <option value="">Select...</option>
-                      {GENDERS.map((g) => (
-                        <option key={g.value} value={g.value}>
-                          {g.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="bio">About You</Label>
-                  <Textarea
-                    id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell families about your experience, personality, and why you love caregiving..."
-                    rows={5}
-                    maxLength={500}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>
-                      {bio.length < 50
-                        ? `${50 - bio.length} more characters needed`
-                        : "Looks great!"}
-                    </span>
-                    <span>{bio.length}/500</span>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    className="h-12"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="123 Main St, City, Province"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="postal">Postal Code</Label>
-                  <Input
-                    id="postal"
-                    className="h-12"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
-                    placeholder="L1H 8C1"
-                    maxLength={7}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* ─── STEP 2: Services & Experience ─── */}
-            {step === 2 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold">Your experience</h3>
-                  <div className="mt-3 flex items-center gap-3">
-                    <Label htmlFor="yoe" className="shrink-0">
-                      Total years of caregiving:
-                    </Label>
-                    <Input
-                      id="yoe"
-                      type="number"
-                      className="h-12 w-24"
-                      min={0}
-                      max={50}
-                      value={yearsOfExperience}
-                      onChange={(e) => setYearsOfExperience(Number(e.target.value))}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold">What services do you offer?</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select services and set your experience for each.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {categories.map((cat) => {
-                    const Icon = iconMap[cat.icon] || Heart;
-                    const selected = cat.id in selectedServices;
-                    return (
-                      <div
-                        key={cat.id}
-                        className={cn(
-                          "rounded-xl border-2 p-4 transition-all",
-                          selected
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/30",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => toggleService(cat.id)}
-                          className="flex w-full items-start gap-3 text-left"
-                        >
-                          <div
-                            className={cn(
-                              "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                              selected
-                                ? "bg-primary/10 text-primary"
-                                : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            <Icon className="size-5" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium">{cat.name}</p>
-                            <p className="text-xs text-muted-foreground">{cat.description}</p>
-                          </div>
-                          {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
-                        </button>
-                        {selected && (
-                          <div className="mt-3 flex items-center gap-2 pl-[52px]">
-                            <Label className="shrink-0 text-xs text-muted-foreground">
-                              Years exp:
-                            </Label>
-                            <Input
-                              type="number"
-                              className="h-8 w-16 text-sm"
-                              min={0}
-                              max={50}
-                              value={selectedServices[cat.id]}
-                              onChange={(e) => setServiceExp(cat.id, Number(e.target.value))}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ─── STEP 3: Skills & Certifications ─── */}
-            {step === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold">Languages you speak</h3>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Select all languages you can communicate in.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {LANGUAGES.map((lang) => (
-                      <button key={lang} type="button" onClick={() => toggleLanguage(lang)}>
-                        <Badge
-                          variant={selectedLanguages.includes(lang) ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer px-3 py-1.5 text-sm transition-all",
-                            selectedLanguages.includes(lang) &&
-                              "bg-primary text-primary-foreground",
-                          )}
-                        >
-                          {lang}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold">Certifications</h3>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Add your professional certifications — every entry needs a PDF or photo
-                    so the admin team can mark it as Verified.
-                  </p>
-
-                  {certifications.length > 0 && (
-                    <ul className="mb-4 space-y-2">
-                      {certifications.map((cert) => (
-                        <li
-                          key={cert.id}
-                          className="rounded-lg border border-border bg-muted/30 px-3 py-2.5"
-                        >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Shield className="size-4 text-primary" />
-                            <span className="text-sm font-medium">{cert.name}</span>
-                            {cert.issuer ? (
-                              <span className="text-xs text-muted-foreground">
-                                {cert.issuer}
-                              </span>
-                            ) : null}
-                            {cert.year ? (
-                              <span className="text-xs text-muted-foreground">{cert.year}</span>
-                            ) : null}
-                            <CertStatusPill status={cert.status} />
-                            <div className="ml-auto flex items-center gap-1">
-                              {!cert.has_document || cert.status === "rejected" ? (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 px-2 text-[11px]"
-                                  disabled={pendingDocCertId === cert.id}
-                                  onClick={() => {
-                                    if (certRowDocInputRef.current) {
-                                      certRowDocInputRef.current.dataset.certId = String(cert.id);
-                                      certRowDocInputRef.current.click();
-                                    }
-                                  }}
-                                >
-                                  {pendingDocCertId === cert.id ? (
-                                    <Loader2 className="mr-1 size-3 animate-spin" />
-                                  ) : (
-                                    <Plus className="mr-1 size-3" />
-                                  )}
-                                  {cert.has_document ? "Re-upload" : "Add document"}
-                                </Button>
-                              ) : null}
-                              <button
-                                type="button"
-                                aria-label="Remove certification"
-                                onClick={() => removeCertification(cert.id)}
-                                disabled={certBusy}
-                              >
-                                <X className="size-4 text-muted-foreground hover:text-foreground" />
-                              </button>
-                            </div>
-                          </div>
-                          {cert.status === "rejected" && cert.rejection_reason ? (
-                            <p className="mt-2 text-xs leading-relaxed text-destructive">
-                              <span className="font-medium">Rejected:</span>{" "}
-                              {cert.rejection_reason}
-                            </p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <input
-                    ref={certRowDocInputRef}
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png"
-                    className="hidden"
-                    onChange={(e) => {
-                      const id = Number(certRowDocInputRef.current?.dataset.certId);
-                      if (Number.isFinite(id) && id > 0) {
-                        handleRowDocChange(e, id);
-                      }
-                    }}
-                  />
-
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      <select
-                        value={certName}
-                        onChange={(e) => setCertName(e.target.value)}
-                        className="h-10 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
-                      >
-                        <option value="">Select certification…</option>
-                        {COMMON_CERTS.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                        {/* Thin divider so "Other" reads as a different
-                            tier from the preset list. */}
-                        <option disabled>──────────</option>
-                        <option value={CERT_OTHER_VALUE}>Other (specify)</option>
-                      </select>
-                      <Input
-                        className="h-10 w-32"
-                        placeholder="Issuer"
-                        value={certIssuer}
-                        onChange={(e) => setCertIssuer(e.target.value)}
-                      />
-                      <Input
-                        className="h-10 w-20"
-                        type="number"
-                        placeholder="Year"
-                        value={certYear}
-                        onChange={(e) => setCertYear(e.target.value)}
-                        min={1990}
-                        max={2030}
-                      />
-                    </div>
-                    {/* CSS-only slide reveal: grid-rows transition keeps
-                        the field flush with the strip above and animates
-                        cleanly on open. */}
-                    <div
-                      className={cn(
-                        "grid transition-[grid-template-rows] duration-200 ease-out",
-                        certName === CERT_OTHER_VALUE
-                          ? "grid-rows-[1fr]"
-                          : "grid-rows-[0fr]",
+                      {photoPreview ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={photoPreview} alt="Preview" className="size-full object-cover" />
+                      ) : (
+                        <Camera className="size-7 text-muted-foreground transition-colors group-hover:text-foreground" />
                       )}
-                    >
-                      <div className="overflow-hidden">
-                        <Input
-                          className="h-10"
-                          placeholder="Name your certification — e.g. Vulnerable Sector Check"
-                          value={certCustomName}
-                          onChange={(e) => setCertCustomName(e.target.value)}
-                          maxLength={100}
-                          autoFocus={certName === CERT_OTHER_VALUE}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        ref={certDocInputRef}
-                        type="file"
-                        accept="application/pdf,image/jpeg,image/png"
-                        className="hidden"
-                        onChange={(e) => setCertDoc(e.target.files?.[0] ?? null)}
-                      />
+                      {isUploadingPhoto && (
+                        <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur-sm">
+                          <Loader2 className="size-6 animate-spin text-primary" />
+                        </div>
+                      )}
+                      <span className="absolute right-1 bottom-1 grid size-6 place-items-center rounded-md bg-primary text-primary-foreground shadow ring-2 ring-card">
+                        <Camera className="size-3" strokeWidth={2.25} />
+                      </span>
+                    </button>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Profile photo</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                        {isUploadingPhoto
+                          ? "Uploading…"
+                          : "A clear face photo helps families trust you. JPG or PNG, up to 5MB."}
+                      </p>
                       <Button
                         type="button"
                         variant="outline"
-                        size="lg"
-                        className={cn(
-                          !certDoc &&
-                            certName &&
-                            !(certName === CERT_OTHER_VALUE && !certCustomName.trim())
-                            ? "border-accent/40 text-accent hover:bg-accent/5 hover:text-accent"
-                            : "",
-                        )}
-                        onClick={() => certDocInputRef.current?.click()}
+                        size="sm"
+                        className="mt-2"
+                        disabled={isUploadingPhoto}
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        <Plus className="mr-1 size-3" />
-                        {certDoc ? certDoc.name : "Attach your cert (required)"}
-                      </Button>
-                      {certDoc ? (
-                        <button
-                          type="button"
-                          aria-label="Clear document"
-                          onClick={() => {
-                            setCertDoc(null);
-                            if (certDocInputRef.current) certDocInputRef.current.value = "";
-                          }}
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          clear
-                        </button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        size="lg"
-                        className="ml-auto"
-                        onClick={addCertification}
-                        disabled={
-                          !certName ||
-                          (certName === CERT_OTHER_VALUE && !certCustomName.trim()) ||
-                          !certDoc ||
-                          certBusy
-                        }
-                      >
-                        {certBusy ? (
-                          <Loader2 className="mr-1 size-3 animate-spin" />
-                        ) : (
-                          <Plus className="mr-1 size-3" />
-                        )}
-                        Add
+                        <Camera className="size-3.5" />
+                        {photoPreview ? "Change photo" : "Upload photo"}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      PDF or image, up to 10MB. The admin team reviews documents within a
-                      couple of business days — your cert appears as &ldquo;Pending&rdquo; until
-                      then.
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="dob">Date of Birth</Label>
+                      <Input
+                        id="dob"
+                        type="date"
+                        className="h-[35px]"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gender">Gender</Label>
+                      <select
+                        id="gender"
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="h-[35px] w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+                      >
+                        <option value="">Select...</option>
+                        {GENDERS.map((g) => (
+                          <option key={g.value} value={g.value}>
+                            {g.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bio">About You</Label>
+                    <Textarea
+                      id="bio"
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder="Tell families about your experience, personality, and why you love caregiving..."
+                      rows={5}
+                      maxLength={500}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {bio.length < 50
+                          ? `${50 - bio.length} more characters needed`
+                          : "Looks great!"}
+                      </span>
+                      <span>{bio.length}/500</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="address">Address</Label>
+                    <Input
+                      id="address"
+                      className="h-[35px]"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="123 Main St, City, Province"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="postal">Postal Code</Label>
+                    <Input
+                      id="postal"
+                      className="h-[35px]"
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                      placeholder="L1H 8C1"
+                      maxLength={7}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ─── STEP 2: Services & Experience ─── */}
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Your experience
+                    </h3>
+                    <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                      <Label htmlFor="yoe" className="shrink-0 text-sm">
+                        Total years of caregiving
+                      </Label>
+                      <Input
+                        id="yoe"
+                        type="number"
+                        className="h-[35px] w-24"
+                        min={0}
+                        max={50}
+                        value={yearsOfExperience}
+                        onChange={(e) => setYearsOfExperience(Number(e.target.value))}
+                      />
+                      <span className="text-sm text-muted-foreground">years</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      What services do you offer?
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Select services and set your experience for each.
                     </p>
                   </div>
-                </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold">Your interests</h3>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Help families find things you have in common.
-                  </p>
-                  <div className="flex gap-2">
-                    <Input
-                      className="h-12"
-                      value={interestInput}
-                      onChange={(e) => setInterestInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInterest())}
-                      placeholder="Type an interest and press Enter"
-                    />
-                    <Button type="button" variant="outline" className="h-12" onClick={addInterest}>
-                      Add
-                    </Button>
-                  </div>
-                  {interests.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {interests.map((interest) => (
-                        <Badge key={interest} variant="secondary" className="gap-1 px-3 py-1.5">
-                          {interest}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setInterests((prev) => prev.filter((i) => i !== interest))
-                            }
-                            className="ml-1 text-muted-foreground hover:text-foreground"
-                          >
-                            &times;
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold">Personality traits</h3>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    How would you describe yourself?
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {PERSONALITY_TAGS.map((tag) => (
-                      <button key={tag} type="button" onClick={() => togglePersonality(tag)}>
-                        <Badge
-                          variant={personalityTags.includes(tag) ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer px-3 py-1.5 text-sm transition-all",
-                            personalityTags.includes(tag) && "bg-accent text-accent-foreground",
-                          )}
-                        >
-                          {tag}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ─── STEP 4: Rate & Availability ─── */}
-            {step === 4 && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-lg font-semibold">Your hourly rate</h3>
-                  <div className="mt-4">
-                    <div className="flex items-center gap-4">
-                      <DollarSign className="size-5 text-muted-foreground" />
-                      <input
-                        type="range"
-                        min={18}
-                        max={50}
-                        value={hourlyRate}
-                        onChange={(e) => setHourlyRate(Number(e.target.value))}
-                        className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
-                      />
-                      <span className="w-16 text-right text-2xl font-bold text-foreground">
-                        ${hourlyRate}
-                      </span>
-                    </div>
-                    <div className="mt-4 flex items-center justify-center gap-4 rounded-xl bg-muted/60 p-4 text-sm">
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">Family pays</p>
-                        <p className="text-lg font-semibold">${familyPays}</p>
-                      </div>
-                      <div className="h-8 w-px bg-border" />
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">You keep</p>
-                        <p className="text-lg font-semibold text-success">${youKeep}</p>
-                      </div>
-                      <div className="h-8 w-px bg-border" />
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">Platform fee</p>
-                        <p className="text-lg font-semibold text-muted-foreground">
-                          ${platformFee}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold">Travel radius</h3>
-                  <p className="text-sm text-muted-foreground">
-                    How far are you willing to travel?
-                  </p>
-                  <div className="mt-4 flex items-center gap-4">
-                    <input
-                      type="range"
-                      min={1}
-                      max={50}
-                      value={travelRadius}
-                      onChange={(e) => setTravelRadius(Number(e.target.value))}
-                      className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
-                    />
-                    <span className="w-20 text-right text-lg font-semibold">{travelRadius} km</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold">Weekly availability</h3>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Set your typical weekly schedule.
-                  </p>
-                  <div className="space-y-3">
-                    {DAYS.map((day) => {
-                      const key = day.toLowerCase();
-                      const dayData = availability[key];
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {categories.map((cat) => {
+                      const Icon = iconMap[cat.icon] || Heart;
+                      const selected = cat.id in selectedServices;
                       return (
                         <div
-                          key={day}
-                          className="flex items-center gap-3 rounded-xl border border-border p-3"
+                          key={cat.id}
+                          className={cn(
+                            "rounded-xl border p-4 transition-all",
+                            selected
+                              ? "border-primary/40 bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
+                              : "border-border hover:border-primary/30 hover:bg-muted/30",
+                          )}
                         >
-                          <Switch
-                            checked={dayData.available}
-                            onCheckedChange={(checked) => updateDay(key, "available", checked)}
-                          />
-                          <span
-                            className={cn(
-                              "w-24 text-sm font-medium",
-                              !dayData.available && "text-muted-foreground",
-                            )}
+                          <button
+                            type="button"
+                            onClick={() => toggleService(cat.id)}
+                            className="flex w-full items-start gap-3 text-left"
                           >
-                            {day}
-                          </span>
-                          {dayData.available ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="time"
-                                value={dayData.start}
-                                onChange={(e) => updateDay(key, "start", e.target.value)}
-                                className="rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm"
-                              />
-                              <span className="text-xs text-muted-foreground">to</span>
-                              <input
-                                type="time"
-                                value={dayData.end}
-                                onChange={(e) => updateDay(key, "end", e.target.value)}
-                                className="rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm"
+                            <div
+                              className={cn(
+                                "flex size-10 shrink-0 items-center justify-center rounded-lg",
+                                selected
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-muted text-muted-foreground",
+                              )}
+                            >
+                              <Icon className="size-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium">{cat.name}</p>
+                              <p className="text-xs text-muted-foreground">{cat.description}</p>
+                            </div>
+                            {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
+                          </button>
+                          {selected && (
+                            <div className="mt-3 flex items-center gap-2 pl-[52px]">
+                              <Label className="shrink-0 text-xs text-muted-foreground">
+                                Years exp:
+                              </Label>
+                              <Input
+                                type="number"
+                                className="h-8 w-16 text-sm"
+                                min={0}
+                                max={50}
+                                value={selectedServices[cat.id]}
+                                onChange={(e) => setServiceExp(cat.id, Number(e.target.value))}
                               />
                             </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">Not available</span>
                           )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ─── STEP 5: Safety & References ─── */}
-            {step === 5 && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="flex items-center gap-2 text-lg font-semibold">
-                    <Shield className="size-5 text-primary" /> Emergency Contact
-                  </h3>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Someone we can reach if there&apos;s an emergency during a visit.
-                  </p>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ec-name">Name</Label>
-                      <Input
-                        id="ec-name"
-                        className="h-12"
-                        value={emergencyName}
-                        onChange={(e) => setEmergencyName(e.target.value)}
-                        placeholder="Full name"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ec-phone">Phone</Label>
-                      <Input
-                        id="ec-phone"
-                        type="tel"
-                        className="h-12"
-                        value={emergencyPhone}
-                        onChange={(e) => setEmergencyPhone(e.target.value)}
-                        placeholder="+1 (416) 555-0000"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ec-rel">Relationship</Label>
-                      <Input
-                        id="ec-rel"
-                        className="h-12"
-                        value={emergencyRelationship}
-                        onChange={(e) => setEmergencyRelationship(e.target.value)}
-                        placeholder="e.g. Spouse"
-                      />
+              {/* ─── STEP 3: Skills & Certifications ─── */}
+              {step === 3 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Languages you speak
+                    </h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Select all languages you can communicate in.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {LANGUAGES.map((lang) => {
+                        const on = selectedLanguages.includes(lang);
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => toggleLanguage(lang)}
+                            className={cn(
+                              "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
+                              on
+                                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/[0.04]",
+                            )}
+                          >
+                            {on && <CheckCircle2 className="size-3.5" strokeWidth={2.5} />}
+                            {lang}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <h3 className="flex items-center gap-2 text-lg font-semibold">
-                    <UserCheck className="size-5 text-primary" /> Professional References
-                  </h3>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Provide 2 references who can speak to your caregiving experience. They&apos;ll
-                    receive an email questionnaire.
-                  </p>
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Certifications
+                    </h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Add your professional certifications — every entry needs a PDF or photo so the
+                      admin team can mark it as Verified.
+                    </p>
 
-                  {references.map((ref, i) => (
-                    <div key={i} className="mb-4 rounded-xl border border-border p-4">
-                      <p className="mb-3 text-sm font-medium">Reference {i + 1}</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label>Name</Label>
+                    {certifications.length > 0 && (
+                      <ul className="mb-4 space-y-2">
+                        {certifications.map((cert) => (
+                          <li
+                            key={cert.id}
+                            className="rounded-xl border border-border bg-card px-3.5 py-3 transition-colors hover:bg-muted/30"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Shield className="size-4 text-primary" />
+                              <span className="text-sm font-medium">{cert.name}</span>
+                              {cert.issuer ? (
+                                <span className="text-xs text-muted-foreground">{cert.issuer}</span>
+                              ) : null}
+                              {cert.year ? (
+                                <span className="text-xs text-muted-foreground">{cert.year}</span>
+                              ) : null}
+                              <CertStatusPill status={cert.status} />
+                              <div className="ml-auto flex items-center gap-1">
+                                {!cert.has_document || cert.status === "rejected" ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 text-[11px]"
+                                    disabled={pendingDocCertId === cert.id}
+                                    onClick={() => {
+                                      if (certRowDocInputRef.current) {
+                                        certRowDocInputRef.current.dataset.certId = String(cert.id);
+                                        certRowDocInputRef.current.click();
+                                      }
+                                    }}
+                                  >
+                                    {pendingDocCertId === cert.id ? (
+                                      <Loader2 className="mr-1 size-3 animate-spin" />
+                                    ) : (
+                                      <Plus className="mr-1 size-3" />
+                                    )}
+                                    {cert.has_document ? "Re-upload" : "Add document"}
+                                  </Button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  aria-label="Remove certification"
+                                  onClick={() => removeCertification(cert.id)}
+                                  disabled={certBusy}
+                                >
+                                  <X className="size-4 text-muted-foreground hover:text-foreground" />
+                                </button>
+                              </div>
+                            </div>
+                            {cert.status === "rejected" && cert.rejection_reason ? (
+                              <p className="mt-2 text-xs leading-relaxed text-destructive">
+                                <span className="font-medium">Rejected:</span>{" "}
+                                {cert.rejection_reason}
+                              </p>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <input
+                      ref={certRowDocInputRef}
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      className="hidden"
+                      onChange={(e) => {
+                        const id = Number(certRowDocInputRef.current?.dataset.certId);
+                        if (Number.isFinite(id) && id > 0) {
+                          handleRowDocChange(e, id);
+                        }
+                      }}
+                    />
+
+                    <div className="space-y-3 rounded-xl border border-dashed border-border bg-muted/20 p-4">
+                      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        Add a certification
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <select
+                          value={certName}
+                          onChange={(e) => setCertName(e.target.value)}
+                          className="h-[35px] flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+                        >
+                          <option value="">Select certification…</option>
+                          {COMMON_CERTS.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                          {/* Thin divider so "Other" reads as a different
+                            tier from the preset list. */}
+                          <option disabled>──────────</option>
+                          <option value={CERT_OTHER_VALUE}>Other (specify)</option>
+                        </select>
+                        <Input
+                          className="h-[35px] w-32"
+                          placeholder="Issuer"
+                          value={certIssuer}
+                          onChange={(e) => setCertIssuer(e.target.value)}
+                        />
+                        <Input
+                          className="h-[35px] w-20"
+                          type="number"
+                          placeholder="Year"
+                          value={certYear}
+                          onChange={(e) => setCertYear(e.target.value)}
+                          min={1990}
+                          max={2030}
+                        />
+                      </div>
+                      {/* CSS-only slide reveal: grid-rows transition keeps
+                        the field flush with the strip above and animates
+                        cleanly on open. */}
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows] duration-200 ease-out",
+                          certName === CERT_OTHER_VALUE ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                        )}
+                      >
+                        <div className="overflow-hidden">
                           <Input
-                            className="h-12"
-                            value={ref.name}
-                            onChange={(e) => updateReference(i, "name", e.target.value)}
-                            placeholder="Full name"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Email</Label>
-                          <Input
-                            type="email"
-                            className="h-12"
-                            value={ref.email}
-                            onChange={(e) => updateReference(i, "email", e.target.value)}
-                            placeholder="email@example.com"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Phone (optional)</Label>
-                          <Input
-                            type="tel"
-                            className="h-12"
-                            value={ref.phone}
-                            onChange={(e) => updateReference(i, "phone", e.target.value)}
-                            placeholder="+1 (416) 555-0000"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Relationship</Label>
-                          <Input
-                            className="h-12"
-                            value={ref.relationship}
-                            onChange={(e) => updateReference(i, "relationship", e.target.value)}
-                            placeholder="e.g. Former employer"
+                            className="h-[35px]"
+                            placeholder="Name your certification — e.g. Vulnerable Sector Check"
+                            value={certCustomName}
+                            onChange={(e) => setCertCustomName(e.target.value)}
+                            maxLength={100}
+                            autoFocus={certName === CERT_OTHER_VALUE}
                           />
                         </div>
                       </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          ref={certDocInputRef}
+                          type="file"
+                          accept="application/pdf,image/jpeg,image/png"
+                          className="hidden"
+                          onChange={(e) => setCertDoc(e.target.files?.[0] ?? null)}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="lg"
+                          className={cn(
+                            !certDoc &&
+                              certName &&
+                              !(certName === CERT_OTHER_VALUE && !certCustomName.trim())
+                              ? "border-accent/40 text-accent hover:bg-accent/5 hover:text-accent"
+                              : "",
+                          )}
+                          onClick={() => certDocInputRef.current?.click()}
+                        >
+                          <Plus className="mr-1 size-3" />
+                          {certDoc ? certDoc.name : "Attach your cert (required)"}
+                        </Button>
+                        {certDoc ? (
+                          <button
+                            type="button"
+                            aria-label="Clear document"
+                            onClick={() => {
+                              setCertDoc(null);
+                              if (certDocInputRef.current) certDocInputRef.current.value = "";
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            clear
+                          </button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="ml-auto"
+                          onClick={addCertification}
+                          disabled={
+                            !certName ||
+                            (certName === CERT_OTHER_VALUE && !certCustomName.trim()) ||
+                            !certDoc ||
+                            certBusy
+                          }
+                        >
+                          {certBusy ? (
+                            <Loader2 className="mr-1 size-3 animate-spin" />
+                          ) : (
+                            <Plus className="mr-1 size-3" />
+                          )}
+                          Add
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        PDF or image, up to 10MB. The admin team reviews documents within a couple
+                        of business days — your cert appears as &ldquo;Pending&rdquo; until then.
+                      </p>
                     </div>
-                  ))}
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Your interests
+                    </h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Help families find things you have in common.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        className="h-[35px]"
+                        value={interestInput}
+                        onChange={(e) => setInterestInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInterest())}
+                        placeholder="Type an interest and press Enter"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-[35px]"
+                        onClick={addInterest}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    {interests.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {interests.map((interest) => (
+                          <Badge key={interest} variant="secondary" className="gap-1 px-3 py-1.5">
+                            {interest}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInterests((prev) => prev.filter((i) => i !== interest))
+                              }
+                              className="ml-1 text-muted-foreground hover:text-foreground"
+                            >
+                              &times;
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Personality traits
+                    </h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      How would you describe yourself?
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {PERSONALITY_TAGS.map((tag) => {
+                        const on = personalityTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => togglePersonality(tag)}
+                            className={cn(
+                              "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
+                              on
+                                ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                                : "border-border bg-card text-foreground hover:border-accent/40 hover:bg-accent/[0.04]",
+                            )}
+                          >
+                            {on && <CheckCircle2 className="size-3.5" strokeWidth={2.5} />}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* ─── STEP 4: Rate & Availability ─── */}
+              {step === 4 && (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Your hourly rate
+                    </h3>
+                    <div className="mt-4">
+                      <div className="flex items-center gap-4">
+                        <DollarSign className="size-5 text-muted-foreground" />
+                        <input
+                          type="range"
+                          min={18}
+                          max={50}
+                          value={hourlyRate}
+                          onChange={(e) => setHourlyRate(Number(e.target.value))}
+                          className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+                        />
+                        <span className="w-16 text-right text-2xl font-bold text-foreground">
+                          ${hourlyRate}
+                        </span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-3">
+                        <div className="rounded-xl border border-border bg-muted/20 p-3 text-center">
+                          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                            Family pays
+                          </p>
+                          <p className="mt-1 text-lg font-bold tabular-nums text-foreground">
+                            ${familyPays}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-success/30 bg-success/[0.06] p-3 text-center">
+                          <p className="text-[11px] font-semibold tracking-wide text-success uppercase">
+                            You keep
+                          </p>
+                          <p className="mt-1 text-lg font-bold tabular-nums text-success">
+                            ${youKeep}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-muted/20 p-3 text-center">
+                          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                            Platform fee
+                          </p>
+                          <p className="mt-1 text-lg font-bold tabular-nums text-muted-foreground">
+                            ${platformFee}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Travel radius
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      How far are you willing to travel?
+                    </p>
+                    <div className="mt-4 flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={1}
+                        max={50}
+                        value={travelRadius}
+                        onChange={(e) => setTravelRadius(Number(e.target.value))}
+                        className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+                      />
+                      <span className="w-20 text-right text-lg font-semibold">
+                        {travelRadius} km
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
+                      Weekly availability
+                    </h3>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Set your typical weekly schedule.
+                    </p>
+                    <div className="space-y-3">
+                      {DAYS.map((day) => {
+                        const key = day.toLowerCase();
+                        const dayData = availability[key];
+                        return (
+                          <div
+                            key={day}
+                            className={cn(
+                              "flex items-center gap-3 rounded-xl border p-3 transition-colors",
+                              dayData.available
+                                ? "border-border bg-card"
+                                : "border-border/60 bg-muted/20",
+                            )}
+                          >
+                            <Switch
+                              checked={dayData.available}
+                              onCheckedChange={(checked) => updateDay(key, "available", checked)}
+                            />
+                            <span
+                              className={cn(
+                                "w-24 text-sm font-semibold",
+                                !dayData.available && "text-muted-foreground",
+                              )}
+                            >
+                              {day}
+                            </span>
+                            {dayData.available ? (
+                              <div className="ml-auto flex items-center gap-2">
+                                <input
+                                  type="time"
+                                  value={dayData.start}
+                                  onChange={(e) => updateDay(key, "start", e.target.value)}
+                                  className="h-[35px] rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
+                                />
+                                <span className="text-xs text-muted-foreground">to</span>
+                                <input
+                                  type="time"
+                                  value={dayData.end}
+                                  onChange={(e) => updateDay(key, "end", e.target.value)}
+                                  className="h-[35px] rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
+                                />
+                              </div>
+                            ) : (
+                              <span className="ml-auto text-sm text-muted-foreground">
+                                Not available
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── STEP 5: Safety & References ─── */}
+              {step === 5 && (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-foreground">
+                      <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                        <Shield className="size-4" strokeWidth={2} />
+                      </span>
+                      Emergency Contact
+                    </h3>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Someone we can reach if there&apos;s an emergency during a visit.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ec-name">Name</Label>
+                        <Input
+                          id="ec-name"
+                          className="h-[35px]"
+                          value={emergencyName}
+                          onChange={(e) => setEmergencyName(e.target.value)}
+                          placeholder="Full name"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ec-phone">Phone</Label>
+                        <Input
+                          id="ec-phone"
+                          type="tel"
+                          className="h-[35px]"
+                          value={emergencyPhone}
+                          onChange={(e) => setEmergencyPhone(e.target.value)}
+                          placeholder="+1 (416) 555-0000"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ec-rel">Relationship</Label>
+                        <Input
+                          id="ec-rel"
+                          className="h-[35px]"
+                          value={emergencyRelationship}
+                          onChange={(e) => setEmergencyRelationship(e.target.value)}
+                          placeholder="e.g. Spouse"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-foreground">
+                      <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                        <UserCheck className="size-4" strokeWidth={2} />
+                      </span>
+                      Professional References
+                    </h3>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Provide 2 references who can speak to your caregiving experience. They&apos;ll
+                      receive an email questionnaire.
+                    </p>
+
+                    {references.map((ref, i) => (
+                      <div key={i} className="mb-4 rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-[11px] font-bold tabular-nums text-primary">
+                            {i + 1}
+                          </span>
+                          Reference {i + 1}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label>Name</Label>
+                            <Input
+                              className="h-[35px]"
+                              value={ref.name}
+                              onChange={(e) => updateReference(i, "name", e.target.value)}
+                              placeholder="Full name"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Email</Label>
+                            <Input
+                              type="email"
+                              className="h-[35px]"
+                              value={ref.email}
+                              onChange={(e) => updateReference(i, "email", e.target.value)}
+                              placeholder="email@example.com"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Phone (optional)</Label>
+                            <Input
+                              type="tel"
+                              className="h-[35px]"
+                              value={ref.phone}
+                              onChange={(e) => updateReference(i, "phone", e.target.value)}
+                              placeholder="+1 (416) 555-0000"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Relationship</Label>
+                            <Input
+                              className="h-[35px]"
+                              value={ref.relationship}
+                              onChange={(e) => updateReference(i, "relationship", e.target.value)}
+                              placeholder="e.g. Former employer"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Save action — sits directly below the card ─── */}
+          <div className="mt-6 flex items-center justify-end gap-4">
+            {lastSavedAt && (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
+                <CheckCircle2 className="size-4" strokeWidth={2.25} />
+                Saved · {lastSavedAt}
+              </span>
             )}
-
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ─── Sticky save bar ─── */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 backdrop-blur-md md:left-[248px]">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-1">
-            {isAlreadyOnboarded ? (
-              <Link
-                href="/profile"
-                className="inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.18em] text-primary uppercase transition-colors hover:text-primary/80"
-              >
-                ← Back to profile
-              </Link>
-            ) : null}
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              {lastSavedAt
-                ? `Saved · ${lastSavedAt}`
-                : isAlreadyOnboarded
-                  ? "Changes save when you press the button"
-                  : `${steps[step - 1].label} · step ${step} of ${steps.length}`}
-            </p>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              size="lg"
+              className="min-w-[140px]"
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1 size-4" />
+              )}
+              {isAlreadyOnboarded ? "Save changes" : "Complete profile"}
+            </Button>
           </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            size="lg"
-            className="min-w-[140px]"
-          >
-            {isSubmitting ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-1 size-4" />
-            )}
-            {isAlreadyOnboarded ? "Save changes" : "Complete profile"}
-          </Button>
         </div>
       </div>
     </div>
@@ -1450,7 +1521,7 @@ function CertStatusPill({
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.14em] uppercase ring-1 ${cls[tone]}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ring-1 ${cls[tone]}`}
     >
       {statusLabel(status)}
     </span>

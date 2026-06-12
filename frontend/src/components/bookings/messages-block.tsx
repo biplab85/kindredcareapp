@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, Send, ShieldAlert } from "lucide-react";
+import { AlertCircle, Loader2, MessageCircle, Send, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { listMessages, type Message, sendMessage } from "@/lib/messages";
@@ -25,7 +25,7 @@ export function MessagesBlock({ bookingId }: Props) {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
 
-  const listEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -63,10 +63,14 @@ export function MessagesBlock({ bookingId }: Props) {
     };
   }, [bookingId, load]);
 
-  // Auto-scroll to newest after every list change.
+  // Auto-scroll to newest after every list change. Scroll the thread's own
+  // container (not scrollIntoView, which would scroll the whole page/shell and
+  // make things jump) and do it instantly so polling can't cause a visible
+  // jitter every cycle.
   useEffect(() => {
     if (!messages) return;
-    listEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   async function onSend() {
@@ -101,19 +105,19 @@ export function MessagesBlock({ bookingId }: Props) {
   }
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card">
-      <header className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3.5">
-        <div className="flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-          <span className="h-px w-8 bg-foreground/30" />
-          Messages
-          <span className="text-foreground/30">— § 12</span>
-        </div>
-        <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
-          Polling every 8s
-        </p>
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Messages</h2>
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <span className="relative flex size-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
+            <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+          </span>
+          Live
+        </span>
       </header>
 
-      <div className="max-h-[420px] min-h-[180px] overflow-y-auto px-5 py-4">
+      <div ref={scrollRef} className="h-80 overflow-y-auto px-5 py-4">
         {loadError && messages === null && <ErrorState onRetry={() => void load()} />}
         {!loadError && messages === null && <LoadingState />}
         {messages !== null && messages.length === 0 && <EmptyState />}
@@ -124,32 +128,35 @@ export function MessagesBlock({ bookingId }: Props) {
                 <MessageBubble message={m} />
               </li>
             ))}
-            <div ref={listEndRef} />
           </ul>
         )}
       </div>
 
-      <div className="border-t border-border/60 px-5 py-3.5">
-        <div className="flex items-end gap-2">
+      <div className="border-t border-border px-5 py-4">
+        <div className="flex items-end gap-2 rounded-2xl border border-border bg-background p-1.5 shadow-xs transition-shadow focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Send a message…"
             maxLength={2000}
-            rows={2}
-            className="min-h-[44px] flex-1 resize-y rounded-xl border border-border/70 bg-background px-3 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50 focus:border-primary/50"
+            rows={1}
+            className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent px-2.5 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
           />
-          <Button onClick={onSend} disabled={sending || body.trim().length === 0} size="sm">
+          <Button
+            onClick={onSend}
+            disabled={sending || body.trim().length === 0}
+            aria-label="Send message"
+            className="size-10 shrink-0 rounded-xl p-0 shadow-sm"
+          >
             {sending ? (
-              <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
+              <Loader2 className="size-4 animate-spin" strokeWidth={2} />
             ) : (
-              <Send className="size-3.5" strokeWidth={2} />
+              <Send className="size-4" strokeWidth={2} />
             )}
-            Send
           </Button>
         </div>
-        <p className="mt-2 flex items-center gap-1.5 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+        <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <ShieldAlert className="size-3" strokeWidth={2.25} />
           Phone, email, postal codes, and off-platform chat names are redacted.
         </p>
@@ -182,7 +189,7 @@ function MessageBubble({ message }: { message: Message }) {
 
       <div
         className={cn(
-          "flex items-center gap-2 font-mono text-[10px] tracking-[0.05em] text-muted-foreground tabular-nums",
+          "flex items-center gap-2 text-[11px] text-muted-foreground tabular-nums",
           isMine ? "flex-row-reverse" : "flex-row",
         )}
       >
@@ -211,13 +218,16 @@ function MessageBubble({ message }: { message: Message }) {
 
 function EmptyState() {
   return (
-    <div className="grid place-items-center px-4 py-10 text-center">
-      <p className="text-sm font-semibold tracking-tight">
-        No messages <span className="font-normal italic text-muted-foreground">yet.</span>
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Coordinate arrival, parking, or the recipient&apos;s preferences here.
-      </p>
+    <div className="grid h-full place-items-center px-4 py-10 text-center">
+      <div>
+        <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
+          <MessageCircle className="size-6" strokeWidth={1.75} />
+        </div>
+        <p className="mt-4 text-sm font-semibold tracking-tight text-foreground">No messages yet</p>
+        <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+          Coordinate arrival, parking, or the recipient&apos;s preferences here.
+        </p>
+      </div>
     </div>
   );
 }

@@ -6,10 +6,11 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
-import { Heart, Briefcase, Loader2 } from "lucide-react";
+import { Heart, Briefcase, Loader2, Mail, Phone, User, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { IconInput } from "@/components/ui/icon-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { GuestGuard } from "@/components/auth/guest-guard";
@@ -86,16 +87,22 @@ function SignupView() {
       title="Create your account"
       subtitle="Join KindredCare — it takes less than 5 minutes."
     >
-      {/* Role toggle */}
-      <div className="mb-6 flex rounded-xl bg-muted p-1">
+      {/* Role toggle — sliding highlight */}
+      <div className="relative mb-6 flex rounded-xl bg-muted p-1">
+        {/* sliding pill */}
+        <span
+          aria-hidden
+          className={cn(
+            "absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-card shadow-sm ring-1 ring-black/[0.04] transition-transform duration-300 ease-out",
+            role === "caregiver" && "translate-x-full",
+          )}
+        />
         <button
           type="button"
           onClick={() => setRole("family")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all",
-            role === "family"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+            "relative z-10 flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors duration-200",
+            role === "family" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
           <Heart className="size-4" />I need care
@@ -104,10 +111,8 @@ function SignupView() {
           type="button"
           onClick={() => setRole("caregiver")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all",
-            role === "caregiver"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+            "relative z-10 flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors duration-200",
+            role === "caregiver" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
           <Briefcase className="size-4" />I want to care
@@ -117,8 +122,9 @@ function SignupView() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="name">Full Name</Label>
-          <Input
+          <IconInput
             id="name"
+            icon={User}
             className="h-12"
             placeholder="Your full name"
             {...field("name")}
@@ -129,9 +135,10 @@ function SignupView() {
 
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input
+          <IconInput
             id="email"
             type="email"
+            icon={Mail}
             className="h-12"
             placeholder="you@example.com"
             {...field("email")}
@@ -142,9 +149,10 @@ function SignupView() {
 
         <div className="space-y-1.5">
           <Label htmlFor="phone">Phone Number</Label>
-          <Input
+          <IconInput
             id="phone"
             type="tel"
+            icon={Phone}
             className="h-12"
             placeholder="+1 (416) 555-1234"
             {...field("phone")}
@@ -155,9 +163,8 @@ function SignupView() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             className="h-12"
             placeholder="Min 8 characters"
             {...field("password")}
@@ -168,9 +175,8 @@ function SignupView() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password_confirmation">Confirm Password</Label>
-          <Input
+          <PasswordInput
             id="password_confirmation"
-            type="password"
             className="h-12"
             placeholder="Confirm your password"
             {...field("password_confirmation")}
@@ -181,8 +187,21 @@ function SignupView() {
           )}
         </div>
 
-        <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="group/submit relative h-12 w-full overflow-hidden text-base font-semibold shadow-sm shadow-primary/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/35"
+        >
+          {/* shine sweep on hover */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/submit:translate-x-full"
+          />
+          {isSubmitting ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <UserPlus className="mr-2 size-4 transition-transform duration-200 ease-out group-hover/submit:-translate-y-0.5 group-hover/submit:translate-x-0.5" />
+          )}
           Create Account
         </Button>
       </form>

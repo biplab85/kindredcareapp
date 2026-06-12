@@ -4,19 +4,37 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   Award,
   BadgeCheck,
   Briefcase,
+  Car,
+  ChefHat,
   Clock,
+  Eye,
+  Flower2,
+  Footprints,
+  Heart,
   Languages,
   MapPin,
+  MoreVertical,
   ShieldCheck,
+  ShoppingBag,
+  Smartphone,
   Sparkles,
+  SprayCan,
   Star,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import api from "@/lib/api";
 import { type Gig, listGigsByCaregiver } from "@/lib/gigs";
 import { getUserReviews, type Review } from "@/lib/reviews";
@@ -76,6 +94,19 @@ interface ReviewsState {
 }
 
 type LoadPhase = "loading" | "ready" | "error";
+
+// Service-icon name → component, mirroring the marketplace catalogue so a
+// caregiver's skills render with the same glyphs families saw in search.
+const iconMap: Record<string, LucideIcon> = {
+  Heart,
+  Smartphone,
+  ShoppingBag,
+  Footprints,
+  Flower2,
+  ChefHat,
+  Car,
+  SprayCan,
+};
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell
@@ -139,33 +170,20 @@ function ProfileView({ caregiverId }: { caregiverId: string }) {
   }, [caregiverId]);
 
   return (
-    <div className="relative">
-      {/* Paper wash */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Link
+        href="/marketplace"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to marketplace
+      </Link>
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back
-        </Link>
-
-        {phase === "loading" && <LoadingScreen />}
-        {phase === "error" && <ErrorScreen />}
-        {phase === "ready" && caregiver && (
-          <ProfileBody caregiver={caregiver} isVerified={isVerified} reviews={reviews} />
-        )}
-      </div>
+      {phase === "loading" && <LoadingScreen />}
+      {phase === "error" && <ErrorScreen />}
+      {phase === "ready" && caregiver && (
+        <ProfileBody caregiver={caregiver} isVerified={isVerified} reviews={reviews} />
+      )}
     </div>
   );
 }
@@ -188,13 +206,17 @@ function ProfileBody({
 
   return (
     <>
-      <ProfileHeader caregiver={caregiver} isVerified={isVerified} reviewCount={reviews.count} />
+      <ProfileHero
+        caregiver={caregiver}
+        profile={profile}
+        isVerified={isVerified}
+        reviews={reviews}
+      />
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:items-start">
         <div className="space-y-6">
-          <TrustBlock caregiver={caregiver} reviews={reviews} />
-          <GigsBlock caregiverUserId={caregiver.id} firstName={firstName} reviews={reviews} />
           {profile.bio && <AboutBlock bio={profile.bio} firstName={firstName} />}
+          <GigsBlock caregiverUserId={caregiver.id} firstName={firstName} />
           {profile.services.length > 0 && <ServicesBlock services={profile.services} />}
           {profile.certifications && profile.certifications.length > 0 && (
             <CertificationsBlock certifications={profile.certifications} />
@@ -221,140 +243,241 @@ function ProfileBody({
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Header
+ * Hero — cover, avatar, identity, and the key-stat strip
  * ───────────────────────────────────────────────────────────── */
 
-function ProfileHeader({
+function ProfileHero({
   caregiver,
+  profile,
   isVerified,
-  reviewCount,
+  reviews,
 }: {
   caregiver: CaregiverData;
+  profile: CaregiverProfile;
   isVerified: boolean;
-  reviewCount: number;
+  reviews: ReviewsState;
 }) {
-  const isNew = reviewCount < 3;
-  const firstName = caregiver.name.split(/\s+/)[0] ?? caregiver.name;
+  const isNew = reviews.count < 3;
+  const score = caregiver.trust_score ?? null;
+  const hasScore = score !== null && score !== undefined;
+  const average = reviews.average;
 
   return (
-    <header>
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Caregiver profile
-        <span className="text-foreground/30">— § 01</span>
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      {/* Cover band */}
+      <div className="relative h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-accent/10 sm:h-28">
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(10,14,40,0.05) 1px, transparent 0)",
+            backgroundSize: "16px 16px",
+          }}
+        />
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-          Meet <span className="font-normal italic text-primary">{firstName}.</span>
-        </h1>
-        <span className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
-          #{String(caregiver.id).padStart(5, "0")}
+      <div className="px-5 pb-6 sm:px-8">
+        <div className="-mt-[60px] flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <CaregiverAvatar
+              name={caregiver.name}
+              photoPath={profile.photo_path}
+              photoStatus={profile.photo_status}
+            />
+
+            <div className="min-w-0 pb-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  {caregiver.name}
+                </h1>
+                {isVerified && (
+                  <span title="Basic verified">
+                    <BadgeCheck className="size-5 text-success" strokeWidth={2.25} />
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Briefcase className="size-3.5" strokeWidth={2} />
+                  Caregiver
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="size-3.5" strokeWidth={2} />
+                  Travels up to {profile.travel_radius_km} km
+                </span>
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {isVerified ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-success ring-1 ring-success/20">
+                    <ShieldCheck className="size-3.5" strokeWidth={2.25} />
+                    Basic verified
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold tracking-wide text-muted-foreground ring-1 ring-border">
+                    Unverified
+                  </span>
+                )}
+                {isNew && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-accent ring-1 ring-accent/20">
+                    <Sparkles className="size-3.5" strokeWidth={2.25} />
+                    New
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <Button render={<a href="#services" />} nativeButton={false} className="cursor-pointer">
+              See services
+              <ArrowRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Stat strip */}
+        <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-border/60 pt-5 sm:grid-cols-4">
+          <StatTile
+            icon={ShieldCheck}
+            tone="primary"
+            label="Trust score"
+            value={hasScore ? `${score}` : "—"}
+            suffix={hasScore ? "/100" : undefined}
+          />
+          <StatTile
+            icon={Star}
+            tone="accent"
+            label={
+              average !== null
+                ? `${reviews.count} review${reviews.count === 1 ? "" : "s"}`
+                : "Rating"
+            }
+            value={average !== null ? average.toFixed(1) : "New"}
+            suffix={average !== null ? "/5" : undefined}
+          />
+          <StatTile
+            icon={Clock}
+            tone="neutral"
+            label="Experience"
+            value={`${profile.years_of_experience}`}
+            suffix={`yr${profile.years_of_experience === 1 ? "" : "s"}`}
+          />
+          <StatTile
+            icon={Briefcase}
+            tone="success"
+            label="Hourly rate"
+            value={`$${profile.hourly_rate}`}
+            suffix="/hr"
+          />
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function CaregiverAvatar({
+  name,
+  photoPath,
+  photoStatus,
+}: {
+  name: string;
+  photoPath: string | null;
+  photoStatus: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const url = photoStatus === "approved" ? resolvePhotoUrl(photoPath) : null;
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((n) => n.charAt(0).toUpperCase())
+    .join("");
+
+  return (
+    <div className="-mt-14 shrink-0 sm:-mt-16">
+      {url && !failed ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={url}
+          alt={name}
+          onError={() => setFailed(true)}
+          className="size-24 rounded-2xl object-cover ring-4 ring-card shadow-md sm:size-28"
+        />
+      ) : (
+        <span className="grid size-24 place-items-center rounded-2xl bg-primary/10 text-2xl font-bold tracking-wide text-primary ring-4 ring-card shadow-md sm:size-28">
+          {initials || "?"}
         </span>
-      </div>
+      )}
+    </div>
+  );
+}
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        {isVerified ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-success uppercase">
-            <BadgeCheck className="size-3.5" strokeWidth={2.25} />
-            Basic verified
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            Unverified
-          </span>
-        )}
-        {isNew && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-accent uppercase">
-            <Sparkles className="size-3.5" strokeWidth={2.25} />
-            New
-          </span>
-        )}
+const STAT_TONES: Record<"primary" | "accent" | "neutral" | "success", string> = {
+  primary: "bg-primary/10 text-primary",
+  accent: "bg-accent/10 text-accent",
+  neutral: "bg-foreground/8 text-foreground/70",
+  success: "bg-success/10 text-success",
+};
+
+function StatTile({
+  icon: Icon,
+  tone,
+  label,
+  value,
+  suffix,
+}: {
+  icon: LucideIcon;
+  tone: "primary" | "accent" | "neutral" | "success";
+  label: string;
+  value: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
+      <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", STAT_TONES[tone])}>
+        <Icon className="size-5" strokeWidth={2} />
+      </span>
+      <div className="min-w-0">
+        <p className="flex items-baseline gap-0.5 leading-none">
+          <span className="text-sm font-bold tabular-nums text-foreground">{value}</span>
+          {suffix && <span className="text-xs font-medium text-muted-foreground">{suffix}</span>}
+        </p>
+        <p className="mt-1 truncate text-[11px] font-medium text-muted-foreground">{label}</p>
       </div>
-    </header>
+    </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Trust Score — headline card
+ * Card primitive — shared header + body for content sections
  * ───────────────────────────────────────────────────────────── */
 
-function TrustBlock({ caregiver, reviews }: { caregiver: CaregiverData; reviews: ReviewsState }) {
-  const score = caregiver.trust_score ?? null;
-  const average = reviews.average;
-  const hasScore = score !== null && score !== undefined;
-
+function Card({
+  icon: Icon,
+  title,
+  action,
+  children,
+  id,
+}: {
+  icon: LucideIcon;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+}) {
   return (
     <section
-      aria-label="Trust score"
-      className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.05] via-card to-card p-6 sm:p-8"
+      id={id}
+      className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-10 -right-10 size-40 rounded-full bg-primary/[0.05] blur-3xl"
-      />
-
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-primary/40" />
-        Trust score — § 02
+      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-5">
+        <h2 className="inline-flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+          <Icon className="size-4 text-primary" strokeWidth={2} />
+          {title}
+        </h2>
+        {action}
       </div>
-
-      <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          {hasScore ? (
-            <>
-              <p className="font-mono text-6xl leading-none font-semibold tabular-nums text-foreground sm:text-7xl">
-                {score}
-                <span className="ml-1 text-2xl text-muted-foreground">/100</span>
-              </p>
-              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Composite of verification, reviews, reliability, and tenure.{" "}
-                <span className="italic">Higher is more trusted.</span>
-              </p>
-            </>
-          ) : average !== null ? (
-            <>
-              <div className="flex items-baseline gap-2">
-                <p className="font-mono text-6xl leading-none font-semibold tabular-nums text-foreground sm:text-7xl">
-                  {average.toFixed(1)}
-                </p>
-                <span className="text-2xl text-muted-foreground">/5</span>
-              </div>
-              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Average across <span className="font-mono tabular-nums">{reviews.count}</span>{" "}
-                review
-                {reviews.count === 1 ? "" : "s"}.{" "}
-                <span className="italic">Trust Score lands once we have more data.</span>
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-mono text-6xl leading-none font-semibold tabular-nums text-muted-foreground/50 sm:text-7xl">
-                —
-              </p>
-              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                No Trust Score yet.{" "}
-                <span className="italic">Comes together after the first few visits.</span>
-              </p>
-            </>
-          )}
-        </div>
-
-        {hasScore && average !== null && (
-          <div className="border-t border-dashed border-primary/20 pt-4 sm:border-0 sm:border-l-2 sm:pt-0 sm:pl-6">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Star average
-            </p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <p className="font-mono text-2xl font-semibold tabular-nums">{average.toFixed(1)}</p>
-              <StaticStars value={average} />
-            </div>
-            <p className="mt-1.5 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums">
-              Over {reviews.count} review{reviews.count === 1 ? "" : "s"}
-            </p>
-          </div>
-        )}
-      </div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
@@ -365,71 +488,54 @@ function TrustBlock({ caregiver, reviews }: { caregiver: CaregiverData; reviews:
 
 function AboutBlock({ bio, firstName }: { bio: string; firstName: string }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        In {firstName}&rsquo;s words — § 03
-      </div>
-      <blockquote className="mt-5 border-l-2 border-primary/30 pl-5 text-base leading-relaxed text-foreground/90 italic">
-        &ldquo;{bio}&rdquo;
-      </blockquote>
-    </section>
+    <Card icon={Heart} title={`About ${firstName}`}>
+      <p className="text-sm leading-relaxed text-foreground/85">{bio}</p>
+    </Card>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Services
+ * Skills & experience
  * ───────────────────────────────────────────────────────────── */
 
 function ServicesBlock({ services }: { services: CaregiverService[] }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Services offered — § 04
-      </div>
-
-      <ul className="mt-5 divide-y divide-dashed divide-border/50">
-        {services.map((svc, i) => (
-          <li
-            key={svc.id}
-            className="flex items-baseline justify-between gap-4 py-3 first:pt-0 last:pb-0"
-          >
-            <div className="flex items-baseline gap-3">
-              <span className="font-mono text-[10px] tabular-nums text-muted-foreground/70">
-                {String(i + 1).padStart(2, "0")}
+    <Card icon={Sparkles} title="Skills & experience">
+      <ul className="grid gap-2.5 sm:grid-cols-2">
+        {services.map((svc) => {
+          const Icon = iconMap[svc.icon] ?? Heart;
+          return (
+            <li
+              key={svc.id}
+              className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="size-5" strokeWidth={2} />
               </span>
-              <span className="text-base font-medium tracking-tight">{svc.name}</span>
-            </div>
-            {svc.pivot.years_experience > 0 && (
-              <span className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
-                {svc.pivot.years_experience} yr
-                {svc.pivot.years_experience === 1 ? "" : "s"}
-              </span>
-            )}
-          </li>
-        ))}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">{svc.name}</p>
+                {svc.pivot.years_experience > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {svc.pivot.years_experience} yr
+                    {svc.pivot.years_experience === 1 ? "" : "s"} experience
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
-    </section>
+    </Card>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
  * Gigs — every published listing this caregiver has on offer.
- * Sits high in the left column because gigs are the conversion
- * point: family lands here, sees the available services, picks
- * one to book.
+ * The conversion point: family lands here, sees available
+ * services, picks one to book.
  * ───────────────────────────────────────────────────────────── */
 
-function GigsBlock({
-  caregiverUserId,
-  firstName,
-  reviews,
-}: {
-  caregiverUserId: number;
-  firstName: string;
-  reviews: ReviewsState;
-}) {
+function GigsBlock({ caregiverUserId, firstName }: { caregiverUserId: number; firstName: string }) {
   const [gigs, setGigs] = useState<Gig[] | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
 
@@ -455,65 +561,102 @@ function GigsBlock({
   if (phase === "error" || !gigs || gigs.length === 0) return null;
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <Briefcase className="size-3.5" />
-        {firstName}&rsquo;s services — § 02
-      </div>
-
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+    <Card
+      id="services"
+      icon={Briefcase}
+      title={`${firstName}'s services`}
+      action={
+        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-primary">
+          {gigs.length} {gigs.length === 1 ? "listing" : "listings"}
+        </span>
+      }
+    >
+      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
         Each listing is a separate service {firstName} offers. Pick one to book.
-        {reviews.average !== null && reviews.count >= 3 ? (
-          <>
-            {" "}
-            All visits roll into {firstName}&rsquo;s overall rating of{" "}
-            <span className="font-mono text-foreground tabular-nums">
-              {reviews.average.toFixed(1)}
-            </span>{" "}
-            ({reviews.count}{" "}
-            {reviews.count === 1 ? "review" : "reviews"}).
-          </>
-        ) : null}
       </p>
 
-      <ul className="mt-5 space-y-3">
-        {gigs.map((gig) => (
-          <li key={gig.id}>
-            <Link
-              href={`/gigs/${gig.id}`}
-              className="group block rounded-2xl border border-border/60 bg-background/40 p-4 transition-all hover:border-foreground/30 hover:bg-muted/30"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  {gig.service_category ? (
-                    <p className="font-mono text-[10px] tracking-[0.2em] text-primary uppercase">
-                      {gig.service_category.name}
-                    </p>
-                  ) : null}
-                  <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug tracking-tight">
-                    {gig.title}
-                  </h3>
-                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground italic">
-                    &ldquo;{gig.description}&rdquo;
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-mono text-base font-semibold tabular-nums">
-                    ${gig.hourly_rate_dollars.toFixed(0)}
-                    <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
-                      /hr
-                    </span>
-                  </p>
-                  <p className="mt-1 font-mono text-[10px] tracking-[0.18em] text-primary uppercase transition-colors group-hover:text-primary/80">
-                    Book →
-                  </p>
-                </div>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+      {/* Listings as a compact reference table */}
+      <div className="overflow-hidden rounded-xl border border-border">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-left">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground uppercase">
+                  Service
+                </th>
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground uppercase">
+                  Listing
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold tracking-wide text-foreground uppercase">
+                  Rate
+                </th>
+                <th className="w-10 px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {gigs.map((gig) => {
+                const Icon = gig.service_category?.icon
+                  ? (iconMap[gig.service_category.icon] ?? Heart)
+                  : Heart;
+                return (
+                  <tr
+                    key={gig.id}
+                    className="group border-b border-border/60 transition-colors last:border-0 hover:bg-muted/30"
+                  >
+                    <td className="px-4 py-3 align-top">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="size-4" strokeWidth={2} />
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {gig.service_category?.name ?? "Service"}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <Link
+                        href={`/gigs/${gig.id}`}
+                        className="font-medium text-foreground hover:text-primary"
+                      >
+                        {gig.title}
+                      </Link>
+                      <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                        {gig.description}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-right align-top whitespace-nowrap">
+                      <span className="font-bold tabular-nums text-foreground">
+                        ${gig.hourly_rate_dollars.toFixed(0)}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">/hr</span>
+                    </td>
+                    <td className="px-4 py-3 text-right align-top">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label={`Actions for ${gig.title}`}
+                          className="inline-grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                        >
+                          <MoreVertical className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-auto min-w-36">
+                          <DropdownMenuItem
+                            render={<Link href={`/gigs/${gig.id}`} />}
+                            className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+                          >
+                            <Eye className="size-4 text-muted-foreground" />
+                            View gig
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -530,63 +673,68 @@ function CertificationsBlock({ certifications }: { certifications: Certification
   if (verified.length === 0) return null;
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <Award className="size-3.5" />
-        Certifications — § 05
-      </div>
-
-      <div className="mt-5">
-        <div className="flex items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-success uppercase">
-          <span className="h-px w-6 bg-success/50" />
+    <Card
+      icon={Award}
+      title="Certifications"
+      action={
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-success ring-1 ring-success/20">
+          <ShieldCheck className="size-3.5" strokeWidth={2.25} />
           Verified by KindredCare
-        </div>
-        <ul className="mt-3 space-y-2">
-          {verified.map((cert) => (
-            <li
-              key={cert.id}
-              className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/[0.05] px-4 py-3"
-            >
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={2.25} />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold tracking-tight">{cert.name}</p>
-                <p className="mt-0.5 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
-                  {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "Reviewed by admin"}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+        </span>
+      }
+    >
+      <ul className="space-y-2.5">
+        {verified.map((cert) => (
+          <li
+            key={cert.id}
+            className="flex items-start gap-3 rounded-xl border border-success/25 bg-success/[0.05] px-4 py-3"
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-success/15 text-success">
+              <ShieldCheck className="size-4" strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold tracking-tight text-foreground">{cert.name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "Reviewed by admin"}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Reviews — ticket-stub rows
+ * Reviews
  * ───────────────────────────────────────────────────────────── */
 
 function ReviewsBlock({ reviews, firstName }: { reviews: ReviewsState; firstName: string }) {
   const isNew = reviews.count < 3;
 
   return (
-    <section aria-label="Reviews">
-      <div className="mb-5 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Reviews
-        {reviews.count > 0 && (
-          <span className="font-mono tabular-nums text-foreground/60">· {reviews.count}</span>
-        )}
-        <span className="text-foreground/30">— § 06</span>
-      </div>
-
+    <Card
+      icon={Star}
+      title="Reviews"
+      action={
+        reviews.average !== null ? (
+          <div className="inline-flex items-center gap-2">
+            <StaticStars value={reviews.average} />
+            <span className="text-sm font-bold tabular-nums text-foreground">
+              {reviews.average.toFixed(1)}
+            </span>
+            <span className="text-xs text-muted-foreground tabular-nums">({reviews.count})</span>
+          </div>
+        ) : undefined
+      }
+    >
       {reviews.list.length === 0 ? (
         <EmptyReviews />
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {reviews.list.map((review, i) => (
             <li key={review.id}>
-              <ReviewStub
+              <ReviewCard
                 review={review}
                 index={i}
                 isFreshCaregiver={isNew}
@@ -596,11 +744,11 @@ function ReviewsBlock({ reviews, firstName }: { reviews: ReviewsState; firstName
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
 
-function ReviewStub({
+function ReviewCard({
   review,
   index,
   isFreshCaregiver,
@@ -613,19 +761,28 @@ function ReviewStub({
   const date = new Date(review.visible_at ?? review.submitted_at);
   const raterName = shortenName(review.rater.name);
   const showsNewBadge = isFreshCaregiver && index === 0;
+  const initials = raterName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((n) => n.charAt(0).toUpperCase())
+    .join("");
 
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors hover:border-border">
-      {/* Perforated left edge */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-      />
-
-      <div className="px-5 py-5 pl-9 sm:px-6 sm:pl-11">
-        <div className="flex items-center justify-between gap-3">
-          <StaticStars value={review.stars} />
-          <p className="font-mono text-[10px] tracking-[0.14em] tabular-nums text-muted-foreground uppercase">
+    <article className="rounded-xl border border-border/70 bg-muted/20 p-4">
+      <div className="flex items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+          {initials || "?"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">{raterName}</p>
+            {showsNewBadge && (
+              <span className="inline-flex items-center rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-accent uppercase">
+                New
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground tabular-nums">
             {date.toLocaleDateString("en-CA", {
               year: "numeric",
               month: "short",
@@ -633,40 +790,27 @@ function ReviewStub({
             })}
           </p>
         </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <p className="text-sm font-semibold tracking-tight">{raterName}</p>
-          {showsNewBadge && (
-            <span className="inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[9px] tracking-[0.18em] text-accent uppercase">
-              New
-            </span>
-          )}
-        </div>
-
-        {review.body && (
-          <blockquote className="mt-3 border-l-2 border-primary/25 pl-4 text-sm leading-relaxed text-foreground/85 italic">
-            &ldquo;{review.body}&rdquo;
-          </blockquote>
-        )}
+        <StaticStars value={review.stars} />
       </div>
+
+      {review.body && (
+        <p className="mt-3 text-sm leading-relaxed text-foreground/85">{review.body}</p>
+      )}
     </article>
   );
 }
 
 function EmptyReviews() {
   return (
-    <section
-      aria-label="No reviews yet"
-      className="rounded-3xl border-2 border-dashed border-border/60 bg-card/40 p-8 text-center sm:p-12"
-    >
-      <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
         <Star className="size-6" strokeWidth={1.75} />
       </span>
-      <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
-        <span className="italic text-foreground">No reviews yet</span>
-        &nbsp;— they&rsquo;ll appear here after the first visit.
+      <p className="mt-4 text-sm font-semibold text-foreground">No reviews yet</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        They&rsquo;ll appear here after the first visit.
       </p>
-    </section>
+    </div>
   );
 }
 
@@ -682,58 +826,45 @@ function FactsBlock({
   profile: CaregiverProfile;
 }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-6 bg-foreground/30" />
-        Fast facts
-      </div>
-
-      <dl className="mt-5 space-y-4">
-        <Fact
-          icon={<Briefcase className="size-3.5" strokeWidth={2} />}
-          label="Rate"
-          value={`$${profile.hourly_rate} / hour`}
-        />
+    <Card icon={Briefcase} title="Fast facts">
+      <dl className="space-y-1">
+        <Fact icon={Briefcase} label="Rate" value={`$${profile.hourly_rate} /hr`} />
         {profile.years_of_experience > 0 && (
           <Fact
-            icon={<Clock className="size-3.5" strokeWidth={2} />}
+            icon={Clock}
             label="Experience"
             value={`${profile.years_of_experience} year${profile.years_of_experience === 1 ? "" : "s"}`}
           />
         )}
-        <Fact
-          icon={<MapPin className="size-3.5" strokeWidth={2} />}
-          label="Travels"
-          value={`Up to ${profile.travel_radius_km} km`}
-        />
+        <Fact icon={MapPin} label="Travels" value={`Up to ${profile.travel_radius_km} km`} />
         {caregiver.gender && caregiver.gender !== "prefer_not_to_say" && (
           <Fact icon={null} label="Gender" value={caregiver.gender.replace(/_/g, " ")} capitalize />
         )}
       </dl>
-    </section>
+    </Card>
   );
 }
 
 function Fact({
-  icon,
+  icon: Icon,
   label,
   value,
   capitalize,
 }: {
-  icon: React.ReactNode;
+  icon: LucideIcon | null;
   label: string;
   value: string;
   capitalize?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-dashed border-border/50 pb-3 last:border-0 last:pb-0">
-      <dt className="flex items-center gap-2 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-        {icon}
+    <div className="flex items-center justify-between gap-4 border-b border-border/50 py-2.5 last:border-0">
+      <dt className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+        {Icon && <Icon className="size-4 text-muted-foreground/70" strokeWidth={2} />}
         {label}
       </dt>
       <dd
         className={cn(
-          "text-right font-mono text-sm tabular-nums text-foreground",
+          "text-right text-sm font-semibold text-foreground",
           capitalize && "capitalize",
         )}
       >
@@ -749,39 +880,30 @@ function Fact({
 
 function LanguagesBlock({ languages }: { languages: string[] }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <Languages className="size-3.5" />
-        Languages
-      </div>
-      <ul className="mt-4 flex flex-wrap gap-1.5">
+    <Card icon={Languages} title="Languages">
+      <ul className="flex flex-wrap gap-2">
         {languages.map((lang) => (
           <li
             key={lang}
-            className="rounded-full border border-border/60 bg-background/60 px-3 py-1 font-mono text-[10px] tracking-[0.16em] text-foreground/80 uppercase"
+            className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground/80 capitalize"
           >
             {lang}
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }
 
 function FlavourBlock({ interests, personality }: { interests: string[]; personality: string[] }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <Sparkles className="size-3.5" />
-        Interests &amp; personality
-      </div>
-
+    <Card icon={Sparkles} title="Interests & personality">
       {interests.length > 0 && (
-        <div className="mt-4">
-          <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             Loves
           </p>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
+          <ul className="flex flex-wrap gap-2">
             {interests.map((item) => (
               <li
                 key={item}
@@ -795,15 +917,15 @@ function FlavourBlock({ interests, personality }: { interests: string[]; persona
       )}
 
       {personality.length > 0 && (
-        <div className="mt-5">
-          <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+        <div className={interests.length > 0 ? "mt-4" : ""}>
+          <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             Vibe
           </p>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
+          <ul className="flex flex-wrap gap-2">
             {personality.map((tag) => (
               <li
                 key={tag}
-                className="rounded-full border border-border/60 px-3 py-1 text-xs italic text-foreground/80"
+                className="rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground/80"
               >
                 {tag}
               </li>
@@ -811,12 +933,12 @@ function FlavourBlock({ interests, personality }: { interests: string[]; persona
           </ul>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Stars — readonly, accent-red filled for earned, muted for rest
+ * Stars — readonly, accent-filled for earned, muted for rest
  * ───────────────────────────────────────────────────────────── */
 
 function StaticStars({ value }: { value: number }) {
@@ -847,17 +969,15 @@ function StaticStars({ value }: { value: number }) {
 function LoadingScreen() {
   return (
     <>
-      <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-      <div className="mt-6 h-14 w-2/3 animate-pulse rounded-lg bg-muted" />
-      <div className="mt-10 grid gap-8 lg:grid-cols-[1.25fr_1fr]">
+      <div className="h-48 animate-pulse rounded-2xl bg-muted/50 ring-1 ring-border/50" />
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
-          <div className="h-52 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
-          <div className="h-32 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
-          <div className="h-64 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-32 animate-pulse rounded-xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-64 animate-pulse rounded-xl bg-muted/40 ring-1 ring-border/50" />
         </div>
         <div className="space-y-6">
-          <div className="h-56 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
-          <div className="h-40 animate-pulse rounded-3xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-56 animate-pulse rounded-xl bg-muted/40 ring-1 ring-border/50" />
+          <div className="h-40 animate-pulse rounded-xl bg-muted/40 ring-1 ring-border/50" />
         </div>
       </div>
     </>
@@ -867,20 +987,17 @@ function LoadingScreen() {
 function ErrorScreen() {
   return (
     <div className="mx-auto max-w-xl py-16 text-center">
-      <div className="flex items-center justify-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Not found
-      </div>
-      <h1 className="mt-5 text-3xl font-semibold tracking-tight">
-        <span className="font-normal italic text-accent">This caregiver</span> isn&rsquo;t here.
-      </h1>
-      <p className="mt-3 text-muted-foreground">
+      <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <Heart className="size-7" strokeWidth={1.75} />
+      </span>
+      <h1 className="mt-5 text-2xl font-bold tracking-tight">This caregiver isn&rsquo;t here.</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
         They may have paused their profile, or the link is out of date.
       </p>
-      <Link href="/" className="mt-6 inline-block">
-        <Button variant="outline">
+      <Link href="/marketplace" className="mt-6 inline-block">
+        <Button variant="outline" className="cursor-pointer">
           <ArrowLeft className="size-4" />
-          Back home
+          Back to marketplace
         </Button>
       </Link>
     </div>
@@ -890,6 +1007,13 @@ function ErrorScreen() {
 /* ─────────────────────────────────────────────────────────────
  * Utils
  * ───────────────────────────────────────────────────────────── */
+
+function resolvePhotoUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return `${apiUrl}/storage/${path.replace(/^\/+/, "")}`;
+}
 
 function shortenName(name: string | null): string {
   if (!name) return "Anonymous";

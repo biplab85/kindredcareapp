@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle as AlertTriangleIcon,
+  ArrowRight,
   BadgeCheck,
   CheckCircle2,
   Clock,
@@ -73,7 +74,7 @@ const STATUS_CONFIG: Record<
 };
 
 const TONE_PILL: Record<"neutral" | "pending" | "positive" | "warning" | "critical", string> = {
-  neutral: "bg-muted text-muted-foreground ring-foreground/15",
+  neutral: "bg-muted text-muted-foreground ring-border",
   pending: "bg-primary/10 text-primary ring-primary/30",
   positive: "bg-success/10 text-success ring-success/30",
   warning: "bg-accent/10 text-accent ring-accent/30",
@@ -165,38 +166,83 @@ function VerificationView() {
   const recordFor = (type: string) => records.find((r) => r.check_type === type);
   const clearedCount = records.filter((r) => r.status === "cleared").length;
   const identityRecord = recordFor("identity");
+  const pct = Math.round((clearedCount / 4) * 100);
 
   return (
     <DashboardShell pageTitle="Verification">
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-              {isFullyVerified ? "You're Basic Verified" : "Verification"}
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              {isFullyVerified
-                ? "Every check is cleared. Your badge is live on the shortlist and families can book you."
-                : "Complete each step below. The admin team reviews manually today; once all four clear, your profile becomes matchable."}
-            </p>
-            <p className="mt-2 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-              {clearedCount} of 4 cleared
-            </p>
-          </div>
-          {isFullyVerified && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-success uppercase ring-1 ring-success/40">
-              <BadgeCheck className="size-3.5" strokeWidth={2.25} />
-              Basic Verified
-            </span>
+      <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+        {/* Header / progress card */}
+        <section
+          className={cn(
+            "overflow-hidden rounded-2xl border bg-card shadow-sm",
+            isFullyVerified ? "border-success/40" : "border-border",
           )}
-        </div>
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <span
+                className={cn(
+                  "grid size-11 shrink-0 place-items-center rounded-xl ring-1",
+                  isFullyVerified
+                    ? "bg-success/10 text-success ring-success/25"
+                    : "bg-primary/10 text-primary ring-primary/20",
+                )}
+              >
+                {isFullyVerified ? (
+                  <BadgeCheck className="size-6" strokeWidth={2} />
+                ) : (
+                  <ShieldCheck className="size-6" strokeWidth={2} />
+                )}
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                  {isFullyVerified ? "You're Basic Verified" : "Verification"}
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  {isFullyVerified
+                    ? "Every check is cleared. Your badge is live on the shortlist and families can book you."
+                    : "Complete each step below. The admin team reviews manually today; once all four clear, your profile becomes matchable."}
+                </p>
+              </div>
+            </div>
+            {isFullyVerified && (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success ring-1 ring-success/30">
+                <BadgeCheck className="size-3.5" strokeWidth={2.25} />
+                Basic Verified
+              </span>
+            )}
+          </div>
+
+          {/* Progress */}
+          <div className="border-t border-border px-5 py-4 sm:px-6">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-foreground">
+                {clearedCount} of 4 checks cleared
+              </span>
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  clearedCount === 4 ? "text-success" : "text-muted-foreground",
+                )}
+              >
+                {pct}%
+              </span>
+            </div>
+            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-success transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        </section>
 
         {isLoading ? (
           <div className="mt-12 flex items-center justify-center py-10">
             <Loader2 className="size-6 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
+          <div className="mt-5 space-y-4">
             {(["identity", "cpic", "aml", "reference"] as const).map((type) => {
               const record = recordFor(type);
               const meta = CHECK_META[type];
@@ -204,60 +250,64 @@ function VerificationView() {
               const config = STATUS_CONFIG[status];
               const Icon = meta.icon;
               const StatusIcon = config.icon;
+              const cleared = status === "cleared";
 
               return (
                 <section
                   key={type}
                   className={cn(
-                    "rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6",
-                    status === "cleared" && "border-success/40 bg-success/[0.03]",
+                    "rounded-2xl border bg-card p-5 shadow-sm sm:p-6",
+                    cleared ? "border-success/40 bg-success/[0.03]" : "border-border",
                   )}
                 >
-                  <div className="flex flex-wrap items-start gap-5">
+                  <div className="flex flex-wrap items-start gap-4 sm:gap-5">
                     <div
                       className={cn(
-                        "grid size-11 shrink-0 place-items-center rounded-xl",
-                        status === "cleared"
-                          ? "bg-success/15 text-success"
-                          : "bg-muted text-foreground/80",
+                        "grid size-11 shrink-0 place-items-center rounded-xl ring-1",
+                        cleared
+                          ? "bg-success/10 text-success ring-success/25"
+                          : "bg-muted text-foreground/80 ring-border",
                       )}
                     >
-                      <Icon className="size-5" strokeWidth={1.75} />
+                      <Icon className="size-5" strokeWidth={2} />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-baseline gap-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
                         <h3 className="text-base font-semibold tracking-tight text-foreground">
                           {meta.label}
                         </h3>
                         <span
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] uppercase ring-1",
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
                             TONE_PILL[config.tone],
                           )}
                         >
-                          <StatusIcon className="size-3" strokeWidth={2} />
+                          <StatusIcon className="size-3.5" strokeWidth={2.25} />
                           {config.label}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{meta.description}</p>
+                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                        {meta.description}
+                      </p>
 
                       {status === "rejected" && record?.rejection_reason && (
                         <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-4 py-3 text-sm">
-                          <p className="text-[11px] font-medium tracking-[0.14em] text-destructive uppercase">
-                            Reason given
-                          </p>
+                          <p className="text-xs font-semibold text-destructive">Reason given</p>
                           <p className="mt-1 text-foreground/90">{record.rejection_reason}</p>
                         </div>
                       )}
 
                       {type === "identity" &&
                         (status === "not_started" || status === "rejected") && (
-                          <div className="mt-5 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:p-5">
-                            <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-                              Upload
+                          <div className="mt-5 rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                            <p className="text-sm font-semibold text-foreground">
+                              Upload your documents
                             </p>
-                            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Clear photos, JPG or PNG. ID back is optional.
+                            </p>
+                            <div className="mt-4 grid gap-3 sm:grid-cols-3">
                               <FileField label="ID front" required inputRef={idFrontRef} />
                               <FileField label="ID back" inputRef={idBackRef} />
                               <FileField label="Selfie" inputRef={selfieRef} />
@@ -270,7 +320,7 @@ function VerificationView() {
                               {isUploading ? (
                                 <Loader2 className="size-4 animate-spin" />
                               ) : (
-                                <Upload className="size-4" strokeWidth={1.75} />
+                                <Upload className="size-4" strokeWidth={2} />
                               )}
                               Upload documents
                             </Button>
@@ -280,18 +330,18 @@ function VerificationView() {
                       {type === "identity" &&
                         identityRecord?.document_paths &&
                         status === "pending_review" && (
-                          <p className="mt-3 text-sm text-muted-foreground">
+                          <div className="mt-4 flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/[0.05] px-4 py-3 text-sm text-foreground/90">
+                            <Clock className="size-4 shrink-0 text-primary" strokeWidth={2} />
                             Documents uploaded — waiting on admin review.
-                          </p>
+                          </div>
                         )}
 
                       {type === "reference" && status === "not_started" && (
-                        <Link
-                          href="/profile/edit?step=5"
-                          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary underline decoration-dotted underline-offset-4 hover:text-primary/80"
-                        >
-                          Add references in your profile
-                          <span aria-hidden>→</span>
+                        <Link href="/profile/edit?step=5" className="mt-4 inline-block">
+                          <Button variant="outline" size="sm">
+                            Add references in your profile
+                            <ArrowRight className="size-3.5" strokeWidth={2} />
+                          </Button>
                         </Link>
                       )}
                     </div>
@@ -315,17 +365,43 @@ function FileField({
   inputRef: React.Ref<HTMLInputElement>;
   required?: boolean;
 }) {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const chosen = fileName !== null;
+
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
+    <label
+      className={cn(
+        "group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-5 text-center transition-colors",
+        chosen
+          ? "border-success/40 bg-success/[0.04]"
+          : "border-border bg-card hover:border-primary/40 hover:bg-primary/[0.04]",
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-9 place-items-center rounded-lg transition-colors",
+          chosen ? "bg-success/10 text-success" : "bg-primary/10 text-primary",
+        )}
+      >
+        {chosen ? (
+          <CheckCircle2 className="size-5" strokeWidth={2} />
+        ) : (
+          <Upload className="size-5" strokeWidth={2} />
+        )}
+      </span>
+      <span className="text-sm font-semibold text-foreground">
         {label}
-        {required && <span className="ml-1 text-destructive">*</span>}
+        {required && <span className="text-destructive"> *</span>}
+      </span>
+      <span className="max-w-full truncate text-xs text-muted-foreground">
+        {fileName ?? "Click to upload"}
       </span>
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        className="w-full text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary-foreground file:transition-opacity hover:file:opacity-90"
+        className="hidden"
+        onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
       />
     </label>
   );

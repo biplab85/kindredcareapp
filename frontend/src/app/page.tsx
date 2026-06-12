@@ -13,8 +13,17 @@ import { useAuthStore } from "@/lib/auth";
  *
  * The marketing destination is left as a hard-coded production URL because
  * this redirect only makes sense on the app subdomain in the first place.
+ * In local development there is no marketing site to bounce to, so guests
+ * are sent to /login instead — otherwise `/` would kick the dev off to the
+ * live production site.
  */
 const MARKETING_URL = "https://kindredcare.ca";
+
+function isLocalHost() {
+  if (typeof window === "undefined") return false;
+  const { hostname } = window.location;
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
 
 export default function RootRedirect() {
   const router = useRouter();
@@ -23,6 +32,11 @@ export default function RootRedirect() {
   useEffect(() => {
     if (token) {
       router.replace("/dashboard");
+      return;
+    }
+
+    if (isLocalHost()) {
+      router.replace("/login");
       return;
     }
 

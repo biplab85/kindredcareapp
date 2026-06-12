@@ -5,18 +5,28 @@ import Link from "next/link";
 import {
   AlertCircle,
   AlertOctagon,
-  ArrowRight,
   Bell,
   BellOff,
+  Eye,
   Flag,
+  LayoutGrid,
+  type LucideIcon,
+  MoreVertical,
   RefreshCw,
   ShieldAlert,
   Sparkles,
   Star,
+  Table as TableIcon,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type Alert,
   type AlertKind,
@@ -48,6 +58,7 @@ export default function AdminAlertsPage() {
  * ───────────────────────────────────────────────────────────── */
 
 type LoadState = "loading" | "ready" | "error";
+type ViewMode = "grid" | "table";
 
 const KIND_ORDER: AlertKind[] = [
   "panic",
@@ -60,6 +71,7 @@ const KIND_ORDER: AlertKind[] = [
 
 function AlertsView() {
   const [selectedKinds, setSelectedKinds] = useState<Set<AlertKind>>(new Set());
+  const [view, setView] = useState<ViewMode>("grid");
   const [resp, setResp] = useState<AlertsResponse | null>(null);
   const [state, setState] = useState<LoadState>("loading");
 
@@ -116,41 +128,35 @@ function AlertsView() {
   const byKind = resp?.meta.by_kind ?? {};
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Header />
+
+      <KindBar
+        byKind={byKind}
+        selected={selectedKinds}
+        loading={state === "loading"}
+        onToggle={toggleKind}
+        onClear={clearFilters}
+        onRefresh={retry}
       />
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Header />
-
-        <KindBar
-          byKind={byKind}
-          selected={selectedKinds}
-          onToggle={toggleKind}
-          onClear={clearFilters}
-          onRefresh={retry}
-        />
-
+      <div className="mt-6 mb-3 flex items-center justify-between gap-3">
         <ResultMeta total={total} state={state} hasFilters={selectedKinds.size > 0} />
+        <ViewSwitcher view={view} onChange={setView} />
+      </div>
 
-        <div className="mt-6">
-          {state === "loading" && !resp && <LoadingView />}
-          {state === "error" && <ErrorCard onRetry={retry} />}
-          {state !== "error" &&
-            resp &&
-            (resp.data.length === 0 ? (
-              <QuietState hasFilters={selectedKinds.size > 0} />
-            ) : (
-              <Feed alerts={resp.data} />
-            ))}
-        </div>
+      <div>
+        {state === "loading" && !resp && <LoadingView view={view} />}
+        {state === "error" && <ErrorCard onRetry={retry} />}
+        {state !== "error" &&
+          resp &&
+          (resp.data.length === 0 ? (
+            <QuietState hasFilters={selectedKinds.size > 0} />
+          ) : view === "table" ? (
+            <AlertTable alerts={resp.data} />
+          ) : (
+            <Feed alerts={resp.data} />
+          ))}
       </div>
     </div>
   );
@@ -162,17 +168,16 @@ function AlertsView() {
 
 function Header() {
   return (
-    <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">Everything urgent,</span> in one place.
+    <div className="mb-6">
+      <h1 className="text-lg font-semibold leading-[1.15] tracking-tight text-foreground">
+        Alerts
       </h1>
-
       <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Open panic alerts, incidents, disputes, flagged visits, flagged verifications, flagged
+        Open panic alerts, incidents, disputes, flagged visits, flagged verifications, and flagged
         reviews — aggregated and ranked by severity. Each card links to the surface where you can
         act on it.
       </p>
-    </header>
+    </div>
   );
 }
 
@@ -183,12 +188,14 @@ function Header() {
 function KindBar({
   byKind,
   selected,
+  loading,
   onToggle,
   onClear,
   onRefresh,
 }: {
   byKind: Partial<Record<AlertKind, number>>;
   selected: Set<AlertKind>;
+  loading: boolean;
   onToggle: (k: AlertKind) => void;
   onClear: () => void;
   onRefresh: () => void;
@@ -196,12 +203,16 @@ function KindBar({
   return (
     <section
       aria-label="Filter by kind"
-      className="mt-8 rounded-2xl border border-border/60 bg-card p-4 sm:p-5"
+      className="rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-5"
     >
-      <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+        <span className="mr-1 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          Kind
+        </span>
         {KIND_ORDER.map((kind) => {
           const count = byKind[kind] ?? 0;
           const isSelected = selected.has(kind);
+          const Icon = KIND_ICONS[kind];
           return (
             <button
               key={kind}
@@ -209,20 +220,20 @@ function KindBar({
               onClick={() => onToggle(kind)}
               aria-pressed={isSelected}
               className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors",
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 isSelected
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border/70 bg-background text-foreground hover:border-foreground/40",
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground hover:border-primary/40 hover:text-primary",
               )}
             >
-              <KindIcon kind={kind} />
+              <Icon className="size-3.5" strokeWidth={2.25} />
               {KIND_LABELS[kind]}
               <span
                 className={cn(
-                  "rounded-full px-1.5 font-mono text-[10px] tabular-nums",
+                  "rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
                   isSelected
-                    ? "bg-background/15 text-background"
-                    : "bg-muted/60 text-muted-foreground",
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
                 {count}
@@ -233,12 +244,12 @@ function KindBar({
 
         <div className="ml-auto flex items-center gap-2">
           {selected.size > 0 && (
-            <Button onClick={onClear} variant="outline" size="sm">
+            <Button onClick={onClear} variant="ghost" size="sm" className="cursor-pointer">
               Clear
             </Button>
           )}
-          <Button onClick={onRefresh} variant="outline" size="sm">
-            <RefreshCw className="size-3.5" strokeWidth={2} />
+          <Button onClick={onRefresh} variant="outline" size="sm" className="cursor-pointer">
+            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} strokeWidth={2} />
             Refresh
           </Button>
         </div>
@@ -247,22 +258,76 @@ function KindBar({
   );
 }
 
-function KindIcon({ kind }: { kind: AlertKind }) {
-  const props = { className: "size-3", strokeWidth: 2.25 } as const;
-  switch (kind) {
-    case "panic":
-      return <AlertOctagon {...props} />;
-    case "incident":
-      return <ShieldAlert {...props} />;
-    case "dispute":
-      return <Bell {...props} />;
-    case "flagged_booking":
-      return <Flag {...props} />;
-    case "flagged_verification":
-      return <Flag {...props} />;
-    case "flagged_review":
-      return <Star {...props} />;
-  }
+const KIND_ICONS: Record<AlertKind, LucideIcon> = {
+  panic: AlertOctagon,
+  incident: ShieldAlert,
+  dispute: Bell,
+  flagged_booking: Flag,
+  flagged_verification: Flag,
+  flagged_review: Star,
+};
+
+/* ─────────────────────────────────────────────────────────────
+ * View switcher + actions menu
+ * ───────────────────────────────────────────────────────────── */
+
+function ViewSwitcher({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
+  const options: { value: ViewMode; label: string; icon: typeof LayoutGrid }[] = [
+    { value: "grid", label: "Grid view", icon: LayoutGrid },
+    { value: "table", label: "Table view", icon: TableIcon },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label="View"
+      className="inline-flex shrink-0 gap-1 rounded-xl border border-border bg-muted/40 p-1"
+    >
+      {options.map((o) => {
+        const Icon = o.icon;
+        const active = view === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            aria-label={o.label}
+            aria-pressed={active}
+            title={o.label}
+            className={cn(
+              "grid size-8 cursor-pointer place-items-center rounded-lg transition-colors",
+              active
+                ? "bg-card text-foreground shadow-xs ring-1 ring-border"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="size-4" strokeWidth={1.75} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AlertActionsMenu({ targetUrl }: { targetUrl: string }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Alert actions"
+        className="inline-grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <MoreVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto min-w-32">
+        <DropdownMenuItem
+          render={<Link href={targetUrl} />}
+          className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+        >
+          <Eye className="size-4 text-muted-foreground" />
+          View
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -279,20 +344,18 @@ function ResultMeta({
   hasFilters: boolean;
 }) {
   return (
-    <div className="mt-8 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-      <span className="h-px w-8 bg-foreground/30" />
-      <span>
-        {state === "loading" ? (
-          "Aggregating…"
-        ) : (
-          <>
-            <span className="font-mono tabular-nums text-foreground/80">{total}</span>{" "}
+    <div className="flex items-center gap-2 text-sm">
+      {state === "loading" ? (
+        <span className="text-muted-foreground">Aggregating…</span>
+      ) : (
+        <>
+          <span className="font-semibold tabular-nums text-foreground">{total}</span>
+          <span className="text-muted-foreground">
             {total === 1 ? "alert" : "alerts"}
-            {hasFilters && <span className="text-foreground/40"> · filtered</span>}
-          </>
-        )}
-      </span>
-      <span className="text-foreground/30">— § 44</span>
+            {hasFilters && " · filtered"}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -313,59 +376,52 @@ function Feed({ alerts }: { alerts: Alert[] }) {
   );
 }
 
+const ICON_TILE_TONES: Record<AlertTone, string> = {
+  alarm: "bg-accent/10 text-accent",
+  warn: "bg-foreground/10 text-foreground/70",
+  neutral: "bg-muted text-muted-foreground",
+};
+
 function AlertCard({ alert }: { alert: Alert }) {
   const tone = severityTone(alert.severity);
   const occurred = alert.occurred_at ? new Date(alert.occurred_at) : null;
+  const Icon = KIND_ICONS[alert.kind];
 
   return (
-    <Link
-      href={alert.target_url}
+    <div
       className={cn(
-        "group relative block overflow-hidden rounded-2xl border bg-card transition-all",
-        tone === "alarm" && "border-accent/50 bg-accent/[0.04] hover:border-accent",
-        tone === "warn" && "border-foreground/20 hover:border-foreground/40",
-        tone === "neutral" && "border-border/60 hover:border-foreground/30",
+        "group flex items-center gap-4 rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(10,14,40,0.22)]",
+        tone === "alarm"
+          ? "border-accent/40 bg-accent/[0.03] hover:border-accent/60"
+          : "border-border hover:border-primary/30",
       )}
     >
-      {/* Pulsing dot for active panic */}
-      {alert.kind === "panic" && alert.severity === "critical" && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_15%_10%,theme(colors.accent/0.15),transparent_60%)]"
-        />
-      )}
-
-      <span
-        aria-hidden
-        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-      />
-
-      <div className="flex items-center gap-4 py-4 pr-5 pl-9 sm:py-5 sm:pl-10">
+      <Link href={alert.target_url} className="flex min-w-0 flex-1 items-center gap-4">
         <span
           className={cn(
-            "grid size-10 shrink-0 place-items-center rounded-full",
-            tone === "alarm" && "bg-accent text-accent-foreground",
-            tone === "warn" && "bg-foreground/10 text-foreground/70",
-            tone === "neutral" && "bg-muted/60 text-muted-foreground",
+            "grid size-11 shrink-0 place-items-center rounded-full",
+            ICON_TILE_TONES[tone],
           )}
         >
-          <KindIcon kind={alert.kind} />
+          <Icon className="size-5" strokeWidth={2} />
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h3 className="text-base font-semibold tracking-tight sm:text-lg">{alert.title}</h3>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <h3 className="text-base font-semibold tracking-tight text-foreground group-hover:text-primary">
+              {alert.title}
+            </h3>
             <SeverityPill severity={alert.severity} tone={tone} />
             <KindPill kind={alert.kind} />
           </div>
 
-          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-foreground/75">
+          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
             {alert.summary}
           </p>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
             {occurred && (
-              <span className="font-mono normal-case tracking-[0.05em] tabular-nums">
+              <span className="tabular-nums text-muted-foreground/70">
                 {occurred.toLocaleString("en-CA", {
                   month: "short",
                   day: "numeric",
@@ -379,21 +435,91 @@ function AlertCard({ alert }: { alert: Alert }) {
                 {occurred && (
                   <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
                 )}
-                <span className="normal-case tracking-[0.05em]">
-                  <span className="text-foreground/60">{alert.actor.role}</span>{" "}
-                  <span className="text-foreground/85">{alert.actor.name}</span>
+                <span>
+                  <span className="capitalize text-muted-foreground/70">{alert.actor.role}</span>{" "}
+                  <span className="font-medium text-foreground/80">{alert.actor.name}</span>
                 </span>
               </>
             )}
           </div>
         </div>
+      </Link>
 
-        <ArrowRight
-          className="size-4 shrink-0 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-foreground"
-          strokeWidth={2}
-        />
+      <AlertActionsMenu targetUrl={alert.target_url} />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Table view — striped + hover
+ * ───────────────────────────────────────────────────────────── */
+
+function AlertTable({ alerts }: { alerts: Alert[] }) {
+  const th = "px-4 py-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase";
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/30 text-left">
+              <th className={cn(th, "pl-5")}>Alert</th>
+              <th className={th}>Kind</th>
+              <th className={th}>Severity</th>
+              <th className={th}>When</th>
+              <th className={cn(th, "pr-5")} />
+            </tr>
+          </thead>
+          <tbody>
+            {alerts.map((a) => (
+              <AlertTableRow key={a.id} alert={a} />
+            ))}
+          </tbody>
+        </table>
       </div>
-    </Link>
+    </div>
+  );
+}
+
+function AlertTableRow({ alert }: { alert: Alert }) {
+  const tone = severityTone(alert.severity);
+  const occurred = alert.occurred_at ? new Date(alert.occurred_at) : null;
+  const Icon = KIND_ICONS[alert.kind];
+
+  return (
+    <tr className="border-b border-border/60 align-middle transition-colors even:bg-muted/30 last:border-0 hover:bg-muted/60">
+      <td className="px-4 py-3 pl-5">
+        <Link href={alert.target_url} className="group flex items-center gap-3">
+          <span
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-full",
+              ICON_TILE_TONES[tone],
+            )}
+          >
+            <Icon className="size-4.5" strokeWidth={2} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-foreground group-hover:text-primary">
+              {alert.title}
+            </span>
+            <span className="block max-w-md truncate text-xs text-muted-foreground/70">
+              {alert.summary}
+            </span>
+          </span>
+        </Link>
+      </td>
+      <td className="px-4 py-3">
+        <KindPill kind={alert.kind} />
+      </td>
+      <td className="px-4 py-3">
+        <SeverityPill severity={alert.severity} tone={tone} />
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
+        {occurred ? occurred.toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "—"}
+      </td>
+      <td className="px-4 py-3 pr-5 text-right">
+        <AlertActionsMenu targetUrl={alert.target_url} />
+      </td>
+    </tr>
   );
 }
 
@@ -401,10 +527,10 @@ function SeverityPill({ severity, tone }: { severity: AlertSeverity; tone: Alert
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
         tone === "alarm" && "bg-accent text-accent-foreground",
-        tone === "warn" && "border border-foreground/25 bg-foreground/5 text-foreground/70",
-        tone === "neutral" && "border border-border/70 bg-background text-muted-foreground",
+        tone === "warn" && "bg-foreground/10 text-foreground/70",
+        tone === "neutral" && "bg-muted text-muted-foreground ring-1 ring-border",
       )}
     >
       {severity}
@@ -414,7 +540,7 @@ function SeverityPill({ severity, tone }: { severity: AlertSeverity; tone: Alert
 
 function KindPill({ kind }: { kind: AlertKind }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-border/70 bg-background px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-muted-foreground uppercase">
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border">
       {KIND_LABELS[kind]}
     </span>
   );
@@ -426,42 +552,53 @@ function KindPill({ kind }: { kind: AlertKind }) {
 
 function QuietState({ hasFilters }: { hasFilters: boolean }) {
   return (
-    <section className="rounded-3xl border border-dashed border-success/40 bg-success/[0.04] p-10 text-center sm:p-14">
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-success/15 text-success">
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-success/40 bg-success/[0.04] px-6 py-14 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-success/10 text-success">
         {hasFilters ? (
-          <BellOff className="size-6" strokeWidth={1.75} />
+          <BellOff className="size-7" strokeWidth={1.75} />
         ) : (
-          <Sparkles className="size-6" strokeWidth={1.75} />
+          <Sparkles className="size-7" strokeWidth={1.75} />
         )}
-      </div>
-      <h3 className="mt-5 text-xl font-semibold tracking-tight">
-        {hasFilters ? (
-          <>
-            Nothing in <span className="font-normal italic text-success">that slice.</span>
-          </>
-        ) : (
-          <>
-            All clear, <span className="font-normal italic text-success">nothing urgent.</span>
-          </>
-        )}
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        {hasFilters ? "Nothing in that slice." : "All clear — nothing urgent."}
       </h3>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
         {hasFilters
           ? "Try a different combination of kinds, or clear filters."
           : "No open panic alerts, incidents, disputes, or flagged items right now."}
       </p>
-    </section>
+    </div>
   );
 }
 
-function LoadingView() {
+function LoadingView({ view }: { view: ViewMode }) {
+  if (view === "table") {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-card" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 border-b border-border/60 px-5 py-4 last:border-0"
+          >
+            <div className="size-9 shrink-0 animate-pulse rounded-full bg-muted" />
+            <div className="h-3.5 w-48 animate-pulse rounded bg-muted" />
+            <div className="ml-auto h-3.5 w-20 animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <ul className="space-y-3" aria-busy="true">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li
-          key={i}
-          className="h-[100px] animate-pulse rounded-2xl border border-border/60 bg-card/60"
-        />
+      {Array.from({ length: 5 }).map((_, i) => (
+        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
+          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted/70" />
+          </div>
+        </li>
       ))}
     </ul>
   );
@@ -469,24 +606,20 @@ function LoadingView() {
 
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <section className="rounded-2xl border border-accent/40 bg-accent/[0.04] p-6">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-accent/15 text-accent">
-          <AlertCircle className="size-4" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold tracking-tight">Couldn&apos;t load the feed.</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The server didn&apos;t answer. Try again.
-          </p>
-          <div className="mt-4">
-            <Button onClick={onRetry} size="sm">
-              <RefreshCw className="size-3.5" strokeWidth={2} />
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <div className="flex flex-col items-center rounded-xl border border-accent/40 bg-accent/[0.04] px-6 py-12 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <AlertCircle className="size-7" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        Couldn&apos;t load the feed.
+      </h3>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        The server didn&apos;t answer. Try again.
+      </p>
+      <Button onClick={onRetry} size="sm" className="mt-4 cursor-pointer">
+        <RefreshCw className="size-3.5" strokeWidth={2} />
+        Retry
+      </Button>
+    </div>
   );
 }

@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth";
+
+/**
+ * Returns false during SSR and the first client paint, then true. Lets us
+ * defer reading the persisted auth token until after hydration so the
+ * server and first client render agree (no hydration mismatch).
+ */
+const subscribeNoop = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
+}
 
 /**
  * Mirror of AuthGuard for routes that should only be visible to *guests*
@@ -19,6 +33,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { token, user, isLoading, fetchUser } = useAuthStore();
   const fetchedRef = useRef(false);
+  const hydrated = useHydrated();
 
   useEffect(() => {
     if (!token) return;
@@ -35,8 +50,9 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
   }, [token, user, isLoading, fetchUser, router]);
 
   // Brief loader while we decide whether to redirect — avoids the flash
-  // of login form for users who are already authed.
-  if (token) {
+  // of login form for users who are already authed. Gated on `hydrated`
+  // so SSR and the first client paint agree (both render children).
+  if (hydrated && token) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="size-8 animate-spin text-primary" />

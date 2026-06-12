@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
-import { Loader2, Mail, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, ArrowLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { IconInput } from "@/components/ui/icon-input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { GuestGuard } from "@/components/auth/guest-guard";
@@ -95,9 +95,10 @@ function ForgotPasswordView() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input
+          <IconInput
             id="email"
             type="email"
+            icon={Mail}
             className="h-12"
             placeholder="you@example.com"
             {...field("email")}
@@ -106,8 +107,21 @@ function ForgotPasswordView() {
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
-        <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="group/submit relative h-12 w-full overflow-hidden text-base font-semibold shadow-sm shadow-primary/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/35"
+        >
+          {/* shine sweep on hover */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/submit:translate-x-full"
+          />
+          {isSubmitting ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 size-4 transition-transform duration-200 ease-out group-hover/submit:-translate-y-0.5 group-hover/submit:translate-x-0.5" />
+          )}
           Send Reset Link
         </Button>
       </form>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Plus, Trash2, Check, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock, Loader2, Minus, Plus, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -215,13 +215,11 @@ function AvailabilityView() {
   }
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.04] via-background to-background" />
-
-      <div className="mx-auto max-w-4xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+    <div>
+      <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <Link
           href="/caregiver/schedule"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
           Back to schedule
@@ -229,21 +227,21 @@ function AvailabilityView() {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-            When you&rsquo;re{" "}
-            <span className="font-normal italic text-primary">open for visits</span>.
+          <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            When you&rsquo;re open for visits
           </h1>
-          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Set the days and time ranges you&rsquo;re typically free. Families can only book gigs
             inside one of these windows.
           </p>
 
           {totalRanges === 0 && (
-            <div className="mt-6 rounded-2xl bg-accent/10 px-5 py-4 ring-1 ring-accent/20">
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-accent" strokeWidth={2.25} />
               <p className="text-sm leading-relaxed text-foreground/80">
                 <span className="font-semibold text-accent">Heads-up:</span> while no days are set,
-                you&rsquo;re treated as <em>always available</em> — every booking window is fair
-                game. Add hours below to bound it.
+                you&rsquo;re treated as always available — every booking window is fair game. Add
+                hours below to bound it.
               </p>
             </div>
           )}
@@ -273,8 +271,8 @@ function AvailabilityView() {
         />
 
         {/* Save bar */}
-        <div className="sticky bottom-4 mt-10 flex items-center justify-end gap-3 rounded-2xl border border-border/60 bg-card/95 px-5 py-3 shadow-sm backdrop-blur">
-          <p className="mr-auto font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+        <div className="sticky bottom-4 mt-10 flex items-center justify-end gap-3 rounded-2xl border border-border bg-card/95 px-5 py-3 shadow-sm backdrop-blur">
+          <p className="mr-auto text-sm font-medium text-muted-foreground">
             {totalRanges === 0
               ? "No windows set · always available"
               : `${totalRanges} window${totalRanges === 1 ? "" : "s"} across the week`}
@@ -324,64 +322,73 @@ function DayCard({
     <li>
       <article
         className={cn(
-          "rounded-2xl bg-card px-5 py-4 ring-1 transition-colors sm:px-6",
-          isOn ? "ring-primary/30" : "ring-border/60",
+          "rounded-2xl border bg-card px-5 py-4 shadow-sm transition-colors sm:px-6",
+          isOn ? "border-primary/30" : "border-border",
         )}
       >
         <div className="flex items-center gap-4">
           <Switch checked={isOn} onCheckedChange={onToggle} />
           <h2
             className={cn(
-              "min-w-32 text-base font-semibold tracking-tight",
+              "text-base font-semibold tracking-tight",
               !isOn && "text-muted-foreground",
             )}
           >
             {dayLabel}
           </h2>
-          {!isOn && (
-            <span className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-              Off
+          {isOn ? (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success ring-1 ring-success/30">
+              <Check className="size-3" strokeWidth={2.5} />
+              Available
             </span>
+          ) : (
+            <span className="ml-auto rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-border">
+              Unavailable
+            </span>
+          )}
+          {isOn && (
+            <Button variant="outline" size="sm" onClick={onAddRange} className="shrink-0">
+              <Plus className="size-3.5" />
+              Add another window
+            </Button>
           )}
         </div>
 
         {isOn && (
-          <div className="mt-4 space-y-3 sm:ml-16">
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
             {ranges.map((r, idx) => (
               <div
                 key={idx}
-                className="flex flex-wrap items-center gap-3 rounded-xl bg-background/60 px-4 py-3 ring-1 ring-border/40"
+                className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5"
               >
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Clock className="size-4" strokeWidth={2} />
+                </span>
                 <input
                   type="time"
                   value={r.start}
                   step={900}
                   onChange={(e) => onUpdateRange(idx, "start", e.target.value)}
-                  className="rounded-lg border border-foreground/15 bg-background px-3 py-2 font-mono text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 />
-                <span className="text-xs text-muted-foreground">to</span>
+                <span className="text-sm text-muted-foreground">to</span>
                 <input
                   type="time"
                   value={r.end}
                   step={900}
                   onChange={(e) => onUpdateRange(idx, "end", e.target.value)}
-                  className="rounded-lg border border-foreground/15 bg-background px-3 py-2 font-mono text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 />
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => onRemoveRange(idx)}
-                  className="ml-auto h-8 text-muted-foreground hover:text-destructive"
-                  aria-label="Remove range"
+                  aria-label="Remove window"
+                  className="ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border border-destructive/40 text-destructive transition-colors hover:border-destructive hover:bg-destructive/10"
                 >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                  <Minus className="size-3.5" strokeWidth={2.5} />
+                </button>
               </div>
             ))}
-            <Button variant="outline" size="sm" onClick={onAddRange} className="h-9">
-              <Plus className="size-3.5" />
-              Add another window
-            </Button>
           </div>
         )}
       </article>
@@ -509,11 +516,8 @@ function MonthCalendarSection({
     <section className="mt-10">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            One-off overrides · § 13
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Days you&rsquo;re taking off.
+          <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            Days you&rsquo;re taking off
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Tap an open day to mark it off (Eid, vacation, doctor&rsquo;s appointment). Tap an off
@@ -555,7 +559,7 @@ function MonthCalendarSection({
         {months.map((monthStart) => (
           <article
             key={monthStart.toISOString()}
-            className="rounded-2xl bg-card p-5 ring-1 ring-border/60"
+            className="rounded-2xl border border-border bg-card p-5 shadow-sm"
           >
             <header className="mb-4 flex items-baseline justify-between">
               <h3 className="text-base font-semibold tracking-tight">
@@ -564,7 +568,7 @@ function MonthCalendarSection({
             </header>
 
             {/* Weekday header row */}
-            <div className="mb-2 grid grid-cols-7 gap-1 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+            <div className="mb-2 grid grid-cols-7 gap-1 text-[11px] font-medium text-muted-foreground">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                 <div key={d} className="px-1 py-1 text-center">
                   {d}
@@ -609,7 +613,7 @@ function MonthCalendarSection({
                       isToday && "ring-2 ring-primary",
                     )}
                   >
-                    <span className="font-mono tabular-nums">{cell.getDate()}</span>
+                    <span className="tabular-nums">{cell.getDate()}</span>
                     {hasOverride && <X className="size-3" strokeWidth={2.5} />}
                   </button>
                 );
@@ -620,7 +624,7 @@ function MonthCalendarSection({
       </div>
 
       {/* Legend */}
-      <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+      <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground">
         <span className="flex items-center gap-2">
           <span className="size-3 rounded-sm bg-success/15 ring-1 ring-success/30" />
           Open (per weekly)

@@ -6,23 +6,49 @@ import {
   ArrowRight,
   ArrowUpRight,
   BadgeCheck,
+  Bell,
+  Briefcase,
+  CalendarCheck,
   CalendarClock,
+  CalendarDays,
+  Car,
+  ChefHat,
+  ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
+  Clock,
+  CreditCard,
   DollarSign,
+  Eye,
+  Flower2,
+  Footprints,
   Heart,
   Loader2,
   MapPin,
+  MoreVertical,
   ShieldCheck,
   ShieldX,
+  ShoppingBag,
+  Smartphone,
   Sparkles,
+  SprayCan,
+  Store,
+  UserRoundCheck,
   UsersRound,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { HiArrowLongRight } from "react-icons/hi2";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { EmailVerifyBanner } from "@/components/dashboard/email-verify-banner";
-import { DashboardMetric, DashboardShell, type DashboardNavBadges } from "@/components/layouts";
+import { DashboardShell, type DashboardNavBadges } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ProfileCompletionRing } from "@/components/ui/profile-completion-ring";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
@@ -74,47 +100,148 @@ function DashboardRouter() {
 function DashboardTitle({ title, meta }: { title: React.ReactNode; meta?: React.ReactNode }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">{title}</h1>
+      <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">{title}</h1>
       {meta && <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{meta}</p>}
     </div>
   );
 }
 
-function SectionBlock({
-  heading,
-  sub,
-  action,
-  children,
-  className,
+/* ─────────────────────────────────────────────────────────────
+ * CardMenu — Metronic-style card-header "kebab" dropdown (the
+ * three-dot toolbar button on the Highlights card). The 69%
+ * "value" stays dynamic; this only adds a menu action beside it.
+ * ───────────────────────────────────────────────────────────── */
+
+function CardMenu({
+  label,
+  items,
 }: {
-  heading?: string;
-  sub?: React.ReactNode;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
+  label: string;
+  items: { href: string; label: string; icon: LucideIcon }[];
 }) {
-  const hasHeader = heading || sub || action;
   return (
-    <section
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={label}
+        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <MoreVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto min-w-44">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <DropdownMenuItem
+              key={item.href + item.label}
+              render={<Link href={item.href} />}
+              // Hover/focus must NOT change the background — only the text
+              // and icon recolour. Exact-modifier overrides so tailwind-merge
+              // beats the component's focus:bg-accent / focus:text styles.
+              className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+            >
+              <Icon className="size-4 text-muted-foreground" />
+              {item.label}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * MetricTile — Metronic-style KPI tile. Solid tone-coloured icon
+ * badge, oversized bold value, label + hint beneath. Local to the
+ * dashboard so the shared DashboardMetric stays untouched.
+ * ───────────────────────────────────────────────────────────── */
+
+const METRIC_TILE_STYLES: Record<
+  "primary" | "accent" | "success" | "neutral",
+  { grad: string; ring: string; badge: string }
+> = {
+  primary: {
+    grad: "from-primary/[0.14] via-primary/[0.04] to-transparent",
+    ring: "border-primary/20",
+    badge: "bg-primary text-primary-foreground",
+  },
+  accent: {
+    grad: "from-accent/[0.14] via-accent/[0.04] to-transparent",
+    ring: "border-accent/20",
+    badge: "bg-accent text-accent-foreground",
+  },
+  success: {
+    grad: "from-success/[0.14] via-success/[0.04] to-transparent",
+    ring: "border-success/20",
+    badge: "bg-success text-success-foreground",
+  },
+  neutral: {
+    grad: "from-foreground/[0.08] via-foreground/[0.02] to-transparent",
+    ring: "border-border/60",
+    badge: "bg-foreground/80 text-background",
+  },
+};
+
+// Distinct corner texture for the Quick-routes cards — a faint dot-grid.
+const QUICK_ROUTE_TEXTURE =
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='150'><defs><pattern id='kc-dots' width='15' height='15' patternUnits='userSpaceOnUse'><circle cx='2.5' cy='2.5' r='1.4' fill='%230A0E28' fill-opacity='0.06'/></pattern></defs><rect width='220' height='150' fill='url(%23kc-dots)'/></svg>\")";
+
+function MetricTile({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone = "primary",
+  href,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  icon: LucideIcon;
+  tone?: "primary" | "accent" | "success" | "neutral";
+  href?: string;
+}) {
+  const s = METRIC_TILE_STYLES[tone];
+
+  const card = (
+    <div
       className={cn(
-        "rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6",
-        className,
+        "group relative h-full overflow-hidden rounded-xl border bg-card p-5 shadow-[0_1px_3px_rgba(10,14,40,0.06)] transition-all",
+        s.ring,
+        href && "hover:-translate-y-0.5 hover:shadow-[0_10px_28px_-14px_rgba(10,14,40,0.22)]",
       )}
     >
-      {hasHeader && (
-        <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            {heading && (
-              <h2 className="text-base font-semibold tracking-tight text-foreground">{heading}</h2>
-            )}
-            {sub && <p className="mt-0.5 text-sm text-muted-foreground">{sub}</p>}
-          </div>
-          {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
-        </header>
-      )}
-      {children}
-    </section>
+      {/* light tonal wash */}
+      <div aria-hidden className={cn("absolute inset-0 bg-gradient-to-br", s.grad)} />
+
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", s.badge)}>
+            <Icon className="size-5" strokeWidth={2} />
+          </span>
+          <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums sm:text-[1.75rem]">
+            {value}
+          </p>
+          {href && (
+            <ArrowUpRight
+              className="ml-auto size-4 text-muted-foreground/50 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
+              strokeWidth={1.75}
+            />
+          )}
+        </div>
+        <p className="mt-3 text-sm font-semibold text-foreground/80">{label}</p>
+        {hint && <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{hint}</p>}
+      </div>
+    </div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full">
+        {card}
+      </Link>
+    );
+  }
+  return card;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -241,7 +368,7 @@ function CaregiverDashboard() {
 
   return (
     <DashboardShell pageTitle="Dashboard" navBadges={navBadges}>
-      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome back, ${firstName}.`}
           meta={
@@ -262,7 +389,7 @@ function CaregiverDashboard() {
             <StatusStrip isVerified={isVerified} identityStatus={identityStatus} />
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <DashboardMetric
+              <MetricTile
                 label="Pending offers"
                 value={stats.pendingOffers}
                 hint={
@@ -274,7 +401,7 @@ function CaregiverDashboard() {
                 tone="accent"
                 href={stats.pendingOffers > 0 ? "/bookings?tab=upcoming" : undefined}
               />
-              <DashboardMetric
+              <MetricTile
                 label="Confirmed visits"
                 value={stats.upcomingConfirmed}
                 hint="On the schedule."
@@ -282,7 +409,7 @@ function CaregiverDashboard() {
                 tone="primary"
                 href="/caregiver/schedule"
               />
-              <DashboardMetric
+              <MetricTile
                 label="Earned this month"
                 value={formatCents(stats.monthCents)}
                 hint="After the 7.5% platform fee."
@@ -306,16 +433,22 @@ function CaregiverDashboard() {
                   href: "/me/gigs",
                   label: "My gigs",
                   hint: "Service listings families can find in the marketplace.",
+                  icon: Store,
+                  tone: "primary",
                 },
                 {
                   href: "/bookings",
                   label: "All bookings",
                   hint: "Upcoming, active, and past — with accept / decline controls.",
+                  icon: ClipboardCheck,
+                  tone: "accent",
                 },
                 {
                   href: "/caregiver/schedule",
                   label: "Your week",
                   hint: "See visits inked vs. pencilled across the days ahead.",
+                  icon: CalendarDays,
+                  tone: "success",
                 },
               ]}
             />
@@ -466,6 +599,20 @@ function StatusStrip({
  * Caregiver — next-visit block
  * ───────────────────────────────────────────────────────────── */
 
+// Best-effort service-category → icon, matched on the slug so a missing icon
+// field never breaks the card. A lookup table (rather than a component-returning
+// function) keeps the call site clear of react-hooks/static-components.
+// Companionship + anything unknown falls through to Heart.
+const CATEGORY_ICONS: ReadonlyArray<readonly [readonly string[], LucideIcon]> = [
+  [["tech"], Smartphone],
+  [["errand", "shop"], ShoppingBag],
+  [["walk"], Footprints],
+  [["garden"], Flower2],
+  [["cook", "meal"], ChefHat],
+  [["transport", "drive", "ride"], Car],
+  [["clean", "housekeep"], SprayCan],
+];
+
 function NextVisitBlock({
   booking,
   pending,
@@ -475,21 +622,52 @@ function NextVisitBlock({
 }) {
   if (!booking && !pending) {
     return (
-      <SectionBlock heading="Up next" sub="Nothing on the books yet.">
-        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          Offers from families will land here when they book one of your gigs — they usually arrive
-          with a four-hour response window. Make sure your gigs are published so you&rsquo;re
-          findable in the marketplace.
-        </p>
-        <div className="mt-5">
-          <Link href="/me/gigs">
-            <Button>
-              Manage my gigs
-              <ArrowRight className="size-4" />
-            </Button>
-          </Link>
+      <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+        {/* card-header */}
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+          <h3 className="text-base font-semibold leading-none tracking-tight">Up next</h3>
+          <CardMenu
+            label="Up next options"
+            items={[{ href: "/me/gigs", label: "Manage my gigs", icon: Briefcase }]}
+          />
         </div>
-      </SectionBlock>
+        {/* card-content */}
+        <div className="grow p-5">
+          <div className="flex flex-col items-center px-2 py-6 text-center">
+            <span className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
+              <CalendarClock className="size-6" strokeWidth={1.75} />
+            </span>
+            <p className="mt-4 text-base font-semibold text-foreground">Nothing on the books yet</p>
+            <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              Offers from families land here with a four-hour response window. Keep your gigs
+              published so you stay findable in the marketplace.
+            </p>
+            <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/80">
+              <span>Publish a gig</span>
+              <HiArrowLongRight
+                aria-hidden
+                className="size-3.5 shrink-0 text-muted-foreground/50"
+              />
+              <span>families book</span>
+              <HiArrowLongRight
+                aria-hidden
+                className="size-3.5 shrink-0 text-muted-foreground/50"
+              />
+              <span>offers appear here</span>
+            </p>
+            <div className="mt-5">
+              <Button
+                render={<Link href="/me/gigs" />}
+                nativeButton={false}
+                className="cursor-pointer"
+              >
+                Manage my gigs
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -498,58 +676,232 @@ function NextVisitBlock({
 
   const isPending = !booking;
   const start = new Date(active.scheduled_start);
+  const day = start.getDate();
+  const month = start.toLocaleDateString("en-CA", { month: "short" }).toUpperCase();
   const dateLine = start.toLocaleDateString("en-CA", {
-    weekday: "long",
-    month: "long",
+    weekday: "short",
+    month: "short",
     day: "numeric",
   });
-  const timeLine = start.toLocaleTimeString("en-CA", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const timeLine = start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const slug = active.gig?.service_category?.slug ?? "";
+  const Icon = CATEGORY_ICONS.find(([keys]) => keys.some((k) => slug.includes(k)))?.[1] ?? Heart;
+  const title = active.gig?.service_category?.name ?? "Visit";
 
   return (
-    <SectionBlock
-      heading={isPending ? "Awaiting your reply" : "Up next"}
-      sub={dateLine + " · " + timeLine}
-      action={<StatusChip status={active.status} />}
-    >
-      <div className="space-y-3">
-        <p className="text-lg font-semibold tracking-tight text-foreground">
-          {active.gig?.service_category?.name ?? "Visit"}
-        </p>
-
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="size-3.5" strokeWidth={1.75} />
-            {active.address_full ?? active.address_neighbourhood}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarClock className="size-3.5" strokeWidth={1.75} />
-            {formatHours(active.duration_minutes)}
-          </span>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+      {/* card-header */}
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+        <h3 className="text-base font-semibold leading-none tracking-tight">
+          {isPending ? "Awaiting your reply" : "Up next"}
+        </h3>
+        <div className="flex items-center gap-2">
+          <StatusChip status={active.status} />
+          <CardMenu
+            label="Up next options"
+            items={[{ href: "/me/gigs", label: "Manage my gigs", icon: Briefcase }]}
+          />
         </div>
-
-        <p className="text-sm">
-          <span className="text-lg font-semibold tabular-nums text-foreground">
-            {formatCents(active.caregiver_payout_cents)}
-          </span>
-          <span className="text-muted-foreground"> after fee</span>
-        </p>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link href={`/bookings/${active.id}`}>
-          <Button>
+      {/* card-content */}
+      <div className="grow p-5">
+        {/* Hero — tear-off calendar token + service title + when */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-primary/[0.07] via-card to-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+          <div className="flex items-start gap-4">
+            {/* tear-off calendar token */}
+            <div className="flex w-[4.25rem] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_6px_18px_-8px_rgba(10,14,40,0.35)]">
+              <span className="bg-primary py-1 text-center text-[10px] font-semibold tracking-[0.2em] text-primary-foreground uppercase">
+                {month}
+              </span>
+              <span className="py-2 text-center text-[1.75rem] leading-none font-bold tabular-nums text-foreground">
+                {day}
+              </span>
+            </div>
+            {/* title + meta */}
+            <div className="min-w-0 pt-0.5">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="truncate text-base font-semibold tracking-tight text-foreground">
+                  {title}
+                </p>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                <span className="tabular-nums">{dateLine}</span>
+                <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+                <span className="tabular-nums">{timeLine}</span>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary tabular-nums ring-1 ring-primary/15">
+                  {relativeWhen(start)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-3 gap-2.5">
+          <VisitFact
+            icon={Clock}
+            tone="primary"
+            label="Length"
+            value={formatHours(active.duration_minutes)}
+          />
+          <VisitFact
+            icon={MapPin}
+            tone="neutral"
+            label="Area"
+            value={active.address_neighbourhood}
+          />
+          <VisitFact
+            icon={Wallet}
+            tone="success"
+            label="Payout"
+            value={formatCents(active.caregiver_payout_cents)}
+          />
+        </dl>
+
+        <div className="mt-4">
+          <VisitTimeline current={visitStepIndex(active.status)} />
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button
+            render={<Link href={`/bookings/${active.id}`} />}
+            nativeButton={false}
+            className="cursor-pointer"
+          >
             {isPending ? "Review & respond" : "Open details"}
             <ArrowRight className="size-4" />
           </Button>
-        </Link>
-        <Link href="/caregiver/schedule">
-          <Button variant="outline">See schedule</Button>
-        </Link>
+          <Button
+            variant="outline"
+            render={<Link href="/caregiver/schedule" />}
+            nativeButton={false}
+            className="cursor-pointer"
+          >
+            See schedule
+          </Button>
+        </div>
       </div>
-    </SectionBlock>
+    </div>
+  );
+}
+
+const VISIT_STEPS = ["Offered", "Confirmed", "Check-in", "Done"] as const;
+
+function visitStepIndex(status: Booking["status"]): number {
+  switch (status) {
+    case "pending_caregiver":
+      return 0;
+    case "confirmed":
+      return 1;
+    case "in_progress":
+      return 2;
+    case "completed":
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+function relativeWhen(date: Date): string {
+  const ms = date.getTime() - new Date().getTime();
+  const past = ms < 0;
+  const abs = Math.abs(ms);
+  const mins = Math.round(abs / 60000);
+  const hours = Math.round(abs / 3600000);
+  const days = Math.round(abs / 86400000);
+  let phrase: string;
+  if (mins < 60) phrase = `${Math.max(1, mins)} min`;
+  else if (hours < 24) phrase = `${hours} hr${hours === 1 ? "" : "s"}`;
+  else if (days === 1) return past ? "yesterday" : "tomorrow";
+  else phrase = `${days} days`;
+  return past ? `${phrase} ago` : `in ${phrase}`;
+}
+
+const VISIT_FACT_TONES: Record<"primary" | "neutral" | "success", { card: string; chip: string }> =
+  {
+    primary: {
+      card: "border-primary/15 bg-primary/[0.06]",
+      chip: "bg-primary/15 text-primary ring-primary/20",
+    },
+    neutral: {
+      card: "border-border/70 bg-muted/60",
+      chip: "bg-foreground/10 text-foreground/70 ring-foreground/10",
+    },
+    success: {
+      card: "border-success/20 bg-success/[0.07]",
+      chip: "bg-success/15 text-success ring-success/25",
+    },
+  };
+
+function VisitFact({
+  label,
+  value,
+  icon: Icon,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  tone?: "primary" | "neutral" | "success";
+}) {
+  const s = VISIT_FACT_TONES[tone];
+  return (
+    <div className={cn("flex items-center gap-2.5 rounded-xl border p-3", s.card)}>
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg ring-1", s.chip)}>
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold leading-tight tabular-nums text-foreground">
+          {value}
+        </p>
+        <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function VisitTimeline({ current }: { current: number }) {
+  return (
+    <ol className="flex items-center">
+      {VISIT_STEPS.map((step, i) => {
+        const reached = i <= current;
+        const isLast = i === VISIT_STEPS.length - 1;
+        return (
+          <li key={step} className={cn("flex items-center", !isLast && "flex-1")}>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  reached ? "bg-primary" : "bg-muted-foreground/25",
+                )}
+              />
+              <span
+                className={cn(
+                  "text-[10px] font-medium tracking-wide uppercase",
+                  i === current
+                    ? "text-foreground"
+                    : reached
+                      ? "text-primary"
+                      : "text-muted-foreground/60",
+                )}
+              >
+                {step}
+              </span>
+            </span>
+            {!isLast && (
+              <span
+                className={cn("mx-2 h-px flex-1", i < current ? "bg-primary/40" : "bg-border")}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -577,63 +929,213 @@ function StatusChip({ status }: { status: Booking["status"] }) {
  * Caregiver — profile completion block
  * ───────────────────────────────────────────────────────────── */
 
+const COMPLETION_PAGE_SIZE = 4;
+
 function ProfileCompletionBlock({ completion }: { completion: ProfileCompletion | null }) {
+  // Hook stays above the early return so the order is stable across renders.
+  const [page, setPage] = useState(0);
   if (!completion) return null;
   const pct = completion.percentage;
   const isComplete = pct >= 100;
 
+  // Paginate the missing-items table, 4 rows per page. safePage clamps the
+  // stored page in case the list shrank since the last render.
+  const totalPages = Math.max(1, Math.ceil(completion.missing.length / COMPLETION_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = safePage * COMPLETION_PAGE_SIZE;
+  const pageItems = completion.missing.slice(pageStart, pageStart + COMPLETION_PAGE_SIZE);
+  // Only pad to a full page when there's more than one page — a single
+  // short page shouldn't grow empty rows it doesn't need.
+  const fillerRows = totalPages > 1 ? COMPLETION_PAGE_SIZE - pageItems.length : 0;
+
+  // Mirror ProfileCompletionRing's getColor thresholds so the linear bar
+  // shows the same tone the (now hidden) ring would at any percentage:
+  // ≥70 success, ≥40 warning (amber), <40 accent.
+  const barFill = pct >= 70 ? "bg-success" : pct >= 40 ? "bg-warning" : "bg-accent";
+  const barText = pct >= 70 ? "text-success" : pct >= 40 ? "text-warning" : "text-accent";
+  const boostTone =
+    pct >= 70
+      ? "bg-success/10 text-success"
+      : pct >= 40
+        ? "bg-warning/10 text-warning"
+        : "bg-accent/10 text-accent";
+
   return (
-    <SectionBlock
-      heading={isComplete ? "Profile complete" : `${pct}% complete`}
-      sub="Your profile at a glance."
-      action={
-        completion.is_matchable ? (
-          <span className="inline-flex rounded-full bg-success/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-success uppercase ring-1 ring-success/30">
-            Matchable
-          </span>
-        ) : (
-          <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase ring-1 ring-foreground/15">
-            Need 70% to match
-          </span>
-        )
-      }
-    >
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <ProfileCompletionRing percentage={pct} size="md" showLabel={false} />
-        <div className="min-w-0 flex-1">
-          {isComplete ? (
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Every field is in. Families see your full card in the shortlist.
-            </p>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+      {/* card-header */}
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+        <h3 className="text-base font-semibold leading-none tracking-tight">
+          {isComplete ? "Profile complete" : `${pct}% complete`}
+        </h3>
+        <div className="flex items-center gap-2">
+          {completion.is_matchable ? (
+            <span className="inline-flex rounded-full bg-success/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-success uppercase ring-1 ring-success/30">
+              Matchable
+            </span>
           ) : (
-            <ul className="space-y-1">
-              {completion.missing.slice(0, 4).map((item) => (
-                <li key={item.field}>
-                  <Link
-                    href={STEP_BY_FIELD[item.field] ?? "/onboarding"}
-                    className="group flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-                  >
-                    <span className="size-1.5 rounded-full bg-muted-foreground/40" />
-                    <span className="flex-1 text-foreground/80 group-hover:text-foreground">
-                      {item.label}
-                    </span>
-                    <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                      +{item.weight}%
-                    </span>
-                    <ArrowUpRight className="size-3.5 text-muted-foreground/40 group-hover:text-foreground" />
-                  </Link>
-                </li>
-              ))}
-              {completion.missing.length > 4 && (
-                <li className="px-2 pt-1 text-[11px] text-muted-foreground">
-                  +{completion.missing.length - 4} more
-                </li>
-              )}
-            </ul>
+            <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase ring-1 ring-foreground/15">
+              Need 70% to match
+            </span>
           )}
+          <CardMenu
+            label="Profile options"
+            items={[{ href: "/onboarding", label: "Complete your profile", icon: UserRoundCheck }]}
+          />
         </div>
       </div>
-    </SectionBlock>
+
+      {/* card-content */}
+      <div className="grow p-5">
+        {/* Circular ring kept in the tree but hidden from display — the
+            linear bar below now carries the same dynamic percentage. */}
+        <div className="hidden">
+          <ProfileCompletionRing percentage={pct} size="md" showLabel={false} />
+        </div>
+
+        {/* Linear progress bar — same dynamic value & tone as the ring */}
+        <div className="mb-5">
+          <div className="mb-1.5 flex items-baseline justify-between gap-3">
+            <span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              Profile strength
+            </span>
+            <span className={cn("text-sm font-bold tabular-nums", barText)}>{pct}%</span>
+          </div>
+          <div
+            aria-hidden
+            className="h-2 w-full overflow-hidden rounded-full bg-muted"
+            role="presentation"
+          >
+            <div
+              className={cn("h-full rounded-full transition-[width] duration-500", barFill)}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+
+        {isComplete ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Every field is in. Families see your full card in the shortlist.
+          </p>
+        ) : (
+          // Metronic demo1 "Teams" card table — muted uppercase column
+          // headers, divider rows, bold primary label, trailing value.
+          <div className="overflow-hidden">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-left">
+                  <th className="pb-2.5 pr-3 pl-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Profile item
+                  </th>
+                  <th className="pb-2.5 px-3 text-right text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Boost
+                  </th>
+                  <th className="w-8 pb-2.5 pr-1" />
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((item, i) => {
+                  const href = STEP_BY_FIELD[item.field] ?? "/onboarding";
+                  return (
+                    <tr
+                      key={item.field}
+                      className="group border-b border-border/40 transition-colors last:border-0 hover:bg-muted/40"
+                    >
+                      <td className="py-2.5 pr-3 pl-1">
+                        <Link href={href} className="flex items-center gap-2.5">
+                          <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground tabular-nums">
+                            {pageStart + i + 1}
+                          </span>
+                          <span className="font-medium text-foreground/85 group-hover:text-foreground">
+                            {item.label}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                            boostTone,
+                          )}
+                        >
+                          +{item.weight}%
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-1 text-right">
+                        <Link href={href} aria-label={`Complete: ${item.label}`}>
+                          <ArrowUpRight className="size-4 text-muted-foreground/40 group-hover:text-foreground" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Filler rows hold a constant 4-row height across pages so
+                    the card never resizes (and its grid-row neighbour, the
+                    "Up next" card, stops jumping) when paginating. */}
+                {fillerRows > 0 &&
+                  Array.from({ length: fillerRows }).map((_, i) => (
+                    <tr
+                      key={`filler-${i}`}
+                      aria-hidden
+                      className="border-b border-border/40 last:border-0"
+                    >
+                      <td className="py-2.5 pr-3 pl-1">
+                        <span className="flex items-center gap-2.5">
+                          <span className="size-6" />
+                          <span className="text-sm">&nbsp;</span>
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5" />
+                      <td className="py-2.5 pr-1" />
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* card-footer — pager pinned to the bottom of the card, always at
+          the bottom regardless of how many rows the current page holds. */}
+      {!isComplete && totalPages > 1 && (
+        <div className="flex items-center justify-end gap-1 border-t border-border px-5 py-3">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+            aria-label="Previous page"
+            className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setPage(i)}
+              aria-label={`Page ${i + 1}`}
+              aria-current={i === safePage ? "page" : undefined}
+              className={cn(
+                "grid size-7 cursor-pointer place-items-center rounded-md text-[12px] font-semibold tabular-nums transition-colors",
+                i === safePage
+                  ? "bg-primary/10 text-primary ring-1 ring-primary/30"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={safePage === totalPages - 1}
+            aria-label="Next page"
+            className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -641,26 +1143,68 @@ function ProfileCompletionBlock({ completion }: { completion: ProfileCompletion 
  * Quick routes row — shared between caregiver + family
  * ───────────────────────────────────────────────────────────── */
 
-function QuickRoutes({ routes }: { routes: { href: string; label: string; hint: string }[] }) {
+type QuickRouteTone = "primary" | "accent" | "success";
+
+interface QuickRoute {
+  href: string;
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+  tone: QuickRouteTone;
+}
+
+// Quick routes reuse the KPI MetricTile treatment — a tonal gradient wash,
+// corner swoosh and a solid colour-coded icon badge — pared down to a simple
+// icon + title nav target. Three tones give three distinct gradients, matching
+// the "Pending offers / Earned this month" tiles above.
+function QuickRoutes({ routes, title = "Quick routes" }: { routes: QuickRoute[]; title?: string }) {
   return (
     <section className="mt-8">
-      <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Quick routes</h2>
+      <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">{title}</h2>
       <div className="grid gap-4 sm:grid-cols-3">
-        {routes.map((route) => (
-          <Link
-            key={route.href}
-            href={route.href}
-            className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-[0_8px_24px_-12px_rgba(10,14,40,0.14)]"
-          >
-            <div className="flex items-start justify-between">
-              <p className="text-base font-semibold tracking-tight text-foreground">
-                {route.label}
-              </p>
-              <ArrowUpRight className="size-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
-            </div>
-            <p className="text-sm leading-snug text-muted-foreground">{route.hint}</p>
-          </Link>
-        ))}
+        {routes.map((route) => {
+          const Icon = route.icon;
+          const s = METRIC_TILE_STYLES[route.tone];
+          return (
+            <Link
+              key={route.href}
+              href={route.href}
+              className={cn(
+                "group relative h-full overflow-hidden rounded-xl border bg-card p-5 shadow-[0_1px_3px_rgba(10,14,40,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-18px_rgba(10,14,40,0.28)]",
+                s.ring,
+              )}
+            >
+              {/* tonal gradient wash */}
+              <div aria-hidden className={cn("absolute inset-0 bg-gradient-to-br", s.grad)} />
+              {/* decorative corner texture — dot-grid, distinct from the
+                  metric tiles' concentric-arc swoosh */}
+              <div
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: QUICK_ROUTE_TEXTURE,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right top",
+                }}
+              />
+
+              <div className="relative">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn("grid size-10 shrink-0 place-items-center rounded-xl", s.badge)}
+                  >
+                    <Icon className="size-5" strokeWidth={2} />
+                  </span>
+                  <p className="text-sm font-semibold tracking-tight text-foreground">
+                    {route.label}
+                  </p>
+                  <ArrowUpRight className="ml-auto size-4 text-muted-foreground/50 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
+                </div>
+                <p className="mt-3 text-[13px] leading-snug text-muted-foreground">{route.hint}</p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
@@ -720,7 +1264,7 @@ function FamilyDashboard() {
 
   return (
     <DashboardShell pageTitle="Dashboard" navBadges={navBadges}>
-      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <DashboardTitle
           title={`Welcome, ${firstName}.`}
           meta="Browse the marketplace, book a visit, and track it through to completion."
@@ -735,7 +1279,7 @@ function FamilyDashboard() {
         ) : (
           <>
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <DashboardMetric
+              <MetricTile
                 label="Offers sent"
                 value={stats.openOffers}
                 hint="Waiting on a caregiver."
@@ -743,7 +1287,7 @@ function FamilyDashboard() {
                 tone="accent"
                 href={stats.openOffers > 0 ? "/bookings" : undefined}
               />
-              <DashboardMetric
+              <MetricTile
                 label="Confirmed visits"
                 value={stats.confirmed}
                 hint="On the books."
@@ -751,7 +1295,7 @@ function FamilyDashboard() {
                 tone="primary"
                 href="/bookings"
               />
-              <DashboardMetric
+              <MetricTile
                 label="Completed"
                 value={stats.completed}
                 hint="Visits in the record."
@@ -762,23 +1306,7 @@ function FamilyDashboard() {
 
             <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
               <FamilyNextVisitBlock booking={stats.nextVisit} />
-              <SectionBlock heading="Start here" sub="Browse the marketplace and book a gig.">
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Verified caregivers post their service — companionship, errands, a walking partner
-                  — at their own rate. Pick one that fits and book a visit.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Link href="/marketplace">
-                    <Button>
-                      Browse marketplace
-                      <ArrowRight className="size-4" />
-                    </Button>
-                  </Link>
-                  <Link href="/services">
-                    <Button variant="outline">Browse services</Button>
-                  </Link>
-                </div>
-              </SectionBlock>
+              <StartHereBlock />
             </div>
 
             <div className="mt-6">
@@ -791,16 +1319,22 @@ function FamilyDashboard() {
                   href: "/bookings",
                   label: "Live bookings",
                   hint: "Track offers as they go out and come back.",
+                  icon: CalendarCheck,
+                  tone: "primary",
                 },
                 {
                   href: "/care-recipients",
                   label: "Care recipients",
                   hint: "Profiles for the people you're arranging care for.",
+                  icon: UsersRound,
+                  tone: "accent",
                 },
                 {
                   href: "/settings/payment-methods",
                   label: "Payment methods",
                   hint: "The card we charge after a visit ends.",
+                  icon: CreditCard,
+                  tone: "success",
                 },
               ]}
             />
@@ -812,62 +1346,276 @@ function FamilyDashboard() {
 }
 
 function FamilyNextVisitBlock({ booking }: { booking: Booking | undefined }) {
+  // Empty state — mirrors the caregiver "Up next" empty card: header with
+  // divider, centred icon, the find→offer→appears flow, and a single CTA.
   if (!booking) {
     return (
-      <SectionBlock heading="Up next" sub="Nothing on the calendar.">
-        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          Once a caregiver accepts an offer, the next scheduled visit will appear here with the
-          address, rate and cancellation window.
-        </p>
-      </SectionBlock>
+      <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+          <h3 className="text-base font-semibold leading-none tracking-tight">Up next</h3>
+          <CardMenu
+            label="Up next options"
+            items={[{ href: "/marketplace", label: "Browse marketplace", icon: Store }]}
+          />
+        </div>
+        <div className="grow p-5">
+          <div className="flex flex-col items-center px-2 py-6 text-center">
+            <span className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
+              <CalendarClock className="size-6" strokeWidth={1.75} />
+            </span>
+            <p className="mt-4 text-base font-semibold text-foreground">
+              Nothing on the calendar yet
+            </p>
+            <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              Once a caregiver accepts your offer, the next scheduled visit shows up here with the
+              address, rate and cancellation window.
+            </p>
+            <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/80">
+              <span>Find a gig</span>
+              <HiArrowLongRight
+                aria-hidden
+                className="size-3.5 shrink-0 text-muted-foreground/50"
+              />
+              <span>send an offer</span>
+              <HiArrowLongRight
+                aria-hidden
+                className="size-3.5 shrink-0 text-muted-foreground/50"
+              />
+              <span>visit appears here</span>
+            </p>
+            <div className="mt-5">
+              <Button
+                render={<Link href="/marketplace" />}
+                nativeButton={false}
+                className="cursor-pointer"
+              >
+                Browse marketplace
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
   const start = new Date(booking.scheduled_start);
+  const day = start.getDate();
+  const month = start.toLocaleDateString("en-CA", { month: "short" }).toUpperCase();
   const dateLine = start.toLocaleDateString("en-CA", {
-    weekday: "long",
-    month: "long",
+    weekday: "short",
+    month: "short",
     day: "numeric",
   });
-  const timeLine = start.toLocaleTimeString("en-CA", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const timeLine = start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const slug = booking.gig?.service_category?.slug ?? "";
+  const Icon = CATEGORY_ICONS.find(([keys]) => keys.some((k) => slug.includes(k)))?.[1] ?? Heart;
+  const title = booking.gig?.service_category?.name ?? "Visit";
+  const caregiverName = booking.caregiver?.name ?? "Caregiver";
+  const initials =
+    caregiverName
+      .split(/\s+/)
+      .map((part) => part[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "C";
 
   return (
-    <SectionBlock
-      heading="Up next"
-      sub={dateLine + " · " + timeLine}
-      action={<StatusChip status={booking.status} />}
-    >
-      <p className="text-lg font-semibold tracking-tight text-foreground">
-        {booking.caregiver?.name ?? booking.gig?.service_category?.name ?? "Visit"}
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <MapPin className="size-3.5" strokeWidth={1.75} />
-          {booking.address_full ?? booking.address_neighbourhood}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <CalendarClock className="size-3.5" strokeWidth={1.75} />
-          {formatHours(booking.duration_minutes)}
-        </span>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+      {/* card-header */}
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+        <h3 className="text-base font-semibold leading-none tracking-tight">Up next</h3>
+        <div className="flex items-center gap-2">
+          <StatusChip status={booking.status} />
+          <CardMenu
+            label="Up next options"
+            items={[
+              { href: `/bookings/${booking.id}`, label: "Open booking", icon: CalendarCheck },
+            ]}
+          />
+        </div>
       </div>
-      <p className="mt-3 text-sm">
-        <span className="text-lg font-semibold tabular-nums text-foreground">
-          {formatCents(booking.subtotal_cents)}
-        </span>
-        <span className="text-muted-foreground"> total</span>
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link href={`/bookings/${booking.id}`}>
-          <Button>
+
+      {/* card-content */}
+      <div className="grow p-5">
+        {/* Hero — tear-off calendar token + service title + when, with the
+            assigned caregiver pinned to a divided footer row. */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-primary/[0.07] via-card to-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+          <div className="flex items-start gap-4">
+            <div className="flex w-[4.25rem] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_6px_18px_-8px_rgba(10,14,40,0.35)]">
+              <span className="bg-primary py-1 text-center text-[10px] font-semibold tracking-[0.2em] text-primary-foreground uppercase">
+                {month}
+              </span>
+              <span className="py-2 text-center text-[1.75rem] leading-none font-bold tabular-nums text-foreground">
+                {day}
+              </span>
+            </div>
+            <div className="min-w-0 pt-0.5">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="truncate text-base font-semibold tracking-tight text-foreground">
+                  {title}
+                </p>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                <span className="tabular-nums">{dateLine}</span>
+                <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+                <span className="tabular-nums">{timeLine}</span>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary tabular-nums ring-1 ring-primary/15">
+                  {relativeWhen(start)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* caregiver footer */}
+          <div className="mt-4 flex items-center gap-2.5 border-t border-border/60 pt-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-[12px] font-bold text-primary tabular-nums">
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{caregiverName}</p>
+              <p className="text-[11px] text-muted-foreground">Your caregiver</p>
+            </div>
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success ring-1 ring-success/20">
+              <BadgeCheck className="size-3.5" strokeWidth={2} />
+              Verified
+            </span>
+          </div>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-3 gap-2.5">
+          <VisitFact
+            icon={Clock}
+            tone="primary"
+            label="Length"
+            value={formatHours(booking.duration_minutes)}
+          />
+          <VisitFact
+            icon={MapPin}
+            tone="neutral"
+            label="Area"
+            value={booking.address_neighbourhood}
+          />
+          <VisitFact
+            icon={Wallet}
+            tone="success"
+            label="Total"
+            value={formatCents(booking.subtotal_cents)}
+          />
+        </dl>
+
+        <div className="mt-4">
+          <VisitTimeline current={visitStepIndex(booking.status)} />
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button
+            render={<Link href={`/bookings/${booking.id}`} />}
+            nativeButton={false}
+            className="cursor-pointer"
+          >
             Open booking
             <ArrowRight className="size-4" />
           </Button>
-        </Link>
+          <Button
+            variant="outline"
+            render={<Link href="/bookings" />}
+            nativeButton={false}
+            className="cursor-pointer"
+          >
+            All bookings
+          </Button>
+        </div>
       </div>
-    </SectionBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Family — "Start here" onboarding block. Premium card-header
+ * treatment with a tonal gradient wash and a numbered three-step
+ * how-it-works flow, replacing the flat text + buttons block.
+ * ───────────────────────────────────────────────────────────── */
+
+const START_HERE_STEPS: { icon: LucideIcon; label: string; text: string }[] = [
+  { icon: Store, label: "Browse", text: "Filter verified caregivers by service and rate." },
+  { icon: CalendarCheck, label: "Book", text: "Pick a gig and send an offer for your date." },
+  { icon: Heart, label: "Relax", text: "Track the visit through to completion." },
+];
+
+function StartHereBlock() {
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card shadow-xs">
+      {/* card-header */}
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+        <h3 className="text-base font-semibold leading-none tracking-tight">Start here</h3>
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-primary uppercase ring-1 ring-primary/20">
+          <Sparkles className="size-3" strokeWidth={2} />
+          Find care
+        </span>
+      </div>
+
+      {/* card-content */}
+      <div className="relative grow overflow-hidden p-5">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-primary/[0.05] via-transparent to-accent/[0.04]"
+        />
+        <div className="relative flex h-full flex-col">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Verified caregivers post their own service — companionship, errands, a walking partner —
+            at their own rate. Three steps to a booked visit:
+          </p>
+
+          <ol className="mt-4 space-y-2.5">
+            {START_HERE_STEPS.map((step, i) => {
+              const StepIcon = step.icon;
+              return (
+                <li
+                  key={step.label}
+                  className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/70 p-3 shadow-[0_1px_2px_rgba(10,14,40,0.03)]"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <StepIcon className="size-5" strokeWidth={1.75} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      <span className="text-primary tabular-nums">{i + 1}.</span> {step.label}
+                    </p>
+                    <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                      {step.text}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className="mt-5 flex flex-wrap gap-2 pt-1">
+            <Button
+              render={<Link href="/marketplace" />}
+              nativeButton={false}
+              className="cursor-pointer"
+            >
+              Browse marketplace
+              <ArrowRight className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              render={<Link href="/services" />}
+              nativeButton={false}
+              className="cursor-pointer"
+            >
+              Browse services
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -879,19 +1627,34 @@ function FamilyNextVisitBlock({ booking }: { booking: Booking | undefined }) {
  * there's no history yet.
  * ───────────────────────────────────────────────────────────── */
 
+const ACTIVITY_PAGE_SIZE = 4;
+
 function RecentActivity({ bookings, role }: { bookings: Booking[]; role: "caregiver" | "family" }) {
+  // Hook stays above the early return so the order is stable across renders.
+  const [page, setPage] = useState(0);
+
   const recent = useMemo(() => {
     return [...bookings]
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-      .slice(0, 5);
+      .slice(0, 12);
   }, [bookings]);
 
+  // Paginate 4 rows per page, mirroring the profile-completion card. safePage
+  // clamps the stored page in case the list shrank since the last render.
+  const totalPages = Math.max(1, Math.ceil(recent.length / ACTIVITY_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = safePage * ACTIVITY_PAGE_SIZE;
+  const pageItems = recent.slice(pageStart, pageStart + ACTIVITY_PAGE_SIZE);
+  // Pad to a full 4-row page (only when there's more than one page) so the
+  // card never resizes as you flip between pages.
+  const fillerRows = totalPages > 1 ? ACTIVITY_PAGE_SIZE - pageItems.length : 0;
+
   return (
-    <SectionBlock
-      heading="Recent activity"
-      sub={recent.length > 0 ? "Your last five booking updates." : undefined}
-      action={
-        recent.length > 0 ? (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+      {/* card-header */}
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2.5 border-b border-border px-5">
+        <h3 className="text-base font-semibold leading-none tracking-tight">Recent activity</h3>
+        {recent.length > 0 && (
           <Link
             href="/bookings"
             className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:text-primary/80"
@@ -899,71 +1662,197 @@ function RecentActivity({ bookings, role }: { bookings: Booking[]; role: "caregi
             All bookings
             <ChevronRight className="size-3.5" />
           </Link>
-        ) : undefined
-      }
-    >
+        )}
+      </div>
+
       {recent.length === 0 ? (
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Nothing to show yet — {role === "caregiver" ? "offers and visits" : "bookings"} will
-          appear here as soon as they&rsquo;re in motion.
-        </p>
+        <div className="p-5">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Nothing to show yet — {role === "caregiver" ? "offers and visits" : "bookings"} will
+            appear here as soon as they&rsquo;re in motion.
+          </p>
+        </div>
       ) : (
-        <ul className="divide-y divide-border/60">
-          {recent.map((booking) => (
-            <li key={booking.id}>
-              <Link
-                href={`/bookings/${booking.id}`}
-                className="group flex items-center gap-4 rounded-xl px-3 py-3 transition-colors hover:bg-muted/50"
+        // Table view — same structure as the My-gigs list page (full-bleed
+        // table, muted header row, zebra striping, trailing action column).
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30 text-left">
+                  <th className="py-3 pr-4 pl-5 text-[11px] font-semibold tracking-wide text-foreground capitalize sm:pl-6">
+                    {role === "caregiver" ? "Visit" : "Caregiver"}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-foreground capitalize whitespace-nowrap">
+                    When
+                  </th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold tracking-wide text-foreground capitalize">
+                    Amount
+                  </th>
+                  <th className="py-3 pr-5 pl-4 sm:pr-6" />
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((booking) => (
+                  <ActivityRow key={booking.id} booking={booking} role={role} />
+                ))}
+                {/* Filler rows hold a constant 4-row height across pages so the
+                    card never resizes when paginating. */}
+                {fillerRows > 0 &&
+                  Array.from({ length: fillerRows }).map((_, i) => (
+                    <tr
+                      key={`filler-${i}`}
+                      aria-hidden
+                      className="border-b border-border/60 even:bg-muted/30 last:border-0"
+                    >
+                      <td className="py-3 pr-4 pl-5 sm:pl-6">
+                        <div className="flex items-center gap-3">
+                          <span className="size-9 shrink-0" />
+                          <span className="text-sm">&nbsp;</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" />
+                      <td className="px-4 py-3" />
+                      <td className="px-4 py-3" />
+                      <td className="py-3 pr-5 pl-4 sm:pr-6" />
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* card-footer — pager, same treatment as the profile-completion card */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-end gap-1 border-t border-border px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                aria-label="Previous page"
+                className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               >
-                <span
-                  aria-hidden
+                <ChevronLeft className="size-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPage(i)}
+                  aria-label={`Page ${i + 1}`}
+                  aria-current={i === safePage ? "page" : undefined}
                   className={cn(
-                    "grid size-8 shrink-0 place-items-center rounded-full text-[10px] font-semibold tracking-tight",
-                    activityTone(booking.status).well,
-                    activityTone(booking.status).text,
+                    "grid size-7 cursor-pointer place-items-center rounded-md text-[12px] font-semibold tabular-nums transition-colors",
+                    i === safePage
+                      ? "bg-primary/10 text-primary ring-1 ring-primary/30"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  {activityLetter(booking.status)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {role === "caregiver"
-                      ? (booking.gig?.service_category?.name ?? "Visit")
-                      : (booking.caregiver?.name ?? "Caregiver")}
-                    <span className="ml-2 font-normal text-muted-foreground">
-                      · {statusLabel(booking.status)}
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-[12px] text-muted-foreground">
-                    {new Date(booking.scheduled_start).toLocaleDateString("en-CA", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                    {" · "}
-                    {booking.address_neighbourhood}
-                  </p>
-                </div>
-                <div className="hidden shrink-0 text-right font-mono text-sm tabular-nums sm:block">
-                  <span className="font-semibold">
-                    {formatCents(
-                      role === "caregiver"
-                        ? booking.caregiver_payout_cents
-                        : booking.subtotal_cents,
-                    )}
-                  </span>
-                </div>
-                <ArrowUpRight
-                  className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground"
-                  strokeWidth={1.75}
-                />
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage === totalPages - 1}
+                aria-label="Next page"
+                className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
+        </>
       )}
-    </SectionBlock>
+    </div>
+  );
+}
+
+function ActivityRow({ booking, role }: { booking: Booking; role: "caregiver" | "family" }) {
+  const tone = activityTone(booking.status);
+  const title =
+    role === "caregiver"
+      ? (booking.gig?.service_category?.name ?? "Visit")
+      : (booking.caregiver?.name ?? "Caregiver");
+  const whenLine = new Date(booking.scheduled_start).toLocaleDateString("en-CA", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const amount = formatCents(
+    role === "caregiver" ? booking.caregiver_payout_cents : booking.subtotal_cents,
+  );
+
+  return (
+    <tr className="group border-b border-border/60 transition-colors even:bg-muted/30 last:border-0 hover:bg-muted/60">
+      {/* Activity — status avatar + title, with the area as a subtitle */}
+      <td className="py-3 pr-4 pl-5 sm:pl-6">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-full text-[11px] font-semibold tracking-tight",
+              tone.well,
+              tone.text,
+            )}
+          >
+            {activityLetter(booking.status)}
+          </span>
+          <div className="min-w-0">
+            <Link
+              href={`/bookings/${booking.id}`}
+              className="block truncate text-sm font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+            >
+              {title}
+            </Link>
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+              {booking.address_neighbourhood}
+            </p>
+          </div>
+        </div>
+      </td>
+
+      {/* Status */}
+      <td className="px-4 py-3 align-middle">
+        <StatusChip status={booking.status} />
+      </td>
+
+      {/* When */}
+      <td className="px-4 py-3 align-middle whitespace-nowrap">
+        <span className="text-sm text-muted-foreground tabular-nums">{whenLine}</span>
+      </td>
+
+      {/* Amount */}
+      <td className="px-4 py-3 text-right align-middle whitespace-nowrap">
+        <span className="text-sm font-semibold text-foreground tabular-nums">{amount}</span>
+      </td>
+
+      {/* Action — 3-dot kebab dropdown, same pattern as the My-gigs table */}
+      <td className="py-3 pr-5 pl-4 text-right align-middle sm:pr-6">
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Activity actions"
+              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              <MoreVertical className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-auto min-w-40">
+              <DropdownMenuItem
+                render={<Link href={`/bookings/${booking.id}`} />}
+                className="cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary"
+              >
+                <Eye className="size-4" />
+                View
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1033,17 +1922,7 @@ function AdminDashboard() {
   return (
     <DashboardShell pageTitle="Admin" navBadges={{ verification: verificationsTotal }}>
       <div className="relative">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-          }}
-        />
-
-        <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+        <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
           <AdminHeader asOf={data?.as_of ?? null} />
 
           {state === "loading" && <AdminLoading />}
@@ -1074,26 +1953,31 @@ function AdminDashboard() {
 
 function AdminHeader({ asOf }: { asOf: string | null }) {
   return (
-    <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">The pulse,</span> at a glance.
-      </h1>
-
-      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Live counts across the platform, ranked by what an admin most often opens. Numbers refresh
-        every page load — the stamp below is the moment this snapshot was taken.
-      </p>
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">Dashboard</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Live counts across the platform, ranked by what an admin most often opens. Numbers refresh
+          on every page load.
+        </p>
+      </div>
 
       {asOf && (
-        <p className="mt-2 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
-          As of{" "}
-          {new Date(asOf).toLocaleString("en-CA", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </p>
+        <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-border bg-card px-3 py-2 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
+            <span className="relative inline-flex size-2 rounded-full bg-success" />
+          </span>
+          <span className="text-xs text-muted-foreground">Live · updated</span>
+          <span className="text-xs font-semibold tabular-nums text-foreground">
+            {new Date(asOf).toLocaleString("en-CA", {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+          </span>
+        </span>
       )}
     </header>
   );
@@ -1106,29 +1990,31 @@ function AdminStatGrid({ data }: { data: Analytics }) {
 
   return (
     <section aria-label="Headline metrics">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <AdminStat
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricTile
           label="Active users"
-          value={String(totalUsers)}
+          value={totalUsers}
           hint={`${data.users.caregiver} caregivers · ${data.users.family} families`}
-          icon={<UsersRound className="size-3.5" strokeWidth={2} />}
+          icon={UsersRound}
+          tone="neutral"
         />
-        <AdminStat
+        <MetricTile
           label="Verifications"
-          value={String(verificationsTotal)}
+          value={verificationsTotal}
           hint={
             data.verifications.flagged > 0 ? `${data.verifications.flagged} flagged` : "All clear"
           }
-          icon={<BadgeCheck className="size-3.5" strokeWidth={2} />}
-          tone={verificationsTotal > 0 ? "alarm" : "good"}
+          icon={BadgeCheck}
+          tone={verificationsTotal > 0 ? "accent" : "success"}
         />
-        <AdminStat
+        <MetricTile
           label="Live bookings"
-          value={String(liveBookings)}
+          value={liveBookings}
           hint={`${data.bookings.pending_offers} pending · ${data.bookings.active} confirmed`}
-          icon={<CalendarClock className="size-3.5" strokeWidth={2} />}
+          icon={CalendarClock}
+          tone="primary"
         />
-        <AdminStat
+        <MetricTile
           label="Commission MTD"
           value={formatCents(data.revenue_this_month.commission_cents)}
           hint={
@@ -1136,68 +2022,41 @@ function AdminStatGrid({ data }: { data: Analytics }) {
               ? `${data.revenue_this_month.visits} visit${data.revenue_this_month.visits === 1 ? "" : "s"} · ${formatCents(data.revenue_this_month.gmv_cents)} GMV`
               : "No completed visits yet"
           }
-          icon={<Wallet className="size-3.5" strokeWidth={2} />}
-          emphasized
+          icon={Wallet}
+          tone="success"
         />
       </div>
     </section>
   );
 }
 
-function AdminStat({
-  label,
-  value,
-  hint,
-  icon,
-  emphasized,
-  tone,
+function Panel({
+  icon: Icon,
+  title,
+  subtitle,
+  footer,
+  children,
 }: {
-  label: string;
-  value: string;
-  hint: string;
-  icon: React.ReactNode;
-  emphasized?: boolean;
-  tone?: "alarm" | "good";
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border p-4 sm:p-5",
-        emphasized && "border-primary/40 bg-primary/[0.04] ring-1 ring-primary/15",
-        !emphasized && tone === "alarm" && "border-accent/40 bg-accent/[0.04]",
-        !emphasized && tone === "good" && "border-success/40 bg-success/[0.04]",
-        !emphasized && !tone && "border-border/60 bg-card",
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "grid size-6 place-items-center rounded-md",
-            emphasized && "bg-primary/15 text-primary",
-            !emphasized && tone === "alarm" && "bg-accent/15 text-accent",
-            !emphasized && tone === "good" && "bg-success/15 text-success",
-            !emphasized && !tone && "bg-muted/60 text-muted-foreground",
-          )}
-        >
-          {icon}
+    <section className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="size-4" strokeWidth={2} />
         </span>
-        <p
-          className={cn(
-            "font-mono text-[10px] tracking-[0.22em] uppercase",
-            emphasized && "text-primary",
-            !emphasized && tone === "alarm" && "text-accent",
-            !emphasized && tone === "good" && "text-success",
-            !emphasized && !tone && "text-muted-foreground",
-          )}
-        >
-          {label}
-        </p>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+          {subtitle && <p className="text-[12px] text-muted-foreground">{subtitle}</p>}
+        </div>
       </div>
-      <p className="mt-3 font-mono text-2xl leading-none font-semibold tabular-nums sm:text-3xl">
-        {value}
-      </p>
-      <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>
-    </div>
+      <div className="grow p-5 sm:p-6">{children}</div>
+      {footer && <div className="border-t border-border bg-muted/30 px-5 py-3.5">{footer}</div>}
+    </section>
   );
 }
 
@@ -1209,69 +2068,77 @@ function QualityPulse({ data }: { data: Analytics }) {
   const avgRating = data.ratings.average_stars;
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <Sparkles className="size-3.5" strokeWidth={2} />
-        Quality pulse
-        <span className="text-foreground/30">— § 20</span>
-      </div>
-
-      {/* Average rating row */}
-      <div className="flex items-end justify-between gap-6">
-        <div>
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+    <Panel
+      icon={Sparkles}
+      title="Quality pulse"
+      subtitle="Ratings & trust health"
+      footer={
+        <div className="flex items-center justify-between text-[12px]">
+          <span className="text-muted-foreground">Caregivers tracked</span>
+          <span className="font-semibold tabular-nums text-foreground">
+            {tsTotal} <span className="font-normal text-muted-foreground">· {ts.new} new</span>
+          </span>
+        </div>
+      }
+    >
+      {/* Headline stat cells */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5">
+          <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             Average rating
           </p>
           {avgRating !== null ? (
-            <div className="mt-1 flex items-baseline gap-3">
-              <p className="font-mono text-4xl font-semibold tabular-nums sm:text-5xl">
+            <>
+              <p className="mt-1.5 text-3xl font-bold tracking-tight tabular-nums">
                 {avgRating.toFixed(2)}
+                <span className="ml-1 text-base font-medium text-muted-foreground">/5</span>
               </p>
-              <p className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
+              <p className="mt-0.5 text-[12px] text-muted-foreground tabular-nums">
                 {data.ratings.count} review{data.ratings.count === 1 ? "" : "s"}
               </p>
-            </div>
+            </>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground italic">No public reviews yet.</p>
+            <p className="mt-2 text-sm text-muted-foreground">No public reviews yet.</p>
           )}
         </div>
 
-        <div className="text-right">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            Trust avg
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5">
+          <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Trust average
           </p>
           {ts.average !== null ? (
-            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">{ts.average}</p>
+            <p className="mt-1.5 text-3xl font-bold tracking-tight tabular-nums">
+              {ts.average}
+              <span className="ml-1 text-base font-medium text-muted-foreground">/100</span>
+            </p>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground italic">—</p>
+            <p className="mt-2 text-2xl font-bold text-muted-foreground/50">—</p>
           )}
-          <p className="mt-1 font-mono text-[10px] text-muted-foreground tabular-nums">
+          <p className="mt-0.5 text-[12px] text-muted-foreground tabular-nums">
             {ranked} ranked · {ts.new} new
           </p>
         </div>
       </div>
 
-      {/* Trust Score histogram */}
-      <div className="mt-6 border-t border-dashed border-border/60 pt-4">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+      {/* Trust Score distribution */}
+      <div className="mt-5">
+        <p className="mb-3 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Trust Score distribution
         </p>
 
         {ranked === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground italic">
+          <p className="text-sm text-muted-foreground">
             All caregivers are still on their first three reviews.
           </p>
         ) : (
-          <ul className="mt-3 space-y-2">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-3">
             {ts.buckets.map((b) => (
               <li key={b.label}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono text-[10px] tracking-[0.18em] text-foreground/70 uppercase">
+                  <span className="text-[11px] font-medium tracking-wide text-foreground/70 uppercase">
                     {b.label}
                   </span>
-                  <span className="font-mono text-[11px] tabular-nums text-foreground/60">
-                    {b.count}
-                  </span>
+                  <span className="text-[12px] tabular-nums text-foreground/60">{b.count}</span>
                 </div>
                 <div aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
@@ -1290,7 +2157,7 @@ function QualityPulse({ data }: { data: Analytics }) {
           </ul>
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 
@@ -1298,14 +2165,20 @@ function PlatformMakeup({ data }: { data: Analytics }) {
   const total = data.users.family + data.users.caregiver + data.users.admin;
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <UsersRound className="size-3.5" strokeWidth={2} />
-        Platform makeup
-        <span className="text-foreground/30">— § 21</span>
-      </div>
-
-      <ul className="space-y-3">
+    <Panel
+      icon={UsersRound}
+      title="Platform makeup"
+      subtitle="Who's on KindredCare"
+      footer={
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] text-muted-foreground">Completed visits, all-time</span>
+          <span className="text-lg font-bold tabular-nums text-foreground">
+            {data.bookings.completed_all_time}
+          </span>
+        </div>
+      }
+    >
+      <ul className="space-y-3.5">
         <RoleBar
           label="Caregivers"
           count={data.users.caregiver}
@@ -1320,17 +2193,7 @@ function PlatformMakeup({ data }: { data: Analytics }) {
           barClass="bg-foreground/60"
         />
       </ul>
-
-      <div className="mt-5 border-t border-dashed border-border/60 pt-4">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-          Bookings, all-time
-        </p>
-        <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">
-          {data.bookings.completed_all_time}
-        </p>
-        <p className="font-mono text-[10px] text-muted-foreground tabular-nums">completed visits</p>
-      </div>
-    </section>
+    </Panel>
   );
 }
 
@@ -1350,9 +2213,9 @@ function RoleBar({
     <li>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-sm">{label}</span>
-        <span className="font-mono text-sm tabular-nums">
+        <span className="text-sm tabular-nums">
           <span className="font-semibold">{count}</span>
-          <span className="ml-1 text-[10px] text-muted-foreground">{pct}%</span>
+          <span className="ml-1 text-[11px] text-muted-foreground">{pct}%</span>
         </span>
       </div>
       <div aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -1368,32 +2231,32 @@ function VerificationTriage({ data }: { data: Analytics }) {
   return (
     <section
       className={cn(
-        "rounded-2xl border p-5 sm:p-6",
+        "rounded-xl border p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6",
         total === 0 ? "border-success/40 bg-success/[0.04]" : "border-accent/30 bg-accent/[0.03]",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <BadgeCheck className="size-3.5" strokeWidth={2} />
-            Verification triage
-            <span className="text-foreground/30">— § 22</span>
-          </div>
-          <h3 className="mt-2 text-lg font-semibold tracking-tight">
-            {total === 0 ? (
-              <>
-                Inbox <span className="font-normal italic text-success">zero.</span>
-              </>
-            ) : (
-              <>
-                <span className="font-normal italic">Caregivers waiting</span> on a decision.
-              </>
+        <div className="flex items-center gap-2.5">
+          <span
+            className={cn(
+              "grid size-8 shrink-0 place-items-center rounded-lg",
+              total === 0 ? "bg-success/15 text-success" : "bg-accent/15 text-accent",
             )}
-          </h3>
+          >
+            <BadgeCheck className="size-4" strokeWidth={2} />
+          </span>
+          <div>
+            <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              Verification triage
+            </p>
+            <h3 className="text-base font-semibold tracking-tight text-foreground">
+              {total === 0 ? "Inbox zero." : "Caregivers waiting on a decision."}
+            </h3>
+          </div>
         </div>
 
         <Link href="/admin/verifications">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="cursor-pointer">
             Open queue
             <ArrowRight className="size-3.5" />
           </Button>
@@ -1441,57 +2304,120 @@ function TriageStat({
       )}
     >
       <div className="flex items-baseline justify-between">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+        <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           {label}
         </p>
-        <p className="font-mono text-2xl font-semibold tabular-nums">{count}</p>
+        <p className="text-2xl font-bold tabular-nums">{count}</p>
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
 
-function AdminQuickLinks() {
-  const links = [
-    { href: "/admin/users", label: "Users", hint: "Search · suspend · reactivate" },
-    { href: "/admin/bookings", label: "Bookings", hint: "Filter · refund · resolve disputes" },
+// Seven distinct hues (oklch "L C H") — one per admin destination — so each
+// Jump-to card carries its own gradient wash + solid icon badge.
+const ADMIN_LINKS: { href: string; label: string; hint: string; icon: LucideIcon; hue: string }[] =
+  [
+    {
+      href: "/admin/users",
+      label: "Users",
+      hint: "Search · suspend · reactivate",
+      icon: UsersRound,
+      hue: "0.56 0.13 240",
+    },
+    {
+      href: "/admin/bookings",
+      label: "Bookings",
+      hint: "Filter · refund · resolve disputes",
+      icon: CalendarCheck,
+      hue: "0.60 0.20 25",
+    },
     {
       href: "/admin/verifications",
       label: "Verifications",
       hint: "Approve · reject · investigate",
+      icon: BadgeCheck,
+      hue: "0.58 0.14 155",
     },
-    { href: "/admin/safety", label: "Safety", hint: "Panic alerts · incidents" },
-    { href: "/admin/alerts", label: "Alerts", hint: "Everything urgent in one feed" },
-    { href: "/admin/audit", label: "Audit log", hint: "Who did what, when" },
-    { href: "/admin/revenue", label: "Revenue", hint: "Trends · category breakdown · refunds" },
+    {
+      href: "/admin/safety",
+      label: "Safety",
+      hint: "Panic alerts · incidents",
+      icon: ShieldCheck,
+      hue: "0.70 0.15 75",
+    },
+    {
+      href: "/admin/alerts",
+      label: "Alerts",
+      hint: "Everything urgent in one feed",
+      icon: Bell,
+      hue: "0.62 0.18 350",
+    },
+    {
+      href: "/admin/audit",
+      label: "Audit log",
+      hint: "Who did what, when",
+      icon: ClipboardCheck,
+      hue: "0.55 0.16 285",
+    },
+    {
+      href: "/admin/revenue",
+      label: "Revenue",
+      hint: "Trends · category breakdown · refunds",
+      icon: Wallet,
+      hue: "0.62 0.11 195",
+    },
   ];
 
+function AdminQuickLinks() {
   return (
-    <section>
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Jump to
-        <span className="text-foreground/30">— § 23</span>
-      </div>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {links.map((l) => (
-          <li key={l.href}>
+    <section className="mt-8">
+      <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Jump to</h2>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {ADMIN_LINKS.map((l) => {
+          const Icon = l.icon;
+          return (
             <Link
+              key={l.href}
               href={l.href}
-              className="group flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-foreground/30"
+              style={{ borderColor: `oklch(${l.hue} / 0.22)` }}
+              className="group relative h-full overflow-hidden rounded-xl border bg-card p-5 shadow-[0_1px_3px_rgba(10,14,40,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-18px_rgba(10,14,40,0.28)]"
             >
-              <div className="min-w-0">
-                <p className="font-semibold tracking-tight">{l.label}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">{l.hint}</p>
-              </div>
-              <ArrowUpRight
-                className="size-4 shrink-0 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
-                strokeWidth={2}
+              <div
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `linear-gradient(135deg, oklch(${l.hue} / 0.16), oklch(${l.hue} / 0.04) 45%, transparent)`,
+                }}
               />
+              <div
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: QUICK_ROUTE_TEXTURE,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right top",
+                }}
+              />
+              <div className="relative">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="grid size-10 shrink-0 place-items-center rounded-xl text-white"
+                    style={{ backgroundColor: `oklch(${l.hue})` }}
+                  >
+                    <Icon className="size-5" strokeWidth={2} />
+                  </span>
+                  <p className="text-base font-semibold tracking-tight text-foreground">
+                    {l.label}
+                  </p>
+                  <ArrowUpRight className="ml-auto size-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground" />
+                </div>
+                <p className="mt-3 text-[13px] leading-snug text-muted-foreground">{l.hint}</p>
+              </div>
             </Link>
-          </li>
-        ))}
-      </ul>
+          );
+        })}
+      </div>
     </section>
   );
 }

@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
-  ArrowRight,
   ArrowUpRight,
   Banknote,
   CheckCircle2,
@@ -14,7 +13,7 @@ import {
   Landmark,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
@@ -25,6 +24,7 @@ import {
   refreshConnectStatus,
   startConnectOnboarding,
 } from "@/lib/payouts";
+import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────
  * Route shell
@@ -74,7 +74,6 @@ function PayoutsView() {
 
         // When caregiver returns from Stripe's hosted onboarding,
         // the return URL carries ?status=complete or ?status=refresh.
-        // Fire one refresh so the UI reflects the latest state.
         const sp = new URLSearchParams(window.location.search);
         const returning = sp.get("status");
         if (returning === "complete" || returning === "refresh") {
@@ -99,139 +98,158 @@ function PayoutsView() {
   const setupPending = state === "ready" && !backendConfigured;
 
   return (
-    <div className="relative">
-      {/* Paper wash */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Link
+        href="/settings"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to settings
+      </Link>
 
-      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Link
-          href="/settings"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back to settings
-        </Link>
+      <header>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Payouts</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          We hold each visit&rsquo;s payment for 24 hours after the visit ends, then transfer your
+          share directly to your bank through Stripe. Your info stays with Stripe — we only see
+          whether payouts are enabled.
+        </p>
+      </header>
 
-        <Header />
-
-        <div className="mt-10 space-y-6">
-          {state === "loading" && <LoadingCard />}
-          {state === "error" && <ErrorCard onRetry={reload} />}
-          {state === "ready" && setupPending && <StripePendingCard />}
-          {state === "ready" && !setupPending && status && (
-            <ConfiguredState status={status} onChanged={reload} />
-          )}
-        </div>
+      <div className="mt-6 space-y-6">
+        {state === "loading" && <LoadingCard />}
+        {state === "error" && <ErrorCard onRetry={reload} />}
+        {state === "ready" && setupPending && <StripePendingCard />}
+        {state === "ready" && !setupPending && status && (
+          <ConfiguredState status={status} onChanged={reload} />
+        )}
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Header
+ * Shared card shell
  * ───────────────────────────────────────────────────────────── */
 
-function Header() {
-  return (
-    <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">Where your earnings land.</span>
-      </h1>
+const TONES = {
+  primary: {
+    tile: "bg-primary/10 text-primary ring-primary/20",
+    band: "from-primary/[0.06]",
+    pill: "bg-primary/10 text-primary ring-primary/20",
+  },
+  accent: {
+    tile: "bg-accent/10 text-accent ring-accent/20",
+    band: "from-accent/[0.06]",
+    pill: "bg-accent/10 text-accent ring-accent/25",
+  },
+  success: {
+    tile: "bg-success/10 text-success ring-success/25",
+    band: "from-success/[0.06]",
+    pill: "bg-success/10 text-success ring-success/30",
+  },
+} as const;
 
-      <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-        We hold each visit&rsquo;s payment for 24 hours after the visit ends, then transfer your
-        share directly to your bank through Stripe. Your info stays with Stripe — we only see
-        whether payouts are enabled.
+function StateCard({
+  tone,
+  icon: Icon,
+  title,
+  subtitle,
+  status,
+  children,
+}: {
+  tone: keyof typeof TONES;
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  status: string;
+  children: React.ReactNode;
+}) {
+  const t = TONES[tone];
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-3 border-b border-border bg-gradient-to-br to-transparent px-6 py-4 sm:px-8",
+          t.band,
+        )}
+      >
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl ring-1", t.tile)}>
+          <Icon className="size-5" strokeWidth={2} />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        <span
+          className={cn(
+            "ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
+            t.pill,
+          )}
+        >
+          {status}
+        </span>
+      </div>
+      <div className="px-6 py-6 sm:px-8">{children}</div>
+    </section>
+  );
+}
+
+function FeatureRow({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-3">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <span className="pt-0.5 text-sm leading-relaxed text-foreground/90">{children}</span>
+    </li>
+  );
+}
+
+function ErrorNote({ message }: { message: string }) {
+  return (
+    <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+      <p className="flex items-start gap-2">
+        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+        {message}
       </p>
-    </header>
+    </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
  * State A — Stripe setup pending (backend reports unconfigured)
- *   Mirrors the payment-methods pending card so caregivers + families
- *   both see the same "warming up" voice.
  * ───────────────────────────────────────────────────────────── */
 
 function StripePendingCard() {
   return (
-    <section
-      aria-label="Stripe setup pending"
-      className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.05] via-card to-card p-6 sm:p-10"
+    <StateCard
+      tone="primary"
+      icon={Banknote}
+      title="Payouts are warming up"
+      subtitle="Stripe isn't live in this environment yet"
+      status="Coming soon"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-6 -right-6 size-24 rotate-12 rounded-full bg-primary/[0.04] blur-2xl"
-      />
+      <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+        Your earnings are already being tracked. The moment Stripe is live, this page becomes your
+        payout dashboard and we&rsquo;ll transfer everything that&rsquo;s accumulated.
+      </p>
 
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="relative shrink-0">
-          <span className="relative grid size-16 -rotate-[6deg] place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-            <Banknote className="size-7" strokeWidth={1.75} />
-            <span className="absolute -right-2 -bottom-2 grid size-6 place-items-center rounded-full bg-background text-primary ring-1 ring-primary/25">
-              <Sparkles className="size-3" strokeWidth={2} />
-            </span>
-          </span>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-6 bg-foreground/30" />
-            Still warming up
-          </div>
-
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight">
-            Payouts <span className="italic text-primary">land soon.</span>
-          </h2>
-
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Stripe isn&rsquo;t wired up in this environment yet — but your earnings are already
-            being tracked. The moment Stripe is live, this page becomes your payout dashboard and
-            we&rsquo;ll transfer everything that&rsquo;s accumulated.
-          </p>
-
-          <div className="my-7 border-t-2 border-dashed border-primary/20" />
-
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            What goes here, once it&rsquo;s ready
-          </p>
-
-          <ul className="mt-4 space-y-3 text-sm">
-            <Bullet>
-              Connect your bank directly through Stripe — it takes about five minutes.
-            </Bullet>
-            <Bullet>
-              Every visit pays out 24 hours after it ends, minus the 7.5% platform fee.
-            </Bullet>
-            <Bullet>
-              Your earnings history, year-to-date totals, and T4A-ready statements live here too.
-            </Bullet>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Bullet({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span
-        aria-hidden
-        className="mt-[0.3rem] grid size-4 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
-      >
-        <ArrowRight className="size-2.5" strokeWidth={2.25} />
-      </span>
-      <span className="leading-relaxed text-foreground/85">{children}</span>
-    </li>
+      <p className="mt-6 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        What goes here, once it&rsquo;s ready
+      </p>
+      <ul className="mt-3 space-y-2.5">
+        <FeatureRow icon={Landmark}>
+          Connect your bank directly through Stripe — it takes about five minutes.
+        </FeatureRow>
+        <FeatureRow icon={Banknote}>
+          Every visit pays out 24 hours after it ends, minus the 7.5% platform fee.
+        </FeatureRow>
+        <FeatureRow icon={FileCheck}>
+          Your earnings history, year-to-date totals, and T4A-ready statements live here too.
+        </FeatureRow>
+      </ul>
+    </StateCard>
   );
 }
 
@@ -256,7 +274,7 @@ function ConfiguredState({
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Not yet connected — the "open door" state
+ * Not yet connected
  * ───────────────────────────────────────────────────────────── */
 
 function StartConnectCard() {
@@ -278,100 +296,55 @@ function StartConnectCard() {
   }
 
   return (
-    <section
-      aria-label="Start payout setup"
-      className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.05] via-card to-card p-6 sm:p-10"
+    <StateCard
+      tone="primary"
+      icon={Landmark}
+      title="Connect your bank"
+      subtitle="One quick setup with Stripe"
+      status="Not connected"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-6 -right-6 size-28 rotate-6 rounded-full bg-primary/[0.05] blur-2xl"
-      />
+      <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+        We use Stripe to move money safely — you&rsquo;ll be sent to their secure page to share your
+        banking details and verify your ID. KindredCare never sees the underlying info. When you
+        come back, this page will light up green.
+      </p>
 
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="relative shrink-0">
-          <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-            <Landmark className="size-7" strokeWidth={1.75} />
-          </span>
-        </div>
+      <p className="mt-6 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Have ready
+      </p>
+      <ul className="mt-3 space-y-2.5">
+        <FeatureRow icon={ShieldCheck}>
+          A government-issued photo ID — driver&rsquo;s licence, passport, or PR card.
+        </FeatureRow>
+        <FeatureRow icon={Banknote}>
+          Your Canadian bank details — transit, institution, and account numbers.
+        </FeatureRow>
+        <FeatureRow icon={FileCheck}>
+          Your SIN, for T4A reporting if you earn more than $500 in a calendar year.
+        </FeatureRow>
+      </ul>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-6 bg-foreground/30" />
-            One quick setup
-          </div>
+      {errorMsg && <ErrorNote message={errorMsg} />}
 
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight">
-            Let&rsquo;s <span className="italic text-primary">connect your bank.</span>
-          </h2>
-
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            We use Stripe to move money safely — you&rsquo;ll be sent to their secure page to share
-            your banking details and verify your ID. KindredCare never sees the underlying info.
-            When you come back, this page will light up green.
-          </p>
-
-          <div className="my-7 border-t-2 border-dashed border-primary/20" />
-
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            Have ready
-          </p>
-
-          <ul className="mt-4 space-y-3 text-sm">
-            <Checklist icon={<ShieldCheck className="size-3" strokeWidth={2.25} />}>
-              A government-issued photo ID — driver&rsquo;s licence, passport, or PR card.
-            </Checklist>
-            <Checklist icon={<Banknote className="size-3" strokeWidth={2.25} />}>
-              Your Canadian bank details — transit, institution, and account numbers.
-            </Checklist>
-            <Checklist icon={<FileCheck className="size-3" strokeWidth={2.25} />}>
-              Your SIN, for T4A reporting if you earn more than $500 in a calendar year.
-            </Checklist>
-          </ul>
-
-          {errorMsg && (
-            <div className="mt-6 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-              <p className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                {errorMsg}
-              </p>
-            </div>
+      <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <Button onClick={start} disabled={busy} size="lg">
+          {busy ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+          ) : (
+            <ArrowUpRight className="size-4" strokeWidth={2.25} />
           )}
-
-          <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <Button onClick={start} disabled={busy} size="lg">
-              {busy ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-              ) : (
-                <ArrowUpRight className="size-4" strokeWidth={2.25} />
-              )}
-              Start payout setup
-            </Button>
-            <p className="text-xs text-muted-foreground italic">
-              Takes about five minutes. Returns you here when you&rsquo;re done.
-            </p>
-          </div>
-        </div>
+          Start payout setup
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Takes about five minutes. Returns you here when you&rsquo;re done.
+        </p>
       </div>
-    </section>
-  );
-}
-
-function Checklist({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span
-        aria-hidden
-        className="mt-[0.3rem] grid size-4 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
-      >
-        {icon}
-      </span>
-      <span className="leading-relaxed text-foreground/85">{children}</span>
-    </li>
+    </StateCard>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Connected but not yet enabled — "almost there" state
+ * Connected but not yet enabled
  * ───────────────────────────────────────────────────────────── */
 
 function ContinueOnboardingCard({ onRefresh }: { onRefresh: () => Promise<void> }) {
@@ -404,85 +377,54 @@ function ContinueOnboardingCard({ onRefresh }: { onRefresh: () => Promise<void> 
   }
 
   return (
-    <section
-      aria-label="Continue setup"
-      className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/[0.04] via-card to-card p-6 sm:p-10"
+    <StateCard
+      tone="accent"
+      icon={ArrowUpRight}
+      title="Finish your Stripe setup"
+      subtitle="Stripe still needs a few details"
+      status="In progress"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-6 -right-6 size-24 rotate-12 rounded-full bg-accent/[0.05] blur-2xl"
-      />
+      <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+        Stripe still needs a few details before your bank can receive payouts. Pick up where you
+        left off — they&rsquo;ll resume from the last saved step.
+      </p>
 
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="relative shrink-0">
-          <span className="grid size-16 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/20">
-            <ArrowUpRight className="size-7" strokeWidth={1.75} />
-          </span>
-        </div>
+      {errorMsg && <ErrorNote message={errorMsg} />}
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-6 bg-foreground/30" />
-            Still verifying
-          </div>
-
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight">
-            Almost there — <span className="italic text-accent">finish Stripe setup.</span>
-          </h2>
-
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Stripe still needs a few details before your bank can receive payouts. Pick up where you
-            left off — they&rsquo;ll resume from the last saved step.
-          </p>
-
-          {errorMsg && (
-            <div className="mt-6 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-              <p className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                {errorMsg}
-              </p>
-            </div>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Button onClick={cont} disabled={busy !== null}>
+          {busy === "continue" ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+          ) : (
+            <ArrowUpRight className="size-4" strokeWidth={2.25} />
           )}
-
-          <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <Button onClick={cont} disabled={busy !== null}>
-              {busy === "continue" ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-              ) : (
-                <ArrowUpRight className="size-4" strokeWidth={2.25} />
-              )}
-              Continue setup
-            </Button>
-            <Button onClick={refresh} disabled={busy !== null} variant="outline">
-              {busy === "refresh" ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-              ) : (
-                <RefreshCw className="size-4" strokeWidth={2} />
-              )}
-              Refresh status
-            </Button>
-          </div>
-
-          <p className="mt-5 text-xs text-muted-foreground italic">
-            If Stripe has already confirmed you, tap Refresh and this page will flip to green.
-          </p>
-        </div>
+          Continue setup
+        </Button>
+        <Button onClick={refresh} disabled={busy !== null} variant="outline">
+          {busy === "refresh" ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          ) : (
+            <RefreshCw className="size-4" strokeWidth={2} />
+          )}
+          Refresh status
+        </Button>
       </div>
-    </section>
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        If Stripe has already confirmed you, tap Refresh and this page will flip to green.
+      </p>
+    </StateCard>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Enabled — the "stamped receipt" state
+ * Enabled
  * ───────────────────────────────────────────────────────────── */
 
 function EnabledCard({ status }: { status: ConnectStatus }) {
   const [busy, setBusy] = useState(false);
 
   async function manage() {
-    // Once the Express account is fully onboarded, Stripe's AccountLink
-    // endpoint returns the hosted dashboard URL instead of the onboarding
-    // URL — same method, different landing page based on account state.
     setBusy(true);
     try {
       const link = await startConnectOnboarding();
@@ -495,85 +437,58 @@ function EnabledCard({ status }: { status: ConnectStatus }) {
   const onboardedAt = status.onboarded_at ? new Date(status.onboarded_at) : null;
 
   return (
-    <section
-      aria-label="Payouts enabled"
-      className="relative overflow-hidden rounded-3xl border border-success/35 bg-gradient-to-br from-success/[0.05] via-card to-card p-6 sm:p-10"
+    <StateCard
+      tone="success"
+      icon={CheckCircle2}
+      title="You're all set"
+      subtitle="Payouts are active on your account"
+      status="Active"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-6 -right-6 size-28 rotate-[-8deg] rounded-full bg-success/[0.05] blur-2xl"
-      />
+      <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+        Every completed visit pays out 24 hours after it ends. Stripe takes care of the rest —
+        expect each transfer in your bank a business day or two later.
+      </p>
 
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="relative shrink-0">
-          <span className="relative grid size-16 place-items-center rounded-2xl bg-success/10 text-success ring-1 ring-success/25">
-            <CheckCircle2 className="size-7" strokeWidth={1.75} />
-          </span>
+      <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-muted/20 p-4">
+          <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Onboarded
+          </dt>
+          <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+            {onboardedAt
+              ? onboardedAt.toLocaleDateString("en-CA", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "—"}
+          </dd>
         </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-6 bg-success/50" />
-            Payouts active
-          </div>
-
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight">
-            You&rsquo;re <span className="italic text-success">set.</span>
-          </h2>
-
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Every completed visit pays out 24 hours after it ends. Stripe takes care of the rest —
-            expect each transfer in your bank a business day or two later.
-          </p>
-
-          <div className="my-7 border-t-2 border-dashed border-success/25" />
-
-          <dl className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <dt className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-                Onboarded
-              </dt>
-              <dd className="mt-1.5 font-mono text-sm tabular-nums text-foreground">
-                {onboardedAt
-                  ? onboardedAt.toLocaleDateString("en-CA", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })
-                  : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-                Platform fee
-              </dt>
-              <dd className="mt-1.5 font-mono text-sm tabular-nums text-foreground">
-                7.5% <span className="text-muted-foreground">· deducted before transfer</span>
-              </dd>
-            </div>
-          </dl>
-
-          <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <Button
-              onClick={manage}
-              disabled={busy}
-              variant="outline"
-              className="font-mono text-[11px] tracking-[0.14em] uppercase"
-            >
-              {busy ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-              ) : (
-                <ExternalLink className="size-3.5" strokeWidth={2} />
-              )}
-              Manage on Stripe
-            </Button>
-            <p className="text-xs text-muted-foreground italic">
-              Update your bank, change account details, or download statements.
-            </p>
-          </div>
+        <div className="rounded-xl border border-border bg-muted/20 p-4">
+          <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Platform fee
+          </dt>
+          <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+            7.5%{" "}
+            <span className="font-normal text-muted-foreground">· deducted before transfer</span>
+          </dd>
         </div>
+      </dl>
+
+      <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <Button onClick={manage} disabled={busy} variant="outline">
+          {busy ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          ) : (
+            <ExternalLink className="size-3.5" strokeWidth={2} />
+          )}
+          Manage on Stripe
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Update your bank, change account details, or download statements.
+        </p>
       </div>
-    </section>
+    </StateCard>
   );
 }
 
@@ -585,19 +500,20 @@ function LoadingCard() {
   return (
     <div
       aria-busy="true"
-      className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-6 sm:p-10"
+      className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
     >
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="size-16 shrink-0 animate-pulse rounded-2xl bg-muted" />
-        <div className="min-w-0 flex-1 space-y-4">
-          <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-          <div className="h-8 w-3/4 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-full animate-pulse rounded bg-muted" />
-          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
-          <div className="border-t border-dashed border-border/60 pt-6">
-            <div className="h-10 w-40 animate-pulse rounded-lg bg-muted" />
-          </div>
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4 sm:px-8">
+        <div className="size-10 shrink-0 animate-pulse rounded-xl bg-muted" />
+        <div className="space-y-2">
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-56 animate-pulse rounded bg-muted/70" />
         </div>
+      </div>
+      <div className="space-y-3 px-6 py-6 sm:px-8">
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-muted/70" />
+        <div className="mt-2 h-14 w-full animate-pulse rounded-xl bg-muted/50" />
+        <div className="h-14 w-full animate-pulse rounded-xl bg-muted/50" />
       </div>
     </div>
   );
@@ -607,12 +523,14 @@ function ErrorCard({ onRetry }: { onRetry: () => Promise<void> }) {
   return (
     <section
       aria-label="Error loading payouts"
-      className="rounded-3xl border border-accent/30 bg-accent/[0.03] p-6 sm:p-8"
+      className="rounded-2xl border border-destructive/30 bg-destructive/[0.04] p-6 shadow-sm sm:p-8"
     >
       <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={2} />
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive">
+          <AlertCircle className="size-5" strokeWidth={2} />
+        </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
             Couldn&rsquo;t load your payout setup.
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">

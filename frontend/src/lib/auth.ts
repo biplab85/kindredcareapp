@@ -17,12 +17,7 @@ export interface CaregiverProfileSummary {
     name: string;
     issuer?: string | null;
     year?: number | null;
-    status:
-      | "self_reported"
-      | "pending_review"
-      | "verified"
-      | "rejected"
-      | "expired";
+    status: "self_reported" | "pending_review" | "verified" | "rejected" | "expired";
     has_document: boolean;
     expires_at?: string | null;
     rejection_reason?: string | null;

@@ -77,6 +77,21 @@ class TestUsersSeeder extends Seeder
                 'years' => 5,
                 'languages' => ['English', 'French'],
                 'services' => ['companionship', 'walking-companion'],
+                'personality' => ['Patient', 'Warm', 'Dependable', 'Good listener'],
+                'references' => [
+                    [
+                        'name' => 'Margaret Doyle',
+                        'relationship' => 'Former client (daughter of)',
+                        'email' => 'm.doyle@example.com',
+                        'phone' => '+1 905 555 0188',
+                    ],
+                    [
+                        'name' => 'Robert Kim',
+                        'relationship' => 'Supervisor, Sunrise Seniors',
+                        'email' => 'r.kim@example.com',
+                        'phone' => '+1 905 555 0177',
+                    ],
+                ],
                 'gigs' => [
                     [
                         'category' => 'companionship',
@@ -118,6 +133,21 @@ class TestUsersSeeder extends Seeder
                 'years' => 8,
                 'languages' => ['English', 'Urdu'],
                 'services' => ['errands-shopping', 'meal-preparation'],
+                'personality' => ['Organized', 'Caring', 'Reliable', 'Detail-oriented'],
+                'references' => [
+                    [
+                        'name' => 'Priya Nair',
+                        'relationship' => 'Charge nurse, Lakeridge Health',
+                        'email' => 'p.nair@example.com',
+                        'phone' => '+1 905 555 0166',
+                    ],
+                    [
+                        'name' => 'James Carter',
+                        'relationship' => 'Former client (son of)',
+                        'email' => 'j.carter@example.com',
+                        'phone' => '+1 905 555 0155',
+                    ],
+                ],
                 'gigs' => [
                     [
                         'category' => 'errands-shopping',
@@ -159,6 +189,21 @@ class TestUsersSeeder extends Seeder
                 'years' => 10,
                 'languages' => ['English', 'Punjabi'],
                 'services' => ['tech-help'],
+                'personality' => ['Patient', 'Methodical', 'Encouraging', 'Friendly'],
+                'references' => [
+                    [
+                        'name' => 'Helen Wong',
+                        'relationship' => 'Former client (granddaughter of)',
+                        'email' => 'h.wong@example.com',
+                        'phone' => '+1 905 555 0144',
+                    ],
+                    [
+                        'name' => 'Tom Bradley',
+                        'relationship' => 'Team lead, former employer',
+                        'email' => 't.bradley@example.com',
+                        'phone' => '+1 905 555 0133',
+                    ],
+                ],
                 'gigs' => [
                     [
                         'category' => 'tech-help',
@@ -200,6 +245,21 @@ class TestUsersSeeder extends Seeder
                 'years' => 3,
                 'languages' => ['English', 'Mandarin'],
                 'services' => ['walking-companion', 'gardening'],
+                'personality' => ['Energetic', 'Cheerful', 'Reliable', 'Nature-loving'],
+                'references' => [
+                    [
+                        'name' => 'Linda Foster',
+                        'relationship' => 'Former client (daughter of)',
+                        'email' => 'l.foster@example.com',
+                        'phone' => '+1 905 555 0122',
+                    ],
+                    [
+                        'name' => 'Grace Oduya',
+                        'relationship' => 'Volunteer coordinator, Durham Garden Co-op',
+                        'email' => 'g.oduya@example.com',
+                        'phone' => '+1 905 555 0111',
+                    ],
+                ],
                 'gigs' => [
                     [
                         'category' => 'walking-companion',
@@ -257,6 +317,8 @@ class TestUsersSeeder extends Seeder
                     'travel_radius_km' => 15,
                     'years_of_experience' => $cg['years'],
                     'languages' => $cg['languages'],
+                    'personality_tags' => $cg['personality'] ?? null,
+                    'references' => $cg['references'] ?? null,
                     'photo_path' => $cg['photo'],
                     'photo_status' => 'approved',
                     'availability' => self::STANDARD_AVAILABILITY,
