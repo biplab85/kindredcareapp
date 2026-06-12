@@ -51,7 +51,7 @@ export function AuthLayout({ children, title, subtitle, icon }: AuthLayoutProps)
 
       {/* ─── Brand panel ─── */}
       <div
-        className="relative hidden overflow-hidden bg-primary lg:flex lg:flex-col lg:justify-between"
+        className="relative hidden overflow-hidden bg-primary lg:flex lg:flex-col"
         style={{
           backgroundImage:
             "linear-gradient(135deg, oklch(0.58 0.13 235) 0%, oklch(0.50 0.14 249) 45%, oklch(0.39 0.13 264) 100%)",
@@ -120,7 +120,7 @@ export function AuthLayout({ children, title, subtitle, icon }: AuthLayoutProps)
           </span>
         </div>
 
-        <div className="relative px-12">
+        <div className="relative flex flex-1 flex-col justify-center px-12 pb-14">
           <h2 className="max-w-md text-[2.5rem] leading-[1.08] font-semibold tracking-tight text-white">
             Care for the people who cared for you.
           </h2>
@@ -139,23 +139,6 @@ export function AuthLayout({ children, title, subtitle, icon }: AuthLayoutProps)
               </li>
             ))}
           </ul>
-        </div>
-
-        <div className="relative px-12 pb-14">
-          <figure className="max-w-md rounded-2xl bg-white/10 p-5 ring-1 ring-white/15 backdrop-blur">
-            <blockquote className="text-sm leading-relaxed text-white/90">
-              “Finding someone we could trust to walk with my mum each morning changed everything.
-              KindredCare made it feel safe.”
-            </blockquote>
-            <figcaption className="mt-3 flex items-center gap-2.5">
-              <span className="grid size-8 place-items-center rounded-full bg-white/20 text-xs font-bold text-white">
-                PR
-              </span>
-              <span className="text-xs font-medium text-white/75">
-                Priya R. · family member, Whitby
-              </span>
-            </figcaption>
-          </figure>
         </div>
       </div>
     </div>
