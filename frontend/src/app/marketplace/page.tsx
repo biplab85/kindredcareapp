@@ -14,10 +14,22 @@ import {
   SprayCan,
   Loader2,
   ShieldCheck,
+  ArrowRight,
+  Sparkles,
+  SearchX,
+  Eye,
+  UserRound,
+  MoreVertical,
   type LucideIcon,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/auth";
 import { listGigs, listGigsForRecipient, type Gig } from "@/lib/gigs";
 import { fetchServiceCategories, type ServiceCategory } from "@/lib/service-categories";
@@ -93,9 +105,7 @@ function MarketplaceView() {
     // Server already sorts by match_score when recipient is set; keep
     // that order. Otherwise sort by recency.
     if (activeRecipientId !== null) return gigs;
-    return [...gigs].sort((a, b) =>
-      (b.published_at ?? "").localeCompare(a.published_at ?? ""),
-    );
+    return [...gigs].sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""));
   }, [gigs, activeRecipientId]);
 
   if (loadError) {
@@ -111,26 +121,25 @@ function MarketplaceView() {
     );
   }
 
-  return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
+  const showCategoryFilter = Boolean(categories && activeRecipientId === null);
+  const showFilterPanel = recipients.length > 0 || showCategoryFilter;
+  const resultCount = sortedGigs?.length ?? 0;
 
-      <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 max-w-3xl">
-          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
+  return (
+    <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      {/* Page header — dashboard-style title + meta, live result count aside */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">
             {activeRecipientName ? (
               <>
                 Caregivers for{" "}
-                <span className="italic font-normal text-primary">
-                  {activeRecipientName}
-                </span>
-                .
+                <span className="font-normal text-muted-foreground">{activeRecipientName}</span>.
               </>
             ) : (
               <>
                 Verified neighbours,{" "}
-                <span className="italic font-normal text-primary">ready to help</span>.
+                <span className="font-normal text-muted-foreground">ready to help</span>.
               </>
             )}
           </h1>
@@ -141,54 +150,76 @@ function MarketplaceView() {
           </p>
         </div>
 
-        {/* Recipient picker — only renders when the family has at least
-            one care recipient. "All" falls back to the recent-first feed. */}
-        {recipients.length > 0 && (
-          <div className="mb-5">
-            <p className="mb-2 font-mono text-[10px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-              Recommended for
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <RecipientChip
-                label="All gigs"
-                active={activeRecipientId === null}
-                onClick={() => setActiveRecipientId(null)}
-              />
-              {recipients.map((r) => (
+        {sortedGigs && (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+            <span className="font-bold tabular-nums text-foreground">{resultCount}</span>
+            <span className="text-muted-foreground">
+              {resultCount === 1 ? "caregiver" : "caregivers"}
+            </span>
+          </span>
+        )}
+      </div>
+
+      {/* Filter panel — recipient picker + category chips grouped into a
+          single premium toolbar card. */}
+      {showFilterPanel && (
+        <div className="mt-6 rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-5">
+          {/* Recipient picker — only renders when the family has at least
+              one care recipient. "All" falls back to the recent-first feed. */}
+          {recipients.length > 0 && (
+            <div>
+              <p className="mb-2.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                Recommended for
+              </p>
+              <div className="flex flex-wrap gap-2">
                 <RecipientChip
-                  key={r.id}
-                  label={r.name}
-                  active={activeRecipientId === r.id}
-                  onClick={() => setActiveRecipientId(r.id)}
+                  label="All gigs"
+                  active={activeRecipientId === null}
+                  onClick={() => setActiveRecipientId(null)}
                 />
-              ))}
+                {recipients.map((r) => (
+                  <RecipientChip
+                    key={r.id}
+                    label={r.name}
+                    active={activeRecipientId === r.id}
+                    onClick={() => setActiveRecipientId(r.id)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Category chips — hidden when a recipient is active because the
-            matcher ranks across the whole catalog (top 10) and a category
-            cut on top would leave the grid nearly empty. Family can switch
-            to "All gigs" to filter by category. */}
-        {categories && activeRecipientId === null && (
-          <div className="mb-8 flex flex-wrap gap-2 border-b border-border/60 pb-4">
-            <CategoryChip
-              label="All"
-              active={activeSlug === null}
-              onClick={() => setActiveSlug(null)}
-            />
-            {categories.map((cat) => (
-              <CategoryChip
-                key={cat.slug}
-                label={cat.name}
-                active={activeSlug === cat.slug}
-                onClick={() => setActiveSlug(cat.slug)}
-              />
-            ))}
-          </div>
-        )}
+          {/* Category chips — hidden when a recipient is active because the
+              matcher ranks across the whole catalog (top 10) and a category
+              cut on top would leave the grid nearly empty. Family can switch
+              to "All gigs" to filter by category. */}
+          {showCategoryFilter && (
+            <div className={recipients.length > 0 ? "mt-4 border-t border-border/60 pt-4" : ""}>
+              <p className="mb-2.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                Browse by service
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <CategoryChip
+                  label="All"
+                  active={activeSlug === null}
+                  onClick={() => setActiveSlug(null)}
+                />
+                {categories!.map((cat) => (
+                  <CategoryChip
+                    key={cat.slug}
+                    label={cat.name}
+                    active={activeSlug === cat.slug}
+                    onClick={() => setActiveSlug(cat.slug)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* Grid */}
+      {/* Grid */}
+      <div className="mt-8">
         {!sortedGigs ? (
           <div className="flex min-h-[40vh] items-center justify-center">
             <Loader2 className="size-7 animate-spin text-primary" />
@@ -221,11 +252,11 @@ function RecipientChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+        "cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border/60 bg-card text-foreground/80 hover:border-foreground/30 hover:bg-muted/40",
+          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+          : "border border-border bg-card text-foreground/75 hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground",
       )}
     >
       {label}
@@ -247,15 +278,48 @@ function CategoryChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+        "cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-all",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         active
-          ? "bg-foreground text-background"
-          : "bg-muted/60 text-foreground/70 hover:bg-muted hover:text-foreground",
+          ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+          : "border-border bg-card text-foreground/70 hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground",
       )}
     >
       {label}
     </button>
+  );
+}
+
+/* Footer action — 3-dot dropdown ("View gig" with an eye icon, plus a
+   shortcut to the caregiver's public profile when present). Mirrors the
+   dashboard card-header kebab menu pattern. */
+function GigCardMenu({ gigId, caregiverUserId }: { gigId: number; caregiverUserId?: number }) {
+  const itemClass =
+    "cursor-pointer gap-2 focus:bg-transparent focus:text-primary not-data-[variant=destructive]:focus:**:text-primary";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Gig actions"
+        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.04] hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <MoreVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto min-w-40">
+        <DropdownMenuItem render={<Link href={`/gigs/${gigId}`} />} className={itemClass}>
+          <Eye className="size-4 text-muted-foreground" />
+          View gig
+        </DropdownMenuItem>
+        {caregiverUserId != null && (
+          <DropdownMenuItem
+            render={<Link href={`/caregivers/${caregiverUserId}`} />}
+            className={itemClass}
+          >
+            <UserRound className="size-4 text-muted-foreground" />
+            View profile
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -269,81 +333,87 @@ function GigCard({ gig }: { gig: Gig }) {
 
   return (
     <li>
-      <div className="group rounded-2xl bg-card p-6 ring-1 ring-border/60 transition-all hover:-translate-y-0.5 hover:ring-foreground/30 hover:shadow-sm">
-        {/* Gig body — links to gig detail */}
-        <Link href={`/gigs/${gig.id}`} className="block">
-          {/* Eyebrow */}
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Icon className="size-4 text-primary" strokeWidth={1.75} />
-              <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-                {gig.service_category?.name ?? "Service"}
-              </p>
-            </div>
-            {typeof gig.match_score === "number" ? (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.14em] text-primary uppercase ring-1 ring-primary/30"
-                title="Match score 0–100 — distance, trust, language and interest fit"
-              >
-                {gig.match_score} match
-              </span>
-            ) : null}
-          </div>
+      <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-sm shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_14px_34px_-16px_rgba(10,14,40,0.22)]">
+        {/* Header — category badge + optional match score */}
+        <div className="flex items-center justify-between gap-2 px-5 pt-5">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary">
+            <Icon className="size-3.5" strokeWidth={2} />
+            {gig.service_category?.name ?? "Service"}
+          </span>
+          {typeof gig.match_score === "number" ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-lg bg-success/10 px-2 py-1 text-[11px] font-semibold tabular-nums text-success ring-1 ring-success/20"
+              title="Match score 0–100 — distance, trust, language and interest fit"
+            >
+              <Sparkles className="size-3" strokeWidth={2} />
+              {gig.match_score}% match
+            </span>
+          ) : null}
+        </div>
 
-          {/* Title */}
-          <h2 className="line-clamp-2 text-lg leading-snug font-semibold tracking-tight">
+        {/* Body — links to gig detail */}
+        <Link href={`/gigs/${gig.id}`} className="flex grow flex-col px-5 pt-3.5">
+          <h2 className="line-clamp-2 text-sm leading-snug font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary">
             {gig.title}
           </h2>
-
-          {/* Description */}
-          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground italic">
-            &ldquo;{gig.description}&rdquo;
+          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {gig.description}
           </p>
         </Link>
 
         {/* Caregiver row — separate link to the caregiver's public profile,
             so a family who wants to vet a caregiver before clicking through
             to the gig has a one-tap shortcut. */}
-        <div className="mt-5 flex items-center gap-3 border-t border-border/40 pt-4">
+        <div className="mt-4 px-5">
           {gig.caregiver ? (
             <Link
               href={`/caregivers/${gig.caregiver.user_id}`}
-              className="-mx-2 -my-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-muted/40"
+              className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-2.5 transition-colors hover:border-primary/30 hover:bg-primary/[0.04]"
             >
-              {gig.caregiver.photo_url ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={gig.caregiver.photo_url}
-                  alt=""
-                  className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border/60"
-                />
-              ) : (
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold tracking-[0.08em] text-primary">
-                  {initials}
+              <span className="relative shrink-0">
+                {gig.caregiver.photo_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={gig.caregiver.photo_url}
+                    alt=""
+                    className="size-10 rounded-full object-cover ring-1 ring-border/60"
+                  />
+                ) : (
+                  <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-xs font-bold tracking-wide text-primary">
+                    {initials}
+                  </span>
+                )}
+                <span className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-card">
+                  <ShieldCheck className="size-4 text-success" strokeWidth={2.25} />
                 </span>
-              )}
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1 truncate text-sm font-medium">
+                <p className="truncate text-sm font-semibold text-foreground">
                   {gig.caregiver.display_name}
-                  <ShieldCheck className="size-3.5 text-success" strokeWidth={2} />
                 </p>
-                <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                  View profile
-                </p>
+                <p className="text-xs text-muted-foreground">Verified caregiver</p>
               </div>
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
             </Link>
           ) : (
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted font-mono text-[11px] font-semibold tracking-[0.08em] text-muted-foreground">
+            <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-2.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
                 —
               </span>
               <p className="text-sm font-medium text-muted-foreground">Caregiver</p>
             </div>
           )}
-          <p className="font-mono text-base font-semibold tabular-nums">
-            ${gig.hourly_rate_dollars.toFixed(0)}
-            <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">/hr</span>
-          </p>
+        </div>
+
+        {/* Footer — rate + 3-dot actions menu */}
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 px-5 py-4">
+          <div className="leading-none">
+            <span className="text-xl font-bold tabular-nums text-foreground">
+              ${gig.hourly_rate_dollars.toFixed(0)}
+            </span>
+            <span className="text-sm font-medium text-muted-foreground">/hr</span>
+          </div>
+          <GigCardMenu gigId={gig.id} caregiverUserId={gig.caregiver?.user_id} />
         </div>
       </div>
     </li>
@@ -352,11 +422,14 @@ function GigCard({ gig }: { gig: Gig }) {
 
 function EmptyState({ filter }: { filter: "filter" | "all" }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-6 py-20 text-center">
-      <h2 className="max-w-sm text-2xl font-semibold tracking-tight">
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-20 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+        <SearchX className="size-7" strokeWidth={1.75} />
+      </span>
+      <h2 className="max-w-sm text-xl font-semibold tracking-tight">
         {filter === "filter" ? "No gigs in that catalogue yet." : "No gigs on the board yet."}
       </h2>
-      <p className="max-w-sm text-sm text-muted-foreground">
+      <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
         {filter === "filter"
           ? "Try a different category, or browse the full board."
           : "Verified caregivers in your area haven't posted yet. Check back in a day or two."}

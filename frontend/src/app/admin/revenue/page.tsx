@@ -14,6 +14,7 @@ import {
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import { SlideTabs } from "@/components/ui/slide-tabs";
 import {
   getAdminRevenue,
   type RevenueBucket,
@@ -56,6 +57,12 @@ function todayString(): string {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
+
+const PERIOD_TABS: { value: RevenuePeriod; label: string }[] = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
 
 function RevenueView() {
   // Controlled inputs. Changes trigger an explicit reload() call, not a
@@ -119,46 +126,34 @@ function RevenueView() {
   }
 
   return (
-    <div className="relative">
-      {/* Paper wash */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Header />
+
+      <Controls
+        period={period}
+        from={from}
+        to={to}
+        loading={state === "loading"}
+        onPeriodChange={onPeriodChange}
+        onFromChange={onFromChange}
+        onToChange={onToChange}
+        onRefresh={retry}
       />
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Header />
-
-        <Controls
-          period={period}
-          from={from}
-          to={to}
-          onPeriodChange={onPeriodChange}
-          onFromChange={onFromChange}
-          onToChange={onToChange}
-          onRefresh={retry}
-        />
-
-        <div className="mt-8 space-y-10">
-          {state === "loading" && <LoadingView />}
-          {state === "error" && <ErrorCard onRetry={retry} />}
-          {state === "ready" && report && (
-            <>
-              <StatGrid totals={report.totals} prior={report.prior_period.totals} />
-              <TrendSection
-                buckets={report.series}
-                categories={report.categories}
-                period={report.period}
-              />
-              <SeriesSection buckets={report.series} categories={report.categories} />
-            </>
-          )}
-        </div>
+      <div className="mt-6 space-y-8">
+        {state === "loading" && <LoadingView />}
+        {state === "error" && <ErrorCard onRetry={retry} />}
+        {state === "ready" && report && (
+          <>
+            <StatGrid totals={report.totals} prior={report.prior_period.totals} />
+            <TrendSection
+              buckets={report.series}
+              categories={report.categories}
+              period={report.period}
+            />
+            <SeriesSection buckets={report.series} categories={report.categories} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -170,27 +165,30 @@ function RevenueView() {
 
 function Header() {
   return (
-    <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">The books,</span> in one place.
+    <div className="mb-6">
+      <h1 className="text-lg font-semibold leading-[1.15] tracking-tight text-foreground">
+        Revenue
       </h1>
-
       <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         Platform-side revenue across the selected range. Commission is the KindredCare fee — what we
         actually keep after refunds clear. Net = commission − refunds.
       </p>
-    </header>
+    </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Controls — period pills + date range
+ * Controls — period tabs + date range
  * ───────────────────────────────────────────────────────────── */
+
+const FIELD_CLASS =
+  "flex h-9 items-center gap-2 rounded-lg border border-input bg-background px-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50";
 
 function Controls({
   period,
   from,
   to,
+  loading,
   onPeriodChange,
   onFromChange,
   onToChange,
@@ -199,6 +197,7 @@ function Controls({
   period: RevenuePeriod;
   from: string;
   to: string;
+  loading: boolean;
   onPeriodChange: (p: RevenuePeriod) => void;
   onFromChange: (v: string) => void;
   onToChange: (v: string) => void;
@@ -207,77 +206,65 @@ function Controls({
   return (
     <section
       aria-label="Report controls"
-      className="mt-8 rounded-2xl border border-border/60 bg-card p-4 sm:p-5"
+      className="rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-5"
     >
-      <div className="flex flex-wrap items-end gap-6">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
         {/* Period */}
         <div>
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             Period
           </p>
-          <div className="mt-2 inline-flex rounded-full border border-border/70 bg-background p-1">
-            {(["daily", "weekly", "monthly"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onPeriodChange(p)}
-                aria-pressed={p === period}
-                className={cn(
-                  "rounded-full px-3 py-1 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors",
-                  p === period
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+          <SlideTabs
+            ariaLabel="Period"
+            value={period}
+            options={PERIOD_TABS}
+            onChange={onPeriodChange}
+            tabWidthClass="w-[84px]"
+          />
         </div>
 
-        {/* From */}
+        {/* Date range — From + To inline */}
         <div>
-          <label
-            htmlFor="rev-from"
-            className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase"
-          >
-            From
-          </label>
-          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-1.5">
-            <CalendarDays className="size-3.5 text-muted-foreground" strokeWidth={2} />
-            <input
-              id="rev-from"
-              type="date"
-              value={from}
-              onChange={(e) => onFromChange(e.target.value)}
-              className="w-36 bg-transparent font-mono text-xs tabular-nums outline-none"
-            />
-          </div>
-        </div>
-
-        {/* To */}
-        <div>
-          <label
-            htmlFor="rev-to"
-            className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase"
-          >
-            To
-          </label>
-          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-1.5">
-            <CalendarDays className="size-3.5 text-muted-foreground" strokeWidth={2} />
-            <input
-              id="rev-to"
-              type="date"
-              value={to}
-              onChange={(e) => onToChange(e.target.value)}
-              className="w-36 bg-transparent font-mono text-xs tabular-nums outline-none"
-            />
+          <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Period range
+          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <div className="flex items-center gap-2">
+              <label htmlFor="rev-from" className="text-sm font-medium text-muted-foreground">
+                From
+              </label>
+              <div className={FIELD_CLASS}>
+                <CalendarDays className="size-3.5 text-muted-foreground" strokeWidth={2} />
+                <input
+                  id="rev-from"
+                  type="date"
+                  value={from}
+                  onChange={(e) => onFromChange(e.target.value)}
+                  className="w-32 bg-transparent text-sm tabular-nums outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="rev-to" className="text-sm font-medium text-muted-foreground">
+                To
+              </label>
+              <div className={FIELD_CLASS}>
+                <CalendarDays className="size-3.5 text-muted-foreground" strokeWidth={2} />
+                <input
+                  id="rev-to"
+                  type="date"
+                  value={to}
+                  onChange={(e) => onToChange(e.target.value)}
+                  className="w-32 bg-transparent text-sm tabular-nums outline-none"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="ml-auto">
-          <Button onClick={onRefresh} variant="outline" size="sm">
-            <RefreshCw className="size-3.5" strokeWidth={2} />
+          <Button onClick={onRefresh} variant="outline" size="sm" className="cursor-pointer">
+            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} strokeWidth={2} />
             Refresh
           </Button>
         </div>
@@ -292,39 +279,67 @@ function Controls({
  *   the number admins care about most. GMV is context, Refunds is risk.
  * ───────────────────────────────────────────────────────────── */
 
+type StatTone = "gmv" | "commission" | "refunds" | "net";
+
+const STAT_TONES: Record<StatTone, { card: string; tile: string; label: string }> = {
+  gmv: {
+    card: "border-primary/25 bg-gradient-to-br from-primary/[0.12] via-primary/[0.04] to-transparent",
+    tile: "bg-primary/15 text-primary",
+    label: "text-primary",
+  },
+  commission: {
+    card: "border-success/25 bg-gradient-to-br from-success/[0.14] via-success/[0.04] to-transparent",
+    tile: "bg-success/15 text-success",
+    label: "text-success",
+  },
+  refunds: {
+    card: "border-accent/25 bg-gradient-to-br from-accent/[0.12] via-accent/[0.04] to-transparent",
+    tile: "bg-accent/15 text-accent",
+    label: "text-accent",
+  },
+  net: {
+    card: "border-[oklch(0.62_0.15_295/0.3)] bg-gradient-to-br from-[oklch(0.62_0.15_295/0.14)] via-[oklch(0.62_0.15_295/0.04)] to-transparent",
+    tile: "bg-[oklch(0.62_0.15_295/0.15)] text-[oklch(0.52_0.16_295)]",
+    label: "text-[oklch(0.52_0.16_295)]",
+  },
+};
+
 function StatGrid({ totals, prior }: { totals: RevenueTotals; prior: RevenueTotals }) {
   return (
     <section aria-label="Totals">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <Stat
+          tone="gmv"
           label="GMV"
           value={formatDollars(totals.gmv_cents)}
           hint={`${totals.visits} visit${totals.visits === 1 ? "" : "s"}`}
-          icon={<TrendingUp className="size-3.5" strokeWidth={2} />}
+          icon={TrendingUp}
           delta={deltaPercent(totals.gmv_cents, prior.gmv_cents)}
         />
         <Stat
+          tone="commission"
           label="Commission"
           value={formatDollars(totals.commission_cents)}
           hint="7.5% of GMV"
-          icon={<BadgePercent className="size-3.5" strokeWidth={2} />}
-          emphasized
+          icon={BadgePercent}
           delta={deltaPercent(totals.commission_cents, prior.commission_cents)}
         />
         <Stat
+          tone="refunds"
           label="Refunds"
           value={formatDollars(totals.refunds_cents)}
           hint="paid back"
-          icon={<ArrowDownLeft className="size-3.5" strokeWidth={2} />}
+          icon={ArrowDownLeft}
           delta={deltaPercent(totals.refunds_cents, prior.refunds_cents)}
           /* For refunds, "down" is the good direction. */
           invertDeltaTone
         />
         <Stat
+          tone="net"
           label="Net"
           value={formatDollars(totals.net_cents)}
           hint="commission − refunds"
-          icon={<Wallet className="size-3.5" strokeWidth={2} />}
+          icon={Wallet}
           delta={deltaPercent(totals.net_cents, prior.net_cents)}
         />
       </div>
@@ -339,55 +354,41 @@ function deltaPercent(current: number, prior: number): number | null {
 }
 
 function Stat({
+  tone,
   label,
   value,
   hint,
-  icon,
-  emphasized,
+  icon: Icon,
   delta,
   invertDeltaTone,
 }: {
+  tone: StatTone;
   label: string;
   value: string;
   hint: string;
-  icon: React.ReactNode;
-  emphasized?: boolean;
+  icon: typeof TrendingUp;
   delta?: number | null;
   /** When true, a positive delta is rendered as warn (e.g. refunds up = bad). */
   invertDeltaTone?: boolean;
 }) {
+  const t = STAT_TONES[tone];
   return (
     <div
-      className={cn(
-        "rounded-2xl border p-4 sm:p-5",
-        emphasized
-          ? "border-primary/40 bg-primary/[0.04] ring-1 ring-primary/15"
-          : "border-border/60 bg-card",
-      )}
+      className={cn("rounded-xl border p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-5", t.card)}
     >
       <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "grid size-6 place-items-center rounded-md",
-            emphasized ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground",
-          )}
-        >
-          {icon}
+        <span className={cn("grid size-7 place-items-center rounded-lg", t.tile)}>
+          <Icon className="size-4" strokeWidth={2} />
         </span>
-        <p
-          className={cn(
-            "font-mono text-[10px] tracking-[0.22em] uppercase",
-            emphasized ? "text-primary" : "text-muted-foreground",
-          )}
-        >
+        <p className={cn("text-[11px] font-semibold tracking-[0.12em] uppercase", t.label)}>
           {label}
         </p>
       </div>
-      <p className="mt-3 font-mono text-2xl leading-none font-semibold tabular-nums sm:text-3xl">
+      <p className="mt-3 text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-3xl">
         {value}
       </p>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-muted-foreground">{hint}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
         {delta !== null && delta !== undefined && (
           <DeltaPill delta={delta} invert={invertDeltaTone} />
         )}
@@ -402,8 +403,8 @@ function DeltaPill({ delta, invert }: { delta: number; invert?: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[10px] tracking-[0.05em] tabular-nums",
-        isGood ? "bg-success/[0.12] text-success" : "bg-foreground/[0.06] text-foreground/70",
+        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+        isGood ? "bg-success/10 text-success" : "bg-foreground/10 text-foreground/70",
       )}
       title="vs prior period"
     >
@@ -414,7 +415,17 @@ function DeltaPill({ delta, invert }: { delta: number; invert?: boolean }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Series section — per-bucket ticket-stub rows
+ * Section heading
+ * ───────────────────────────────────────────────────────────── */
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-3 text-base font-semibold tracking-tight text-foreground">{children}</h2>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Series section — per-bucket breakdown rows
  * ───────────────────────────────────────────────────────────── */
 
 function SeriesSection({
@@ -426,16 +437,12 @@ function SeriesSection({
 }) {
   return (
     <section aria-label="Series">
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Breakdown
-        <span className="text-foreground/30">— § 21</span>
-      </div>
+      <SectionHeading>Breakdown</SectionHeading>
 
       {buckets.length === 0 ? (
         <EmptyBuckets />
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {buckets.map((b) => (
             <li key={b.bucket}>
               <BucketRow bucket={b} categories={categories} />
@@ -483,13 +490,12 @@ function TrendSection({
 
   return (
     <section aria-label="Trend chart">
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Booking trend
-        <span className="text-foreground/30">— § 22 · {period}</span>
-      </div>
+      <SectionHeading>
+        Booking trend{" "}
+        <span className="font-normal text-muted-foreground capitalize">· {period}</span>
+      </SectionHeading>
 
-      <div className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6">
         {/* Legend */}
         <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
           {categories.map((c, idx) => (
@@ -499,9 +505,7 @@ function TrendSection({
                 className="block size-3 rounded-sm"
                 style={{ background: CATEGORY_HUES[idx % CATEGORY_HUES.length] }}
               />
-              <span className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-                {c.name}
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">{c.name}</span>
             </span>
           ))}
         </div>
@@ -540,9 +544,7 @@ function TrendBar({
 
   return (
     <div className="flex min-w-[36px] flex-1 flex-col items-center gap-2">
-      <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-        {bucket.visits || ""}
-      </span>
+      <span className="text-[11px] text-muted-foreground tabular-nums">{bucket.visits || ""}</span>
       <div
         className="relative w-full overflow-hidden rounded-md border border-border/40 bg-muted/30"
         style={{ height: 140 }}
@@ -564,7 +566,7 @@ function TrendBar({
           ))}
         </div>
       </div>
-      <p className="max-w-[80px] truncate text-center font-mono text-[9px] tracking-[0.05em] text-muted-foreground">
+      <p className="max-w-[80px] truncate text-center text-[10px] text-muted-foreground">
         {bucket.label}
       </p>
     </div>
@@ -581,37 +583,29 @@ function BucketRow({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card transition-colors",
-        bucket.refunds_cents > 0
-          ? "border-accent/25 bg-accent/[0.01]"
-          : "border-border/60 hover:border-border",
+        "rounded-xl border bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-colors sm:p-6",
+        bucket.refunds_cents > 0 ? "border-accent/30 bg-accent/[0.02]" : "border-border",
       )}
     >
-      {/* Perforated left edge — echoes the earnings dashboard */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-      />
-
-      <div className="grid gap-4 p-5 pl-9 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-8 sm:p-6 sm:pl-11">
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-8">
         {/* Identity */}
         <div className="min-w-0">
-          <p className="text-lg font-semibold tracking-tight text-primary">{bucket.label}</p>
-          <p className="mt-1 flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-muted-foreground">
-            <Receipt className="size-3" strokeWidth={2} />
+          <p className="text-base font-semibold tracking-tight text-foreground">{bucket.label}</p>
+          <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground tabular-nums">
+            <Receipt className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
             {bucket.visits} visit{bucket.visits === 1 ? "" : "s"}
           </p>
           <CategoryBreakdown bucket={bucket} categories={categories} />
         </div>
 
         {/* Money */}
-        <dl className="grid gap-1 border-t border-dashed border-border/60 pt-4 sm:border-0 sm:pt-0 sm:justify-items-end">
+        <dl className="grid gap-1 border-t border-border/60 pt-4 sm:justify-items-end sm:border-0 sm:pt-0">
           <MoneyLine label="Gross" value={formatDollars(bucket.gmv_cents)} />
           <MoneyLine label="Commission" value={formatDollars(bucket.commission_cents)} />
           {bucket.refunds_cents > 0 && (
             <MoneyLine label="Refunds" value={`− ${formatDollars(bucket.refunds_cents)}`} muted />
           )}
-          <div className="mt-1 border-t border-dashed border-border/60 pt-1 sm:min-w-[12rem]">
+          <div className="mt-1 border-t border-border/60 pt-1 sm:min-w-[12rem]">
             <MoneyLine label="Net" value={formatDollars(bucket.net_cents)} emphasized />
           </div>
         </dl>
@@ -642,10 +636,8 @@ function CategoryBreakdown({
             className="block size-2 rounded-sm"
             style={{ background: categoryColor(c.id, categories) }}
           />
-          <span className="font-mono text-[10px] tracking-[0.05em] text-muted-foreground">
-            {c.name}
-          </span>
-          <span className="font-mono text-[10px] tabular-nums text-foreground/70">{c.count}</span>
+          <span className="text-xs text-muted-foreground">{c.name}</span>
+          <span className="text-xs font-medium text-foreground/70 tabular-nums">{c.count}</span>
         </li>
       ))}
     </ul>
@@ -665,13 +657,13 @@ function MoneyLine({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-6 sm:justify-end">
-      <dt className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+      <dt className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
         {label}
       </dt>
       <dd
         className={cn(
-          "font-mono tabular-nums",
-          emphasized ? "text-base font-semibold text-foreground" : "text-sm",
+          "tabular-nums",
+          emphasized ? "text-base font-bold text-foreground" : "text-sm",
           muted ? "text-muted-foreground" : "text-foreground",
         )}
       >
@@ -687,36 +679,33 @@ function MoneyLine({
 
 function EmptyBuckets() {
   return (
-    <section
-      aria-label="No revenue in range"
-      className="rounded-3xl border-2 border-dashed border-border/60 bg-card/50 p-8 text-center sm:p-12"
-    >
-      <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-        <TrendingUp className="size-6" strokeWidth={1.75} />
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-14 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+        <TrendingUp className="size-7" strokeWidth={1.75} />
       </span>
-      <h2 className="mt-6 text-2xl font-semibold tracking-tight">
-        No revenue <span className="italic text-primary">in this window.</span>
-      </h2>
-      <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        No revenue in this window.
+      </h3>
+      <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
         Try widening the date range, or flip to a coarser period. The books look empty — which
         usually means we&rsquo;re just early.
       </p>
-    </section>
+    </div>
   );
 }
 
 function LoadingView() {
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5"
+            className="rounded-xl border border-border bg-card p-4 sm:p-5"
             aria-busy="true"
           >
             <div className="flex items-center gap-2">
-              <div className="size-6 animate-pulse rounded-md bg-muted" />
+              <div className="size-7 animate-pulse rounded-lg bg-muted" />
               <div className="h-3 w-16 animate-pulse rounded bg-muted" />
             </div>
             <div className="mt-4 h-8 w-24 animate-pulse rounded bg-muted" />
@@ -725,17 +714,13 @@ function LoadingView() {
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="relative rounded-2xl border border-border/60 bg-card p-5 pl-9 sm:p-6 sm:pl-11"
+            className="rounded-xl border border-border bg-card p-5 sm:p-6"
             aria-busy="true"
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.15)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-            />
             <div className="h-5 w-48 animate-pulse rounded bg-muted" />
             <div className="mt-3 h-3 w-24 animate-pulse rounded bg-muted" />
             <div className="mt-4 h-3 w-40 animate-pulse rounded bg-muted" />
@@ -748,26 +733,21 @@ function LoadingView() {
 
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <section
-      aria-label="Error loading revenue"
-      className="rounded-3xl border border-accent/30 bg-accent/[0.03] p-6 sm:p-8"
-    >
-      <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={2} />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Couldn&rsquo;t load revenue for this range.
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            A hiccup on our end, most likely. Try again in a moment.
-          </p>
-          <Button onClick={onRetry} variant="outline" size="sm" className="mt-4">
-            <RefreshCw className="size-3.5" strokeWidth={2} />
-            Try again
-          </Button>
-        </div>
-      </div>
-    </section>
+    <div className="flex flex-col items-center rounded-xl border border-accent/40 bg-accent/[0.04] px-6 py-12 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <AlertCircle className="size-7" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        Couldn&rsquo;t load revenue for this range.
+      </h3>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        A hiccup on our end, most likely. Try again in a moment.
+      </p>
+      <Button onClick={onRetry} size="sm" className="mt-4 cursor-pointer">
+        <RefreshCw className="size-3.5" strokeWidth={2} />
+        Try again
+      </Button>
+    </div>
   );
 }
 

@@ -637,8 +637,8 @@ function RateBlock({ hourlyRate }: { hourlyRate: string | number | null }) {
           Your hourly rate
         </div>
         <p className="mt-2 font-bold tracking-tight text-foreground">
-          <span className="text-4xl tabular-nums">${rateNumber.toFixed(2)}</span>
-          <span className="ml-1 text-sm font-normal text-muted-foreground">/ hour</span>
+          <span className="text-base tabular-nums">${rateNumber.toFixed(2)}</span>
+          <span className="ml-1 text-sm font-normal text-muted-foreground">/hr</span>
         </p>
       </div>
 

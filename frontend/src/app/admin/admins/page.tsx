@@ -5,8 +5,8 @@ import {
   AlertCircle,
   BadgeCheck,
   Loader2,
+  Mail,
   Pencil,
-  Plus,
   RefreshCw,
   ShieldCheck,
   ShieldOff,
@@ -47,6 +47,9 @@ export default function AdminAccountsPage() {
 
 type LoadState = "loading" | "ready" | "error";
 
+const INPUT_CLASS =
+  "h-[38px] w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring focus:ring-2 focus:ring-ring/50";
+
 function AdminsView() {
   const { user: me } = useAuthStore();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
@@ -84,123 +87,123 @@ function AdminsView() {
   }, []);
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
-
-      <div className="mx-auto max-w-4xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Header />
-
-        <Controls onCreate={() => setShowCreate(true)} onRefresh={() => void reload()} />
-
-        <ResultMeta total={admins.length} state={state} />
-
-        <div className="mt-6 space-y-6">
-          {showCreate && (
-            <CreateForm
-              onCancel={() => setShowCreate(false)}
-              onCreated={() => {
-                setShowCreate(false);
-                void reload();
-              }}
+    <div className="max-w-4xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      {/* Header + actions */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold leading-[1.15] tracking-tight text-foreground">
+            Admin accounts
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Add new admins, rename existing ones, or deactivate when someone leaves the team. New
+            accounts get a randomized password — they claim it via the password-reset flow. TOTP
+            enforcement ships with Phase 15 hardening.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            onClick={() => setShowCreate(true)}
+            size="sm"
+            className="cursor-pointer"
+            disabled={showCreate}
+          >
+            <UserPlus className="size-3.5" strokeWidth={2} />
+            New admin
+          </Button>
+          <Button
+            onClick={() => void reload()}
+            variant="outline"
+            size="sm"
+            className="cursor-pointer"
+          >
+            <RefreshCw
+              className={cn("size-3.5", state === "loading" && "animate-spin")}
+              strokeWidth={2}
             />
-          )}
-
-          {state === "loading" && <LoadingView />}
-          {state === "error" && <ErrorCard onRetry={() => void reload()} />}
-          {state !== "error" && (
-            <ul className="space-y-3">
-              {admins.map((a) => (
-                <li key={a.id}>
-                  <AdminCard
-                    admin={a}
-                    isMe={a.id === me?.id}
-                    isEditing={editingId === a.id}
-                    onEdit={() => setEditingId(a.id)}
-                    onCancelEdit={() => setEditingId(null)}
-                    onMutated={() => {
-                      setEditingId(null);
-                      void reload();
-                    }}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
+            Refresh
+          </Button>
         </div>
       </div>
-    </div>
-  );
-}
 
-/* ─────────────────────────────────────────────────────────────
- * Header
- * ───────────────────────────────────────────────────────────── */
-
-function Header() {
-  return (
-    <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">The roster</span> behind the desk.
-      </h1>
-
-      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Add new admins, rename existing ones, or deactivate when someone leaves the team. New
-        accounts get a randomized password — they claim it via the password-reset flow. TOTP
-        enforcement ships with Phase 15 hardening.
-      </p>
-    </header>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Controls
- * ───────────────────────────────────────────────────────────── */
-
-function Controls({ onCreate, onRefresh }: { onCreate: () => void; onRefresh: () => void }) {
-  return (
-    <section
-      aria-label="Actions"
-      className="mt-8 rounded-2xl border border-border/60 bg-card p-4 sm:p-5"
-    >
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button onClick={onCreate} size="sm">
-          <UserPlus className="size-3.5" strokeWidth={2} />
-          New admin
-        </Button>
-        <Button onClick={onRefresh} variant="outline" size="sm">
-          <RefreshCw className="size-3.5" strokeWidth={2} />
-          Refresh
-        </Button>
+      <div className="mb-3">
+        <ResultMeta total={admins.length} state={state} />
       </div>
-    </section>
+
+      <div className="space-y-3">
+        {showCreate && (
+          <CreateForm
+            onCancel={() => setShowCreate(false)}
+            onCreated={() => {
+              setShowCreate(false);
+              void reload();
+            }}
+          />
+        )}
+
+        {state === "loading" && <LoadingView />}
+        {state === "error" && <ErrorCard onRetry={() => void reload()} />}
+        {state !== "error" && (
+          <ul className="space-y-3">
+            {admins.map((a) => (
+              <li key={a.id}>
+                <AdminCard
+                  admin={a}
+                  isMe={a.id === me?.id}
+                  isEditing={editingId === a.id}
+                  onEdit={() => setEditingId(a.id)}
+                  onCancelEdit={() => setEditingId(null)}
+                  onMutated={() => {
+                    setEditingId(null);
+                    void reload();
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
 function ResultMeta({ total, state }: { total: number; state: LoadState }) {
   return (
-    <div className="mt-8 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-      <span className="h-px w-8 bg-foreground/30" />
-      <span>
-        {state === "loading" ? (
-          "Loading…"
-        ) : (
-          <>
-            <span className="font-mono tabular-nums text-foreground/80">{total}</span>{" "}
-            {total === 1 ? "admin" : "admins"}
-          </>
-        )}
-      </span>
-      <span className="text-foreground/30">— § 46</span>
+    <div className="flex items-center gap-2 text-sm">
+      {state === "loading" ? (
+        <span className="text-muted-foreground">Loading…</span>
+      ) : (
+        <>
+          <span className="font-semibold tabular-nums text-foreground">{total}</span>
+          <span className="text-muted-foreground">{total === 1 ? "admin" : "admins"}</span>
+        </>
+      )}
     </div>
   );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Field + helpers
+ * ───────────────────────────────────────────────────────────── */
+
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -233,17 +236,17 @@ function CreateForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: 
   }
 
   return (
-    <section className="rounded-2xl border border-primary/30 bg-primary/[0.03] p-5">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-primary/15 text-primary">
-          <Plus className="size-4" strokeWidth={2} />
+    <section className="rounded-xl border border-primary/30 bg-primary/[0.03] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="flex items-start gap-3.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <UserPlus className="size-5" strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-primary uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
             New admin
           </p>
-          <h3 className="mt-1 text-lg font-semibold tracking-tight">
-            <span className="font-normal italic">Add a teammate</span> to the desk.
+          <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
+            Add a teammate to the desk.
           </h3>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -255,7 +258,7 @@ function CreateForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: 
                 onChange={(e) => setName(e.target.value)}
                 maxLength={120}
                 placeholder="Jordan Lee"
-                className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+                className={INPUT_CLASS}
               />
             </Field>
             <Field label="Email" id="new-email">
@@ -266,16 +269,16 @@ function CreateForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: 
                 onChange={(e) => setEmail(e.target.value)}
                 maxLength={120}
                 placeholder="jordan@kindredcare.ca"
-                className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 font-mono text-sm outline-none focus:border-primary/50"
+                className={INPUT_CLASS}
               />
             </Field>
           </div>
 
           <div className="mt-4 flex items-center justify-end gap-2">
-            <Button onClick={onCancel} variant="outline" size="sm">
+            <Button onClick={onCancel} variant="outline" size="sm" className="cursor-pointer">
               Cancel
             </Button>
-            <Button onClick={onSubmit} disabled={busy} size="sm">
+            <Button onClick={onSubmit} disabled={busy} size="sm" className="cursor-pointer">
               {busy ? (
                 <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
               ) : (
@@ -287,20 +290,6 @@ function CreateForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: 
         </div>
       </div>
     </section>
-  );
-}
-
-function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase"
-      >
-        {label}
-      </label>
-      <div className="mt-2">{children}</div>
-    </div>
   );
 }
 
@@ -363,88 +352,108 @@ function AdminCard({
 
   const isSuspended = admin.status === "suspended";
   const isDeleted = admin.status === "deleted";
+  const dimmed = isSuspended || isDeleted;
 
   return (
     <article
       className={cn(
-        "rounded-2xl border bg-card p-4 sm:p-5",
-        isSuspended && "border-foreground/20 bg-foreground/[0.03] opacity-80",
-        isDeleted && "border-foreground/20 bg-foreground/[0.05] opacity-60",
-        !isSuspended && !isDeleted && "border-border/60",
+        "rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-5",
+        dimmed ? "border-border bg-muted/20" : "border-border",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          {isEditing ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Name" id={`name-${admin.id}`}>
-                <input
-                  id={`name-${admin.id}`}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={120}
-                  className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
-                />
-              </Field>
-              <Field label="Email" id={`email-${admin.id}`}>
-                <input
-                  id={`email-${admin.id}`}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  maxLength={120}
-                  className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 font-mono text-sm outline-none focus:border-primary/50"
-                />
-              </Field>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h3 className="text-base font-semibold tracking-tight sm:text-lg">{admin.name}</h3>
+        {isEditing ? (
+          <div className="grid w-full gap-3 sm:max-w-md sm:grid-cols-2">
+            <Field label="Name" id={`name-${admin.id}`}>
+              <input
+                id={`name-${admin.id}`}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={120}
+                className={INPUT_CLASS}
+              />
+            </Field>
+            <Field label="Email" id={`email-${admin.id}`}>
+              <input
+                id={`email-${admin.id}`}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                maxLength={120}
+                className={INPUT_CLASS}
+              />
+            </Field>
+          </div>
+        ) : (
+          <div className="flex min-w-0 items-center gap-3.5">
+            <span
+              className={cn(
+                "grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold",
+                dimmed ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary",
+              )}
+            >
+              {initialsOf(admin.name)}
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold tracking-tight text-foreground">
+                  {admin.name}
+                </h3>
                 {isMe && (
-                  <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/[0.06] px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-primary uppercase">
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                     You
                   </span>
                 )}
                 {isSuspended && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-foreground/25 bg-foreground/5 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-foreground/70 uppercase">
-                    <ShieldOff className="size-2.5" strokeWidth={2.25} />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-[11px] font-semibold text-foreground/70">
+                    <ShieldOff className="size-3" strokeWidth={2.25} />
                     Deactivated
                   </span>
                 )}
                 {isDeleted && (
-                  <span className="inline-flex items-center rounded-full border border-foreground/25 bg-foreground/5 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-foreground/70 uppercase">
+                  <span className="inline-flex items-center rounded-full bg-foreground/10 px-2 py-0.5 text-[11px] font-semibold text-foreground/70">
                     Deleted
                   </span>
                 )}
                 {admin.two_factor_enabled && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/[0.07] px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-success uppercase">
-                    <BadgeCheck className="size-2.5" strokeWidth={2.25} />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                    <BadgeCheck className="size-3" strokeWidth={2.25} />
                     2FA
                   </span>
                 )}
               </div>
-              <p className="mt-1 font-mono text-[11px] tracking-[0.05em] text-muted-foreground tabular-nums">
+              <p className="mt-1 inline-flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
+                <Mail className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
                 {admin.email}
-                {admin.created_at &&
-                  ` · joined ${new Date(admin.created_at).toLocaleDateString("en-CA", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}`}
+                {admin.created_at && (
+                  <span className="text-muted-foreground/70 tabular-nums">
+                    {" · "}joined{" "}
+                    {new Date(admin.created_at).toLocaleDateString("en-CA", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
               </p>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex shrink-0 items-center gap-2">
           {isEditing ? (
             <>
-              <Button onClick={onCancelEdit} variant="outline" size="sm" disabled={busy}>
+              <Button
+                onClick={onCancelEdit}
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                className="cursor-pointer"
+              >
                 Cancel
               </Button>
-              <Button onClick={onSave} disabled={busy} size="sm">
+              <Button onClick={onSave} disabled={busy} size="sm" className="cursor-pointer">
                 {busy ? (
                   <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
                 ) : (
@@ -456,13 +465,19 @@ function AdminCard({
           ) : (
             <>
               {!isDeleted && !isSuspended && (
-                <Button onClick={onEdit} variant="outline" size="sm">
+                <Button onClick={onEdit} variant="outline" size="sm" className="cursor-pointer">
                   <Pencil className="size-3.5" strokeWidth={2} />
                   Edit
                 </Button>
               )}
               {!isDeleted && !isSuspended && !isMe && (
-                <Button onClick={onDeactivate} disabled={busy} variant="destructive" size="sm">
+                <Button
+                  onClick={onDeactivate}
+                  disabled={busy}
+                  variant="destructive"
+                  size="sm"
+                  className="cursor-pointer"
+                >
                   {busy ? (
                     <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
                   ) : (
@@ -487,10 +502,13 @@ function LoadingView() {
   return (
     <ul className="space-y-3" aria-busy="true">
       {Array.from({ length: 3 }).map((_, i) => (
-        <li
-          key={i}
-          className="h-[88px] animate-pulse rounded-2xl border border-border/60 bg-card/60"
-        />
+        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
+          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted/70" />
+          </div>
+        </li>
       ))}
     </ul>
   );
@@ -498,21 +516,17 @@ function LoadingView() {
 
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <section className="rounded-2xl border border-accent/40 bg-accent/[0.04] p-6">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-accent/15 text-accent">
-          <AlertCircle className="size-4" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold tracking-tight">Couldn&apos;t load the roster.</h3>
-          <div className="mt-4">
-            <Button onClick={onRetry} size="sm">
-              <RefreshCw className="size-3.5" strokeWidth={2} />
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <div className="flex flex-col items-center rounded-xl border border-accent/40 bg-accent/[0.04] px-6 py-12 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <AlertCircle className="size-7" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        Couldn&apos;t load the roster.
+      </h3>
+      <Button onClick={onRetry} size="sm" className="mt-4 cursor-pointer">
+        <RefreshCw className="size-3.5" strokeWidth={2} />
+        Retry
+      </Button>
+    </div>
   );
 }

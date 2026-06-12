@@ -580,7 +580,7 @@ export function OnboardingForm() {
   const youKeep = hourlyRate;
 
   return (
-    <div className="max-w-5xl px-4 pt-6 pb-32 sm:px-6 lg:px-8">
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
       {!isAlreadyOnboarded && (
         <header>
           <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
@@ -1435,42 +1435,29 @@ export function OnboardingForm() {
               )}
             </CardContent>
           </Card>
-        </div>
-      </div>
 
-      {/* ─── Sticky save bar ─── */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 backdrop-blur-md md:left-[248px]">
-        <div className="flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-            {lastSavedAt ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-success">
+          {/* ─── Save action — sits directly below the card ─── */}
+          <div className="mt-6 flex items-center justify-end gap-4">
+            {lastSavedAt && (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
                 <CheckCircle2 className="size-4" strokeWidth={2.25} />
                 Saved · {lastSavedAt}
               </span>
-            ) : isAlreadyOnboarded ? (
-              <span>Changes save when you press the button</span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground tabular-nums">
-                  Step {step} / {steps.length}
-                </span>
-                {steps[step - 1].label}
-              </span>
             )}
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              size="lg"
+              className="min-w-[140px]"
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1 size-4" />
+              )}
+              {isAlreadyOnboarded ? "Save changes" : "Complete profile"}
+            </Button>
           </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            size="lg"
-            className="min-w-[140px]"
-          >
-            {isSubmitting ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-1 size-4" />
-            )}
-            {isAlreadyOnboarded ? "Save changes" : "Complete profile"}
-          </Button>
         </div>
       </div>
     </div>

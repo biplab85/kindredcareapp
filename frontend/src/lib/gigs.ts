@@ -140,10 +140,7 @@ export async function listGigsByCaregiver(caregiverUserId: number | string): Pro
  * `match_score` 0–100 that the marketplace card surfaces as a badge.
  * Server sorts by score descending — caller shouldn't re-sort.
  */
-export async function listGigsForRecipient(
-  recipientId: number,
-  rateMax?: number,
-): Promise<Gig[]> {
+export async function listGigsForRecipient(recipientId: number, rateMax?: number): Promise<Gig[]> {
   const params: Record<string, number> = { recipient_id: recipientId };
   if (rateMax !== undefined) params.rate_max = rateMax;
   const res = await api.get<GigListResponse>("/api/gigs", { params });

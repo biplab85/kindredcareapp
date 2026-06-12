@@ -7,16 +7,20 @@ import {
   AlertCircle,
   ArrowLeft,
   BadgeCheck,
-  CalendarDays,
   CheckCircle2,
   ClipboardList,
+  Clock,
+  DollarSign,
   ExternalLink,
   FileText,
   Loader2,
+  type LucideIcon,
   Mail,
+  Phone,
   RefreshCw,
   ShieldCheck,
   ShieldX,
+  UserRound,
   X,
   XCircle,
 } from "lucide-react";
@@ -69,6 +73,13 @@ export default function AdminVerificationDetailPage({ params }: PageProps) {
 
 type LoadState = "loading" | "ready" | "error";
 
+const AVATAR_TONES: Record<StatusTone, string> = {
+  good: "bg-success/10 text-success",
+  alarm: "bg-accent/10 text-accent",
+  warn: "bg-foreground/10 text-foreground/70",
+  neutral: "bg-primary/10 text-primary",
+};
+
 function DetailView({ id }: { id: string }) {
   const router = useRouter();
   const [data, setData] = useState<VerificationDetail | null>(null);
@@ -107,43 +118,120 @@ function DetailView({ id }: { id: string }) {
   }, [id]);
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Link
+        href="/admin/verifications"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" strokeWidth={2} />
+        Back to queue
+      </Link>
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <BackLink />
-        {state === "loading" && <Skeleton />}
-        {state === "error" && <ErrorCard onRetry={reload} />}
-        {state === "ready" && data && (
-          <Body
-            data={data}
-            documentUrls={documentUrls}
-            onDecision={() => router.push("/admin/verifications")}
-          />
-        )}
+      {state === "loading" && <Skeleton />}
+      {state === "error" && <ErrorCard onRetry={reload} />}
+      {state === "ready" && data && (
+        <Body
+          data={data}
+          documentUrls={documentUrls}
+          onDecision={() => router.push("/admin/verifications")}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Shared primitives
+ * ───────────────────────────────────────────────────────────── */
+
+function Panel({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="size-4" strokeWidth={2} />
+        </span>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+      </div>
+      <div className="grow p-5">{children}</div>
+    </section>
+  );
+}
+
+function DetailTile({
+  icon: Icon,
+  label,
+  value,
+  capitalize,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p
+          className={cn(
+            "mt-0.5 truncate text-sm font-medium text-foreground",
+            capitalize && "capitalize",
+          )}
+        >
+          {value}
+        </p>
       </div>
     </div>
   );
 }
 
-function BackLink() {
+function StatusPill({ status, tone }: { status: string; tone: StatusTone }) {
+  const isCleared = status === "cleared";
+  const isFlagged = status === "flagged";
   return (
-    <Link
-      href="/admin/verifications"
-      className="inline-flex items-center gap-2 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase transition-colors hover:text-foreground"
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+        tone === "good" && "bg-success/10 text-success",
+        tone === "alarm" && "bg-accent/10 text-accent",
+        tone === "warn" && "bg-foreground/10 text-foreground/70",
+        tone === "neutral" && "bg-muted text-muted-foreground ring-1 ring-border",
+      )}
     >
-      <ArrowLeft className="size-3.5" strokeWidth={2} />
-      Back to queue
-    </Link>
+      {isCleared && <BadgeCheck className="size-3" strokeWidth={2.25} />}
+      {isFlagged && <ShieldX className="size-3" strokeWidth={2.25} />}
+      {statusLabel(status)}
+    </span>
   );
+}
+
+function MutedPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border">
+      {children}
+    </span>
+  );
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -163,7 +251,7 @@ function Body({
   const canAct = data.status === "pending_review" || data.status === "not_started";
 
   return (
-    <div className="mt-6 space-y-10">
+    <div className="space-y-6">
       <ProfileHeader data={data} tone={tone} />
 
       {canAct && <DecisionPanel id={data.id} onDone={onDecision} />}
@@ -181,60 +269,62 @@ function Body({
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Profile header
+ * Profile header — hero card
  * ───────────────────────────────────────────────────────────── */
 
 function ProfileHeader({ data, tone }: { data: VerificationDetail; tone: StatusTone }) {
   return (
-    <header className="mt-6">
-      <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        <span>Verification #{String(data.id).padStart(5, "0")}</span>
-        <span className="text-foreground/30">— § 32</span>
+    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="relative h-20 bg-gradient-to-r from-primary/20 via-primary/10 to-accent/10 sm:h-24">
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(10,14,40,0.05) 1px, transparent 0)",
+            backgroundSize: "16px 16px",
+          }}
+        />
       </div>
 
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        {data.user.name}
-      </h1>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2.5">
-        <span className="inline-flex items-center rounded-full border border-border/70 bg-background px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-foreground/70 uppercase">
-          {checkTypeLabel(data.check_type)}
-        </span>
-        <StatusPill status={data.status} tone={tone} />
-        {data.provider && (
-          <span className="inline-flex items-center rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-foreground/70 uppercase">
-            via {data.provider}
+      <div className="px-5 pb-6 sm:px-8">
+        <div className="mt-[-67px] flex flex-col gap-4 sm:flex-row sm:items-end">
+          <span
+            className={cn(
+              "grid size-20 shrink-0 place-items-center rounded-2xl text-2xl font-bold ring-4 ring-card sm:size-24",
+              AVATAR_TONES[tone],
+            )}
+          >
+            {initialsOf(data.user.name)}
           </span>
-        )}
-      </div>
-    </header>
-  );
-}
 
-function StatusPill({ status, tone }: { status: string; tone: StatusTone }) {
-  const isCleared = status === "cleared";
-  const isFlagged = status === "flagged";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase",
-        tone === "good" && "border border-success/40 bg-success/[0.07] text-success",
-        tone === "alarm" && "bg-accent text-accent-foreground",
-        tone === "warn" && "border border-foreground/25 bg-foreground/5 text-foreground/70",
-        tone === "neutral" && "border border-border/70 bg-background text-muted-foreground",
-      )}
-    >
-      {isCleared && <BadgeCheck className="size-2.5" strokeWidth={2.25} />}
-      {isFlagged && <ShieldX className="size-2.5" strokeWidth={2.25} />}
-      {statusLabel(status)}
-    </span>
+          <div className="min-w-0 pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                {data.user.name}
+              </h1>
+              <span className="text-sm font-medium tabular-nums text-muted-foreground/70">
+                #{String(data.id).padStart(5, "0")}
+              </span>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <MutedPill>{checkTypeLabel(data.check_type)}</MutedPill>
+              <StatusPill status={data.status} tone={tone} />
+              {data.provider && <MutedPill>via {data.provider}</MutedPill>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
  * Decision panel — approve / reject
  * ───────────────────────────────────────────────────────────── */
+
+const TEXTAREA_CLASS =
+  "mt-2 min-h-[72px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring focus:ring-2 focus:ring-ring/50";
 
 function DecisionPanel({ id, onDone }: { id: number; onDone: () => void }) {
   const [adminNotes, setAdminNotes] = useState("");
@@ -273,25 +363,27 @@ function DecisionPanel({ id, onDone }: { id: number; onDone: () => void }) {
   }
 
   return (
-    <section className="rounded-2xl border border-primary/30 bg-primary/[0.04] p-5">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-primary/15 text-primary">
-          <ShieldCheck className="size-4" strokeWidth={2} />
+    <section className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="flex items-start gap-3.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <ShieldCheck className="size-5" strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-primary uppercase">Decision</p>
-          <h3 className="mt-1 text-lg font-semibold tracking-tight">
-            <span className="font-normal italic">Clear them</span> or send them back?
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
+            Decision
+          </p>
+          <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
+            Clear them or send them back?
           </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Approve flips this check to <span className="font-mono">cleared</span>. Reject requires
-            a reason that goes back to the caregiver, and lands on the audit trail.
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            Approve flips this check to cleared. Reject requires a reason that goes back to the
+            caregiver, and lands on the audit trail.
           </p>
 
           <div className="mt-4">
             <label
               htmlFor="admin-notes"
-              className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase"
+              className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
             >
               Admin notes (optional, internal)
             </label>
@@ -301,17 +393,17 @@ function DecisionPanel({ id, onDone }: { id: number; onDone: () => void }) {
               onChange={(e) => setAdminNotes(e.target.value)}
               maxLength={500}
               placeholder="Anything the next admin should know about this decision."
-              className="mt-2 min-h-[64px] w-full resize-y rounded-xl border border-border/70 bg-background px-3 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50 focus:border-primary/50"
+              className={TEXTAREA_CLASS}
             />
           </div>
 
           {showReject && (
-            <div className="mt-4 rounded-xl border border-accent/40 bg-accent/[0.04] p-4">
+            <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/[0.04] p-4">
               <label
                 htmlFor="rejection-reason"
-                className="font-mono text-[10px] tracking-[0.22em] text-accent uppercase"
+                className="text-[11px] font-semibold tracking-[0.12em] text-destructive uppercase"
               >
-                Rejection reason (visible to caregiver, 5-500 chars)
+                Rejection reason (visible to caregiver, 5–500 chars)
               </label>
               <textarea
                 id="rejection-reason"
@@ -319,16 +411,16 @@ function DecisionPanel({ id, onDone }: { id: number; onDone: () => void }) {
                 onChange={(e) => setRejectionReason(e.target.value)}
                 maxLength={500}
                 placeholder="ID photo unreadable. Please reupload a clearer scan in good lighting."
-                className="mt-2 min-h-[80px] w-full resize-y rounded-xl border border-border/70 bg-background px-3 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50 focus:border-accent/60"
+                className={TEXTAREA_CLASS}
               />
-              <p className="mt-1 font-mono text-[10px] text-muted-foreground tabular-nums">
+              <p className="mt-1 text-xs text-muted-foreground tabular-nums">
                 {rejectionReason.length}/500
               </p>
             </div>
           )}
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button onClick={onApprove} disabled={busy} size="sm">
+            <Button onClick={onApprove} disabled={busy} size="sm" className="cursor-pointer">
               {busy ? (
                 <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
               ) : (
@@ -344,6 +436,7 @@ function DecisionPanel({ id, onDone }: { id: number; onDone: () => void }) {
                   disabled={busy || rejectionReason.trim().length < 5}
                   variant="destructive"
                   size="sm"
+                  className="cursor-pointer"
                 >
                   {busy ? (
                     <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
@@ -352,12 +445,22 @@ function DecisionPanel({ id, onDone }: { id: number; onDone: () => void }) {
                   )}
                   Confirm rejection
                 </Button>
-                <Button onClick={() => setShowReject(false)} variant="outline" size="sm">
+                <Button
+                  onClick={() => setShowReject(false)}
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                >
                   Cancel
                 </Button>
               </>
             ) : (
-              <Button onClick={() => setShowReject(true)} variant="outline" size="sm">
+              <Button
+                onClick={() => setShowReject(true)}
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+              >
                 <XCircle className="size-3.5" strokeWidth={2} />
                 Reject
               </Button>
@@ -378,68 +481,41 @@ function CaregiverPanel({ data }: { data: VerificationDetail }) {
   const services = profile?.services ?? [];
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5">
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <ClipboardList className="size-3.5" strokeWidth={2} />
-        Caregiver
-        <span className="text-foreground/30">— § 33</span>
-      </div>
-
-      <ul className="space-y-3">
-        <Field
-          icon={<Mail className="size-3.5" strokeWidth={2} />}
-          label="Email"
-          value={data.user.email}
-        />
-        {data.user.phone && (
-          <Field
-            icon={<ClipboardList className="size-3.5" strokeWidth={2} />}
-            label="Phone"
-            value={data.user.phone}
-            mono
-          />
-        )}
+    <Panel icon={ClipboardList} title="Caregiver">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <DetailTile icon={Mail} label="Email" value={data.user.email} />
+        {data.user.phone && <DetailTile icon={Phone} label="Phone" value={data.user.phone} />}
         {data.user.gender && (
-          <Field
-            icon={<ClipboardList className="size-3.5" strokeWidth={2} />}
-            label="Gender"
-            value={data.user.gender}
-          />
+          <DetailTile icon={UserRound} label="Gender" value={data.user.gender} capitalize />
         )}
         {profile && profile.years_of_experience !== null && (
-          <Field
-            icon={<CalendarDays className="size-3.5" strokeWidth={2} />}
+          <DetailTile
+            icon={Clock}
             label="Experience"
             value={`${profile.years_of_experience} year${profile.years_of_experience === 1 ? "" : "s"}`}
-            mono
           />
         )}
         {profile && profile.hourly_rate !== null && (
-          <Field
-            icon={<ClipboardList className="size-3.5" strokeWidth={2} />}
-            label="Hourly rate"
-            value={`$${profile.hourly_rate}/hr`}
-            mono
-          />
+          <DetailTile icon={DollarSign} label="Hourly rate" value={`$${profile.hourly_rate}/hr`} />
         )}
-      </ul>
+      </div>
 
       {profile?.bio && (
-        <blockquote className="mt-4 border-l-2 border-foreground/20 pl-3 text-sm leading-relaxed text-foreground/85 italic">
-          &ldquo;{profile.bio}&rdquo;
-        </blockquote>
+        <p className="mt-4 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+          {profile.bio}
+        </p>
       )}
 
       {services.length > 0 && (
         <div className="mt-4">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+          <p className="mb-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             Services
           </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {services.map((s) => (
               <span
                 key={s.name}
-                className="inline-flex items-center rounded-full border border-border/70 bg-background px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] text-foreground/70 uppercase"
+                className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
               >
                 {s.name}
               </span>
@@ -447,40 +523,7 @@ function CaregiverPanel({ data }: { data: VerificationDetail }) {
           </div>
         </div>
       )}
-    </section>
-  );
-}
-
-function Field({
-  icon,
-  label,
-  value,
-  mono,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <li className="flex items-center gap-3">
-      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted/60 text-muted-foreground">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="font-mono text-[9px] tracking-[0.22em] text-muted-foreground uppercase">
-          {label}
-        </p>
-        <p
-          className={cn(
-            "mt-0.5 truncate text-sm text-foreground/90",
-            mono && "font-mono tabular-nums",
-          )}
-        >
-          {value}
-        </p>
-      </div>
-    </li>
+    </Panel>
   );
 }
 
@@ -492,15 +535,9 @@ function DocumentsPanel({ urls }: { urls: Record<string, string> }) {
   const entries = Object.entries(urls);
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5">
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <FileText className="size-3.5" strokeWidth={2} />
-        Documents
-        <span className="text-foreground/30">— § 34</span>
-      </div>
-
+    <Panel icon={FileText} title="Documents">
       {entries.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border/70 bg-background/40 px-4 py-6 text-center text-sm text-muted-foreground italic">
+        <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
           No documents uploaded yet.
         </p>
       ) : (
@@ -510,7 +547,7 @@ function DocumentsPanel({ urls }: { urls: Record<string, string> }) {
           ))}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -518,15 +555,14 @@ function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
   const label = docKey.replace(/_/g, " ");
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
-      {/* Thumbnail — clicking opens the preview modal */}
+    <li className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-3 transition-colors hover:border-primary/40 hover:bg-primary/[0.04]">
       <Dialog>
         <DialogTrigger
           render={
             <button
               type="button"
               aria-label={`Preview ${label}`}
-              className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/40 transition-all hover:border-primary/50 hover:shadow-[0_4px_12px_rgba(10,14,40,0.08)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-border/60 bg-muted/40 transition-all hover:border-primary/50 hover:shadow-[0_4px_12px_rgba(10,14,40,0.08)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt={label} className="size-full object-cover" loading="lazy" />
@@ -541,7 +577,7 @@ function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
           <div className="px-6 pb-6">
             <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={label} className="block w-full h-auto object-contain" />
+              <img src={url} alt={label} className="block h-auto w-full object-contain" />
             </div>
             <div className="mt-4 flex items-center justify-between gap-2">
               <a
@@ -555,7 +591,7 @@ function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
               </a>
               <DialogClose
                 render={
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="cursor-pointer">
                     <X className="size-3.5" strokeWidth={2} />
                     Close
                   </Button>
@@ -566,12 +602,9 @@ function DocumentRow({ docKey, url }: { docKey: string; url: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Label + actions */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium tracking-tight capitalize">{label}</p>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-          Click thumbnail to preview
-        </p>
+        <p className="text-sm font-semibold tracking-tight text-foreground capitalize">{label}</p>
+        <p className="text-xs text-muted-foreground">Click thumbnail to preview</p>
       </div>
 
       <a
@@ -595,51 +628,41 @@ function ReviewHistoryPanel({ data }: { data: VerificationDetail }) {
   const reviewed = data.reviewed_at ? new Date(data.reviewed_at) : null;
 
   return (
-    <section>
-      <div className="mb-4 flex items-center gap-3 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        <span className="h-px w-8 bg-foreground/30" />
-        Review history
-        <span className="text-foreground/30">— § 35</span>
-      </div>
-
-      <article className="rounded-2xl border border-border/60 bg-card p-5">
-        {data.reviewer && reviewed && (
-          <p className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase tabular-nums">
-            Reviewed by{" "}
-            <span className="text-foreground/80 normal-case tracking-[0.05em]">
-              {data.reviewer.name}
-            </span>{" "}
-            ·{" "}
+    <Panel icon={ClipboardList} title="Review history">
+      {data.reviewer && reviewed && (
+        <p className="text-sm text-muted-foreground">
+          Reviewed by <span className="font-semibold text-foreground">{data.reviewer.name}</span> ·{" "}
+          <span className="tabular-nums">
             {reviewed.toLocaleString("en-CA", {
               month: "short",
               day: "numeric",
               hour: "numeric",
               minute: "2-digit",
             })}
+          </span>
+        </p>
+      )}
+      {data.admin_notes && (
+        <div className="mt-3">
+          <p className="mb-1 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Admin notes
           </p>
-        )}
-        {data.admin_notes && (
-          <div className="mt-3">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Admin notes
-            </p>
-            <blockquote className="mt-1 border-l-2 border-foreground/20 pl-3 text-sm leading-relaxed text-foreground/85 italic">
-              &ldquo;{data.admin_notes}&rdquo;
-            </blockquote>
-          </div>
-        )}
-        {data.rejection_reason && (
-          <div className="mt-3">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-accent uppercase">
-              Rejection reason
-            </p>
-            <blockquote className="mt-1 border-l-2 border-accent/40 pl-3 text-sm leading-relaxed text-foreground/85 italic">
-              &ldquo;{data.rejection_reason}&rdquo;
-            </blockquote>
-          </div>
-        )}
-      </article>
-    </section>
+          <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+            {data.admin_notes}
+          </p>
+        </div>
+      )}
+      {data.rejection_reason && (
+        <div className="mt-3">
+          <p className="mb-1 text-[11px] font-semibold tracking-[0.12em] text-destructive uppercase">
+            Rejection reason
+          </p>
+          <p className="rounded-lg border border-destructive/25 bg-destructive/[0.04] px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+            {data.rejection_reason}
+          </p>
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -649,12 +672,11 @@ function ReviewHistoryPanel({ data }: { data: VerificationDetail }) {
 
 function Skeleton() {
   return (
-    <div className="mt-6 space-y-6">
-      <div className="h-12 w-2/3 animate-pulse rounded-lg bg-muted/60" />
-      <div className="h-32 animate-pulse rounded-2xl border border-border/60 bg-card/60" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="h-48 animate-pulse rounded-2xl border border-border/60 bg-card/60" />
-        <div className="h-48 animate-pulse rounded-2xl border border-border/60 bg-card/60" />
+    <div className="space-y-6">
+      <div className="h-44 animate-pulse rounded-xl border border-border bg-card/60" />
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="h-48 animate-pulse rounded-xl border border-border bg-card/60" />
+        <div className="h-48 animate-pulse rounded-xl border border-border bg-card/60" />
       </div>
     </div>
   );
@@ -662,32 +684,28 @@ function Skeleton() {
 
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <section className="mt-6 rounded-2xl border border-accent/40 bg-accent/[0.04] p-6">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-accent/15 text-accent">
-          <AlertCircle className="size-4" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold tracking-tight">
-            Couldn&apos;t load this verification.
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The server didn&apos;t answer. Try again or head back to the queue.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <Button onClick={onRetry} size="sm">
-              <RefreshCw className="size-3.5" strokeWidth={2} />
-              Retry
-            </Button>
-            <Link href="/admin/verifications">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="size-3.5" strokeWidth={2} />
-                Back to queue
-              </Button>
-            </Link>
-          </div>
-        </div>
+    <div className="flex flex-col items-center rounded-xl border border-accent/40 bg-accent/[0.04] px-6 py-12 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <AlertCircle className="size-7" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+        Couldn&apos;t load this verification.
+      </h3>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        The server didn&apos;t answer. Try again or head back to the queue.
+      </p>
+      <div className="mt-4 flex gap-2">
+        <Button onClick={onRetry} size="sm" className="cursor-pointer">
+          <RefreshCw className="size-3.5" strokeWidth={2} />
+          Retry
+        </Button>
+        <Link href="/admin/verifications">
+          <Button variant="outline" size="sm" className="cursor-pointer">
+            <ArrowLeft className="size-3.5" strokeWidth={2} />
+            Back to queue
+          </Button>
+        </Link>
       </div>
-    </section>
+    </div>
   );
 }

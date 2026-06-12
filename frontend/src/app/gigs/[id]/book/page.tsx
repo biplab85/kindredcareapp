@@ -3,7 +3,16 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Check, CalendarDays, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Check,
+  CalendarDays,
+  AlertTriangle,
+  Wallet,
+  ShieldCheck,
+  CreditCard,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -274,345 +283,354 @@ function BookGigView({ gigId }: { gigId: number }) {
   }
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Link
+        href={`/gigs/${gig.id}`}
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to listing
+      </Link>
 
-      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6">
-        <Link
-          href={`/gigs/${gig.id}`}
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back to listing
-        </Link>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">
+          Book a visit with {gig.caregiver?.display_name ?? "this caregiver"}
+        </h1>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          {gig.title} · ${gig.hourly_rate_dollars.toFixed(0)}/hr
+        </p>
+      </div>
 
-        {/* Header */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-8 bg-foreground/30" />
-            Booking slip · No. {String(gig.id).padStart(4, "0")}
-          </div>
-          <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-            Book a visit with{" "}
-            <span className="italic font-normal text-primary">
-              {gig.caregiver?.display_name ?? "this caregiver"}
-            </span>
-            .
-          </h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground italic">
-            &ldquo;{gig.title}&rdquo; · ${gig.hourly_rate_dollars.toFixed(0)}/hr
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-10">
-          {/* Recipient */}
-          <Section number="01" eyebrow="Who's the visit for" title="Pick a care recipient.">
-            {recipients.length === 0 ? (
-              <div className="rounded-xl bg-muted/40 px-5 py-6 text-center text-sm text-muted-foreground">
-                You haven&rsquo;t added anyone yet.{" "}
-                <Link href="/care-recipients" className="font-medium text-primary hover:underline">
-                  Add a recipient first
-                </Link>
-                .
-              </div>
-            ) : (
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {recipients.map((r) => {
-                  const selected = r.id === recipientId;
-                  return (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRecipientId(r.id);
-                          // Pre-fill the visit address from the recipient's
-                          // saved address. If they don't have one on file,
-                          // leave whatever's already typed alone (could be
-                          // mid-edit). User can still override per booking.
-                          if (r.street_address) {
-                            setAddress(r.street_address);
-                          }
-                        }}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Recipient */}
+        <Section number="1" eyebrow="Who's the visit for" title="Pick a care recipient.">
+          {recipients.length === 0 ? (
+            <div className="rounded-xl bg-muted/40 px-5 py-6 text-center text-sm text-muted-foreground">
+              You haven&rsquo;t added anyone yet.{" "}
+              <Link href="/care-recipients" className="font-medium text-primary hover:underline">
+                Add a recipient first
+              </Link>
+              .
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {recipients.map((r) => {
+                const selected = r.id === recipientId;
+                return (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecipientId(r.id);
+                        // Pre-fill the visit address from the recipient's
+                        // saved address. If they don't have one on file,
+                        // leave whatever's already typed alone (could be
+                        // mid-edit). User can still override per booking.
+                        if (r.street_address) {
+                          setAddress(r.street_address);
+                        }
+                      }}
+                      className={cn(
+                        "relative flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                        "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        selected
+                          ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30"
+                          : "border-border bg-card hover:border-primary/40 hover:bg-muted/30",
+                      )}
+                    >
+                      <span
                         className={cn(
-                          "w-full rounded-xl border-2 px-4 py-3 text-left transition-all",
-                          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                          "grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold",
                           selected
-                            ? "border-primary bg-primary/5"
-                            : "border-border/60 bg-card hover:border-foreground/30",
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground",
                         )}
                       >
-                        <p className="text-sm font-semibold">{r.name}</p>
-                        <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                        {r.name
+                          .split(/\s+/)
+                          .slice(0, 2)
+                          .map((n) => n.charAt(0).toUpperCase())
+                          .join("")}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-foreground">
+                          {r.name}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
                           {r.age ? `${r.age} yrs` : "Age not set"}
                           {r.language && ` · ${r.language}`}
-                        </p>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Section>
+                        </span>
+                      </span>
+                      {selected && (
+                        <Check className="size-4 shrink-0 text-primary" strokeWidth={2.5} />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Section>
 
-          {/* Schedule */}
-          <Section number="02" eyebrow="When" title="Date, time, and how long.">
-            <div className="grid gap-4 sm:grid-cols-[1fr_1fr]">
-              <div>
-                <Label htmlFor="date" className="text-sm">
-                  Date
-                </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  min={todayIso()}
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"
-                />
-              </div>
-              <div>
-                <Label htmlFor="time" className="text-sm">
-                  Start time
-                </Label>
-                <Input
-                  id="time"
-                  type="time"
-                  step={900}
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"
-                />
-              </div>
-            </div>
-            <div className="mt-5">
-              <Label className="text-sm">Duration</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {DURATION_OPTIONS.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => setDuration(h)}
-                    className={cn(
-                      "rounded-full border px-4 py-2 text-sm font-medium transition-all",
-                      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                      duration === h
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border/70 bg-background hover:border-foreground/40",
-                    )}
-                  >
-                    {h} hour{h > 1 ? "s" : ""}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </Section>
-
-          {/* Address */}
-          <Section number="03" eyebrow="Where" title="The visit address.">
+        {/* Schedule */}
+        <Section number="2" eyebrow="When" title="Date, time, and how long.">
+          <div className="grid gap-4 sm:grid-cols-[1fr_1fr]">
             <div>
-              <Label htmlFor="address" className="text-sm">
-                Street address
+              <Label htmlFor="date" className="text-sm">
+                Date
               </Label>
               <Input
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="123 King Street West, City, Province"
-                className="mt-2 h-12 rounded-xl border-foreground/20 bg-background/70 text-base"
+                id="date"
+                type="date"
+                min={todayIso()}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="mt-1.5 h-11"
               />
             </div>
-          </Section>
+            <div>
+              <Label htmlFor="time" className="text-sm">
+                Start time
+              </Label>
+              <Input
+                id="time"
+                type="time"
+                step={900}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="mt-1.5 h-11"
+              />
+            </div>
+          </div>
+          <div className="mt-5">
+            <Label className="text-sm">Duration</Label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {DURATION_OPTIONS.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setDuration(h)}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-all",
+                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    duration === h
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                      : "border-border bg-card text-foreground/70 hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground",
+                  )}
+                >
+                  {h} hour{h > 1 ? "s" : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Section>
 
-          {/* Notes */}
-          <Section number="04" eyebrow="A note" title="Anything the caregiver should know?">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional. Speech preferences, mobility notes, what would make a good first visit."
-              rows={4}
-              maxLength={500}
-              className="rounded-xl border-foreground/20 bg-background/70"
+        {/* Address */}
+        <Section number="3" eyebrow="Where" title="The visit address.">
+          <div>
+            <Label htmlFor="address" className="text-sm">
+              Street address
+            </Label>
+            <Input
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="123 King Street West, City, Province"
+              className="mt-1.5 h-11"
             />
-            <p className="mt-1.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
-              {notes.length} / 500
-            </p>
-          </Section>
+          </div>
+        </Section>
 
-          {/* Availability hint — soft warnings (day-off / outside-window) keep
+        {/* Notes */}
+        <Section number="4" eyebrow="A note" title="Anything the caregiver should know?">
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Optional. Speech preferences, mobility notes, what would make a good first visit."
+            rows={4}
+            maxLength={500}
+            className="rounded-lg"
+          />
+          <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">
+            {notes.length} / 500
+          </p>
+        </Section>
+
+        {/* Availability hint — soft warnings (day-off / outside-window) keep
               Submit enabled; "already-booked" and "date-off" are hard blocks
               (Submit disabled). */}
-          {availabilityHint && (
-            <div
+        {availabilityHint && (
+          <div
+            className={cn(
+              "flex items-start gap-3.5 rounded-xl border p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]",
+              isHardBlocked
+                ? "border-destructive/30 bg-destructive/[0.05]"
+                : "border-accent/30 bg-accent/[0.06]",
+            )}
+          >
+            <span
               className={cn(
-                "rounded-2xl px-5 py-4 ring-1",
-                isHardBlocked
-                  ? "bg-destructive/10 ring-destructive/30"
-                  : "bg-accent/[0.08] ring-accent/25",
+                "grid size-9 shrink-0 place-items-center rounded-lg",
+                isHardBlocked ? "bg-destructive/15 text-destructive" : "bg-accent/15 text-accent",
               )}
             >
-              <div className="flex items-start gap-3">
-                <AlertTriangle
-                  className={cn(
-                    "mt-0.5 size-5 shrink-0",
-                    isHardBlocked ? "text-destructive" : "text-accent",
-                  )}
-                  strokeWidth={1.75}
-                />
-                <div className="min-w-0">
-                  {availabilityHint.kind === "already-booked" ? (
-                    <>
-                      <p className="text-sm font-semibold text-destructive">
-                        {gig.caregiver?.display_name ?? "This caregiver"} is already booked then.
-                      </p>
-                      <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                        They&rsquo;ve got a visit from{" "}
-                        <span className="font-medium">
-                          {formatLocalDateTime(availabilityHint.conflictStart)}
-                        </span>{" "}
-                        to{" "}
-                        <span className="font-medium">
-                          {formatLocalDateTime(availabilityHint.conflictEnd)}
-                        </span>
-                        . Pick a different window — that one&rsquo;s spoken for.
-                      </p>
-                    </>
-                  ) : availabilityHint.kind === "date-off" ? (
-                    <>
-                      <p className="text-sm font-semibold text-destructive">
-                        {gig.caregiver?.display_name ?? "This caregiver"} is taking that day off.
-                      </p>
-                      <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                        They&rsquo;ve marked{" "}
-                        <span className="font-medium">
-                          {formatLocalDate(availabilityHint.date)}
-                        </span>{" "}
-                        as unavailable (vacation, holiday, or personal day). Pick another date.
-                      </p>
-                    </>
+              <AlertTriangle className="size-5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0">
+              {availabilityHint.kind === "already-booked" ? (
+                <>
+                  <p className="text-sm font-semibold text-destructive">
+                    {gig.caregiver?.display_name ?? "This caregiver"} is already booked then.
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                    They&rsquo;ve got a visit from{" "}
+                    <span className="font-medium">
+                      {formatLocalDateTime(availabilityHint.conflictStart)}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-medium">
+                      {formatLocalDateTime(availabilityHint.conflictEnd)}
+                    </span>
+                    . Pick a different window — that one&rsquo;s spoken for.
+                  </p>
+                </>
+              ) : availabilityHint.kind === "date-off" ? (
+                <>
+                  <p className="text-sm font-semibold text-destructive">
+                    {gig.caregiver?.display_name ?? "This caregiver"} is taking that day off.
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                    They&rsquo;ve marked{" "}
+                    <span className="font-medium">{formatLocalDate(availabilityHint.date)}</span> as
+                    unavailable (vacation, holiday, or personal day). Pick another date.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-accent">
+                    {gig.caregiver?.display_name ?? "This caregiver"} may not be free at that time.
+                  </p>
+                  {availabilityHint.kind === "day-off" ? (
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      They&rsquo;ve published hours for{" "}
+                      <span className="font-medium">
+                        {availabilityHint.liveDays
+                          .map((d) => DAY_LABELS[d as WeekdayKey])
+                          .join(", ")}
+                      </span>
+                      , but not the day you picked. The booking will still go through — they can
+                      accept or decline.
+                    </p>
                   ) : (
-                    <>
-                      <p className="text-sm font-semibold text-accent">
-                        {gig.caregiver?.display_name ?? "This caregiver"} may not be free at that
-                        time.
-                      </p>
-                      {availabilityHint.kind === "day-off" ? (
-                        <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                          They&rsquo;ve published hours for{" "}
-                          <span className="font-medium">
-                            {availabilityHint.liveDays
-                              .map((d) => DAY_LABELS[d as WeekdayKey])
-                              .join(", ")}
-                          </span>
-                          , but not the day you picked. The booking will still go through — they can
-                          accept or decline.
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                          Their published windows that day are{" "}
-                          <span className="font-medium">
-                            {availabilityHint.ranges
-                              .map((r) => `${formatHHMM(r.start)} – ${formatHHMM(r.end)}`)
-                              .join(" · ")}
-                          </span>
-                          . You can still send the request — they&rsquo;ll accept or decline.
-                        </p>
-                      )}
-                    </>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      Their published windows that day are{" "}
+                      <span className="font-medium">
+                        {availabilityHint.ranges
+                          .map((r) => `${formatHHMM(r.start)} – ${formatHHMM(r.end)}`)
+                          .join(" · ")}
+                      </span>
+                      . You can still send the request — they&rsquo;ll accept or decline.
+                    </p>
                   )}
-                </div>
-              </div>
+                </>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Total slip */}
-          <div className="rounded-2xl bg-card p-6 ring-1 ring-border/60">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Estimate
-            </p>
-            <dl className="mt-3 space-y-1.5 font-mono text-sm tabular-nums">
-              <div className="flex justify-between">
+        {/* Total slip */}
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+          <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-success/10 text-success">
+              <Wallet className="size-4" strokeWidth={2} />
+            </span>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">Estimate</h2>
+          </div>
+          <div className="p-5">
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">
                   ${gig.hourly_rate_dollars.toFixed(2)} × {duration}h
                 </dt>
-                <dd>${totals.subtotal.toFixed(2)}</dd>
+                <dd className="font-medium tabular-nums text-foreground">
+                  ${totals.subtotal.toFixed(2)}
+                </dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Platform fee 7.5%</dt>
-                <dd>${totals.fee.toFixed(2)}</dd>
+                <dd className="font-medium tabular-nums text-foreground">
+                  ${totals.fee.toFixed(2)}
+                </dd>
               </div>
-              <div
-                aria-hidden
-                className="my-2 border-t border-dashed border-border/60"
-                style={{ borderStyle: "dashed" }}
-              />
-              <div className="flex justify-between text-base font-semibold">
-                <dt>Total</dt>
-                <dd>${totals.total.toFixed(2)}</dd>
+              <div aria-hidden className="my-1 border-t border-border/60" />
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="font-semibold text-foreground">Total</dt>
+                <dd className="text-xl font-bold tabular-nums text-foreground">
+                  ${totals.total.toFixed(2)}
+                </dd>
               </div>
             </dl>
-            <p className="mt-3 text-xs text-muted-foreground">
+            <p className="mt-4 flex items-start gap-2 rounded-lg bg-muted/40 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+              <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" strokeWidth={2} />
               Authorized when the caregiver accepts. Captured after the visit.
             </p>
           </div>
+        </div>
 
-          {/* Email-verify gate — hard-block before any other check. The
+        {/* Email-verify gate — hard-block before any other check. The
               backend validator rejects too, but a callout up front
               beats a 422 surprise on submit. */}
-          {isEmailUnverified && <EmailVerifyBanner context="booking" />}
+        {isEmailUnverified && <EmailVerifyBanner context="booking" />}
 
-          {/* Card-on-file gate — hard-block when Stripe is configured but
+        {/* Card-on-file gate — hard-block when Stripe is configured but
               the family has no default payment method. The backend
               validator will also reject, but failing the user at submit
               time is worse UX than telling them upfront. */}
-          {hasCardOnFile === false && (
-            <div className="rounded-2xl border border-destructive/30 bg-destructive/[0.04] p-5 ring-1 ring-destructive/20">
-              <p className="flex items-start gap-3 text-sm">
-                <AlertTriangle
-                  className="mt-0.5 size-4 shrink-0 text-destructive"
-                  strokeWidth={2.25}
-                />
-                <span className="leading-relaxed">
-                  <span className="font-semibold text-destructive">Add a card before booking.</span>{" "}
-                  We hold the visit total on your card the moment the caregiver accepts. Set one up
-                  once and every future booking auto-charges at check-out.
-                </span>
+        {hasCardOnFile === false && (
+          <div className="flex items-start gap-3.5 rounded-xl border border-destructive/30 bg-destructive/[0.05] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-destructive/15 text-destructive">
+              <CreditCard className="size-5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Add a card before booking.</p>
+              <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                We hold the visit total on your card the moment the caregiver accepts. Set one up
+                once and every future booking auto-charges at check-out.
               </p>
               <Link href="/settings/payment-methods" className="mt-4 inline-block">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-10 border-destructive/40 text-destructive hover:bg-destructive/5"
+                  className="h-10 cursor-pointer border-destructive/40 text-destructive hover:bg-destructive/5"
                 >
                   Add a payment method
                 </Button>
               </Link>
             </div>
-          )}
-
-          {/* Submit */}
-          <div className="flex items-center justify-end gap-4 border-t border-border/60 pt-6">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={!canSubmit}
-              className="h-12 bg-accent px-8 text-base text-accent-foreground hover:bg-accent/90"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Sending…
-                </>
-              ) : (
-                <>
-                  Send booking request
-                  <Check className="size-4" strokeWidth={2.5} />
-                </>
-              )}
-              <CalendarDays className="size-4" />
-            </Button>
           </div>
-        </form>
-      </div>
+        )}
+
+        {/* Submit */}
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canSubmit}
+          className="h-12 w-full cursor-pointer bg-accent text-base text-accent-foreground hover:bg-accent/90"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Sending…
+            </>
+          ) : (
+            <>
+              <CalendarDays className="size-4" />
+              Send booking request
+            </>
+          )}
+        </Button>
+      </form>
     </div>
   );
 }
@@ -629,21 +647,19 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section>
-      <div className="mb-5 flex items-start gap-4">
-        <span className="font-mono text-sm tracking-[0.22em] text-foreground/40 uppercase">
-          § {number}
+    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold tabular-nums text-primary">
+          {number}
         </span>
-        <div className="flex-1">
-          <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             {eyebrow}
           </p>
-          <h2 className="mt-1 text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">
-            {title}
-          </h2>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
         </div>
       </div>
-      <div className="ml-0 sm:ml-12">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }

@@ -495,11 +495,11 @@ function BookingRow({
         {/* Right — price + actions */}
         <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0">
           <p className="text-left tabular-nums sm:text-right">
-            <span className="block text-base font-semibold text-foreground">
-              {formatCents(isCaregiver ? booking.caregiver_payout_cents : booking.subtotal_cents)}
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {isCaregiver ? "Earnings: " : "Total: "}
             </span>
-            <span className="text-[11px] text-muted-foreground">
-              {isCaregiver ? "earnings" : "total"}
+            <span className="text-base font-semibold text-foreground">
+              {formatCents(isCaregiver ? booking.caregiver_payout_cents : booking.subtotal_cents)}
             </span>
           </p>
           <RowActions booking={booking} viewerRole={viewerRole} onChanged={onChanged} />

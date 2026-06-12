@@ -244,7 +244,11 @@ function GigRow({ gig, onDelete }: { gig: Gig; onDelete: () => void }) {
                 Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onDelete} className="cursor-pointer gap-2">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={onDelete}
+                className="cursor-pointer gap-2"
+              >
                 <Trash2 className="size-4" />
                 Delete
               </DropdownMenuItem>

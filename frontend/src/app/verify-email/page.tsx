@@ -3,11 +3,90 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Mail } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  type LucideIcon,
+  Mail,
+  Send,
+} from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+/* Status badge rendered above the heading — matches the premium auth form. */
+function StatusBadge({
+  icon: Icon,
+  tone,
+  spin = false,
+}: {
+  icon: LucideIcon;
+  tone: "primary" | "success" | "accent";
+  spin?: boolean;
+}) {
+  const tones: Record<typeof tone, string> = {
+    primary: "bg-primary/12 text-primary ring-primary/20",
+    success: "bg-success/12 text-success ring-success/20",
+    accent: "bg-accent/12 text-accent ring-accent/20",
+  };
+  return (
+    <div
+      className={cn("flex size-12 items-center justify-center rounded-xl ring-1", tones[tone])}
+    >
+      <Icon className={cn("size-6", spin && "animate-spin")} strokeWidth={2} />
+    </div>
+  );
+}
+
+/* Premium link-button — lift + colored glow + shine sweep + icon nudge. */
+function PremiumLink({
+  href,
+  label,
+  icon: Icon,
+  iconSide = "start",
+  variant = "primary",
+}: {
+  href: string;
+  label: string;
+  icon?: LucideIcon;
+  iconSide?: "start" | "end";
+  variant?: "primary" | "outline";
+}) {
+  const iconCls = cn(
+    "size-4 transition-transform duration-200 ease-out",
+    iconSide === "start" ? "mr-2 group-hover/pl:-translate-x-0.5" : "ml-1 group-hover/pl:translate-x-0.5",
+  );
+  const iconEl = Icon ? <Icon className={iconCls} /> : null;
+
+  return (
+    <Link href={href} className="block">
+      <Button
+        variant={variant === "outline" ? "outline" : "default"}
+        className={cn(
+          "group/pl relative h-12 w-full overflow-hidden text-base font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5",
+          variant === "outline"
+            ? "hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+            : "shadow-sm shadow-primary/20 hover:shadow-lg hover:shadow-primary/35",
+        )}
+      >
+        {variant === "primary" && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/pl:translate-x-full"
+          />
+        )}
+        {iconSide === "start" && iconEl}
+        {label}
+        {iconSide === "end" && iconEl}
+      </Button>
+    </Link>
+  );
+}
 
 /* ─────────────────────────────────────────────────────────────
  * Email verification page — dual-purpose:
@@ -105,137 +184,71 @@ function VerificationProcessor({
 
   if (state.kind === "loading") {
     return (
-      <Shell>
-        <div className="mx-auto grid size-14 place-items-center rounded-full bg-primary/15 text-primary">
-          <Loader2 className="size-6 animate-spin" strokeWidth={1.75} />
+      <AuthLayout
+        icon={<StatusBadge icon={Loader2} tone="primary" spin />}
+        title="Verifying your email"
+        subtitle="Confirming your email address — this usually takes under a second."
+      >
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full w-2/5 animate-pulse rounded-full bg-primary" />
         </div>
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-          <span className="font-normal italic text-primary">Just a sec,</span> verifying.
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Confirming your email address. This usually takes under a second.
-        </p>
-      </Shell>
+      </AuthLayout>
     );
   }
 
   if (state.kind === "success") {
     return (
-      <Shell>
-        <div className="mx-auto grid size-14 place-items-center rounded-full bg-success/15 text-success">
-          <CheckCircle2 className="size-7" strokeWidth={1.75} />
+      <AuthLayout
+        icon={<StatusBadge icon={CheckCircle2} tone="success" />}
+        title={state.alreadyVerified ? "Already verified" : "You're all set"}
+        subtitle={
+          state.alreadyVerified
+            ? "This email has been confirmed before — you can log in now."
+            : "Your email is confirmed. Welcome to KindredCare."
+        }
+      >
+        <div className="flex flex-col gap-2.5">
+          <PremiumLink href="/dashboard" label="Go to dashboard" icon={ArrowRight} iconSide="end" />
+          <PremiumLink href="/login" label="Back to login" icon={ArrowLeft} variant="outline" />
         </div>
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-          <span className="font-normal italic text-success">
-            {state.alreadyVerified ? "Already verified." : "You're in."}
-          </span>
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          {state.alreadyVerified
-            ? "This email has been confirmed before. You can log in now."
-            : "Your email is confirmed. Welcome to KindredCare."}
-        </p>
-        <div className="mt-6 flex flex-col gap-2">
-          <Link href="/dashboard">
-            <Button className="w-full" size="default">
-              Go to dashboard
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button variant="outline" className="w-full" size="default">
-              Back to login
-            </Button>
-          </Link>
-        </div>
-      </Shell>
+      </AuthLayout>
     );
   }
 
   if (state.kind === "expired-or-invalid") {
     return (
-      <Shell>
-        <div className="mx-auto grid size-14 place-items-center rounded-full bg-accent/15 text-accent">
-          <AlertCircle className="size-7" strokeWidth={1.75} />
-        </div>
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-          <span className="font-normal italic text-accent">Link expired</span>{" "}
-          <span className="text-foreground">or invalid.</span>
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Verification links expire after 60 minutes for security. Log in and ask for a fresh one
-          from your account settings.
-        </p>
-        <div className="mt-6">
-          <Link href="/login">
-            <Button className="w-full" size="default">
-              Back to login
-            </Button>
-          </Link>
-        </div>
-      </Shell>
+      <AuthLayout
+        icon={<StatusBadge icon={AlertCircle} tone="accent" />}
+        title="Link expired or invalid"
+        subtitle="Verification links expire after 60 minutes for security. Log in and request a fresh one from your account settings."
+      >
+        <PremiumLink href="/login" label="Back to login" icon={ArrowLeft} />
+      </AuthLayout>
     );
   }
 
   return (
-    <Shell>
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-accent/15 text-accent">
-        <AlertCircle className="size-7" strokeWidth={1.75} />
-      </div>
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-        <span className="font-normal italic text-muted-foreground">Something went sideways.</span>
-      </h1>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-        We couldn&apos;t reach the server to verify your email. Try the link again, or refresh in a
-        moment.
-      </p>
-      <div className="mt-6">
-        <Link href="/login">
-          <Button variant="outline" className="w-full" size="default">
-            Back to login
-          </Button>
-        </Link>
-      </div>
-    </Shell>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Shell — minimal centered card matching login/signup aesthetic
- * ───────────────────────────────────────────────────────────── */
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="relative grid min-h-screen place-items-center px-4 py-16">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.04] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center gap-3 text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-          <span className="h-px w-8 bg-foreground/30" />
-          Verification
-          <span className="text-foreground/30">— § 03</span>
-        </div>
-        <article className="rounded-3xl border border-border/60 bg-card p-8 text-center sm:p-10">
-          {children}
-        </article>
-      </div>
-    </main>
+    <AuthLayout
+      icon={<StatusBadge icon={AlertCircle} tone="accent" />}
+      title="Something went sideways"
+      subtitle="We couldn't reach the server to verify your email. Try the link again, or refresh in a moment."
+    >
+      <PremiumLink href="/login" label="Back to login" icon={ArrowLeft} />
+    </AuthLayout>
   );
 }
 
 function FallbackShell() {
   return (
-    <Shell>
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-primary/15 text-primary">
-        <Loader2 className="size-6 animate-spin" strokeWidth={1.75} />
+    <AuthLayout
+      icon={<StatusBadge icon={Loader2} tone="primary" spin />}
+      title="Verifying your email"
+      subtitle="One moment while we confirm your link."
+    >
+      <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full w-2/5 animate-pulse rounded-full bg-primary" />
       </div>
-    </Shell>
+    </AuthLayout>
   );
 }
 
@@ -260,34 +273,41 @@ function PostSignupPrompt() {
 
   return (
     <AuthLayout
+      icon={<StatusBadge icon={Mail} tone="primary" />}
       title="Verify your email"
       subtitle="We sent a verification link to your email address."
     >
-      <div className="flex flex-col items-center py-6">
-        <div className="mb-6 flex size-20 items-center justify-center rounded-full bg-primary/10">
-          <Mail className="size-10 text-primary" />
-        </div>
-        <p className="mb-2 text-center text-sm text-muted-foreground">
-          Click the link in the email to verify your account. If you don&apos;t see it, check your
-          spam folder.
-        </p>
-      </div>
+      <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+        Click the link in the email to verify your account. If you don&apos;t see it, check your spam
+        folder.
+      </p>
 
       <div className="space-y-3">
         <Button
           onClick={resend}
-          variant="outline"
-          className="h-12 w-full text-base"
           disabled={isResending}
+          className="group/resend relative h-12 w-full overflow-hidden text-base font-semibold shadow-sm shadow-primary/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/35"
         >
-          {isResending && <Loader2 className="mr-2 size-4 animate-spin" />}
-          Resend Verification Email
+          {/* shine sweep on hover */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/resend:translate-x-full"
+          />
+          {isResending ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 size-4 transition-transform duration-200 ease-out group-hover/resend:-translate-y-0.5 group-hover/resend:translate-x-0.5" />
+          )}
+          Resend verification email
         </Button>
 
         <Link href="/dashboard" className="block">
-          <Button variant="ghost" className="h-12 w-full text-base text-muted-foreground">
+          <Button
+            variant="ghost"
+            className="h-12 w-full text-base text-muted-foreground transition-colors hover:text-foreground"
+          >
             Continue to dashboard
-            <ArrowRight className="ml-1 size-4" />
+            <ArrowRight className="ml-1 size-4 transition-transform duration-200 group-hover/button:translate-x-0.5" />
           </Button>
         </Link>
       </div>

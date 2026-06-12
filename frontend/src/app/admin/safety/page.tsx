@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
+import { SlideTabs } from "@/components/ui/slide-tabs";
 import { useAuthStore } from "@/lib/auth";
 import {
   acknowledgePanic,
@@ -80,6 +81,11 @@ const initialQueue = <T,>(): Queue<T> => ({
   openCount: 0,
 });
 
+const FILTER_TABS: { value: QueueFilter; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "resolved", label: "Resolved" },
+];
+
 function SafetyQueueView() {
   const [panic, setPanic] = useState<Queue<PanicAlert>>(() => initialQueue<PanicAlert>());
   const [incident, setIncident] = useState<Queue<IncidentReport>>(() =>
@@ -90,16 +96,8 @@ function SafetyQueueView() {
     setPanic((q) => ({ ...q, state: "loading", filter }));
     try {
       const list = await getPanicAlerts(filter);
-      // Open-count is derived from the "open" list — if we're fetching the
-      // resolved tab, we hit the open endpoint afterwards to keep the header
-      // counter accurate.
       const openCount = filter === "open" ? list.length : (await getPanicAlerts("open")).length;
-      setPanic({
-        state: "ready",
-        filter,
-        list: sortPanics(list),
-        openCount,
-      });
+      setPanic({ state: "ready", filter, list: sortPanics(list), openCount });
     } catch {
       setPanic((q) => ({ ...q, state: "error" }));
     }
@@ -110,12 +108,7 @@ function SafetyQueueView() {
     try {
       const list = await getIncidents(filter);
       const openCount = filter === "open" ? list.length : (await getIncidents("open")).length;
-      setIncident({
-        state: "ready",
-        filter,
-        list: sortIncidents(list),
-        openCount,
-      });
+      setIncident({ state: "ready", filter, list: sortIncidents(list), openCount });
     } catch {
       setIncident((q) => ({ ...q, state: "error" }));
     }
@@ -158,59 +151,46 @@ function SafetyQueueView() {
   const openTotal = panic.openCount + incident.openCount;
 
   return (
-    <div className="relative">
-      {/* Paper wash */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-accent/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <PageHeader
+        openTotal={openTotal}
+        panicOpen={panic.openCount}
+        incidentOpen={incident.openCount}
       />
 
-      <div className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <PageHeader
-          openTotal={openTotal}
-          panicOpen={panic.openCount}
-          incidentOpen={incident.openCount}
+      <section className="mt-8 space-y-4">
+        <QueueHeader
+          sectionLabel="Panic alerts"
+          accent="accent"
+          icon={Siren}
+          openCount={panic.openCount}
+          filter={panic.filter}
+          loading={panic.state === "loading"}
+          onFilter={(f) => void reloadPanic(f)}
+          onRefresh={() => void reloadPanic(panic.filter)}
         />
+        <PanicList queue={panic} onChanged={() => void reloadPanic(panic.filter)} />
+      </section>
 
-        <section className="mt-12 space-y-4">
-          <QueueHeader
-            sectionLabel="Panic alerts"
-            sectionMark="§ 01"
-            accent="accent"
-            icon={<Siren className="size-3.5 text-accent" strokeWidth={2} />}
-            openCount={panic.openCount}
-            filter={panic.filter}
-            onFilter={(f) => void reloadPanic(f)}
-            onRefresh={() => void reloadPanic(panic.filter)}
-          />
-          <PanicList queue={panic} onChanged={() => void reloadPanic(panic.filter)} />
-        </section>
-
-        <section className="mt-14 space-y-4">
-          <QueueHeader
-            sectionLabel="Incident reports"
-            sectionMark="§ 02"
-            accent="primary"
-            icon={<ShieldAlert className="size-3.5 text-primary" strokeWidth={2} />}
-            openCount={incident.openCount}
-            filter={incident.filter}
-            onFilter={(f) => void reloadIncident(f)}
-            onRefresh={() => void reloadIncident(incident.filter)}
-          />
-          <IncidentList queue={incident} onChanged={() => void reloadIncident(incident.filter)} />
-        </section>
-      </div>
+      <section className="mt-10 space-y-4">
+        <QueueHeader
+          sectionLabel="Incident reports"
+          accent="primary"
+          icon={ShieldAlert}
+          openCount={incident.openCount}
+          filter={incident.filter}
+          loading={incident.state === "loading"}
+          onFilter={(f) => void reloadIncident(f)}
+          onRefresh={() => void reloadIncident(incident.filter)}
+        />
+        <IncidentList queue={incident} onChanged={() => void reloadIncident(incident.filter)} />
+      </section>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Page header — display headline + live counters
+ * Page header
  * ───────────────────────────────────────────────────────────── */
 
 function PageHeader({
@@ -225,173 +205,114 @@ function PageHeader({
   const calm = openTotal === 0;
 
   return (
-    <header>
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-        <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-          <span className={cn("font-normal italic", calm ? "text-success" : "text-accent")}>
-            {calm ? "All clear." : "Safety queue."}
-          </span>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className="text-lg font-semibold leading-[1.15] tracking-tight text-foreground">
+          Safety
         </h1>
-
-        <span
-          aria-live="polite"
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-3 py-1 font-mono text-[11px] tracking-[0.22em] uppercase tabular-nums",
-            calm
-              ? "border-success/30 bg-success/10 text-success"
-              : "border-accent/30 bg-accent/10 text-accent",
+        <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          {calm
+            ? "No active panic alerts, no open incidents. A quiet shift — the best kind."
+            : "Active panic alerts surface first. Work them top-down; expand any incident for context."}
+          {!calm && (
+            <>
+              {" "}
+              <span className="font-medium tabular-nums text-foreground/80">{panicOpen}</span> panic
+              · <span className="font-medium tabular-nums text-foreground/80">{incidentOpen}</span>{" "}
+              incident
+            </>
           )}
-        >
-          {calm ? (
-            <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
-          ) : (
-            <span className="relative flex size-2 items-center justify-center">
-              <span className="absolute inset-0 animate-ping rounded-full bg-accent/60" />
-              <span className="relative size-2 rounded-full bg-accent" />
-            </span>
-          )}
-          {openTotal} open
-        </span>
+        </p>
       </div>
 
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-        {calm
-          ? "No active panic alerts, no open incidents. A quiet shift — the best kind."
-          : "Active panic alerts surface first. Work them top-down; tap any incident to expand its context."}
-        {!calm && (
-          <>
-            {" "}
-            <span className="font-mono tabular-nums text-foreground/80">{panicOpen}</span> panic ·{" "}
-            <span className="font-mono tabular-nums text-foreground/80">{incidentOpen}</span>{" "}
-            incident
-          </>
+      <span
+        aria-live="polite"
+        className={cn(
+          "inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold tabular-nums shadow-[0_1px_2px_rgba(10,14,40,0.04)]",
+          calm
+            ? "border-success/30 bg-success/10 text-success"
+            : "border-accent/30 bg-accent/10 text-accent",
         )}
-      </p>
-    </header>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Section header with tab pills (Open / Resolved)
- * ───────────────────────────────────────────────────────────── */
-
-function QueueHeader({
-  sectionLabel,
-  sectionMark,
-  accent,
-  icon,
-  openCount,
-  filter,
-  onFilter,
-  onRefresh,
-}: {
-  sectionLabel: string;
-  sectionMark: string;
-  accent: "accent" | "primary";
-  icon: React.ReactNode;
-  openCount: number;
-  filter: QueueFilter;
-  onFilter: (f: QueueFilter) => void;
-  onRefresh: () => void;
-}) {
-  const pillColor =
-    accent === "accent" ? "data-[active=true]:text-accent" : "data-[active=true]:text-primary";
-  const underline = accent === "accent" ? "bg-accent" : "bg-primary";
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-        {icon}
-        {sectionLabel}
-        <span className="text-foreground/30">— {sectionMark}</span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <div
-          role="tablist"
-          aria-label={`${sectionLabel} filter`}
-          className="flex items-center gap-0.5 rounded-full border border-border/60 bg-background/60 p-0.5"
-        >
-          <FilterPill
-            value="open"
-            active={filter === "open"}
-            count={openCount}
-            onClick={() => onFilter("open")}
-            pillClass={pillColor}
-            underlineClass={underline}
-          />
-          <FilterPill
-            value="resolved"
-            active={filter === "resolved"}
-            // Intentionally hide count on resolved tab — archive can be huge.
-            count={null}
-            onClick={() => onFilter("resolved")}
-            pillClass={pillColor}
-            underlineClass={underline}
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          aria-label="Refresh queue"
-          className={cn(
-            "grid size-8 place-items-center rounded-full border border-border/60 bg-background/60 text-muted-foreground transition-colors hover:text-foreground",
-            "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
-          )}
-        >
-          <RefreshCw className="size-3.5" strokeWidth={2} />
-        </button>
-      </div>
+      >
+        {calm ? (
+          <CheckCircle2 className="size-4" strokeWidth={2.25} />
+        ) : (
+          <span className="relative flex size-2 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-full bg-accent/60" />
+            <span className="relative size-2 rounded-full bg-accent" />
+          </span>
+        )}
+        {openTotal} open
+      </span>
     </div>
   );
 }
 
-function FilterPill({
-  value,
-  active,
-  count,
-  onClick,
-  pillClass,
-  underlineClass,
+/* ─────────────────────────────────────────────────────────────
+ * Section header — icon tile + sliding Open/Resolved tabs + refresh
+ * ───────────────────────────────────────────────────────────── */
+
+function QueueHeader({
+  sectionLabel,
+  accent,
+  icon: Icon,
+  openCount,
+  filter,
+  loading,
+  onFilter,
+  onRefresh,
 }: {
-  value: QueueFilter;
-  active: boolean;
-  count: number | null;
-  onClick: () => void;
-  pillClass: string;
-  underlineClass: string;
+  sectionLabel: string;
+  accent: "accent" | "primary";
+  icon: typeof Siren;
+  openCount: number;
+  filter: QueueFilter;
+  loading: boolean;
+  onFilter: (f: QueueFilter) => void;
+  onRefresh: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      data-active={active}
-      onClick={onClick}
-      className={cn(
-        "relative rounded-full px-3 py-1 font-mono text-[10px] tracking-[0.22em] uppercase transition-colors",
-        "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
-        active ? pillClass : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <span className="relative">
-        {value === "open" ? "Open" : "Resolved"}
-        {active && (
-          <span
-            aria-hidden
-            className={cn("absolute -bottom-1.5 left-0 h-px w-full", underlineClass)}
-          />
-        )}
-      </span>
-      {count !== null && (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2.5">
         <span
-          className={cn("ml-2 tabular-nums transition-colors", active ? "" : "text-foreground/50")}
+          className={cn(
+            "grid size-8 shrink-0 place-items-center rounded-lg",
+            accent === "accent" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary",
+          )}
         >
-          · {count}
+          <Icon className="size-4" strokeWidth={2} />
         </span>
-      )}
-    </button>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">{sectionLabel}</h2>
+        {openCount > 0 && (
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+              accent === "accent" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary",
+            )}
+          >
+            {openCount} open
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <SlideTabs
+          ariaLabel={`${sectionLabel} filter`}
+          value={filter}
+          options={FILTER_TABS}
+          onChange={onFilter}
+          tabWidthClass="w-[88px]"
+        />
+        <button
+          type="button"
+          onClick={onRefresh}
+          aria-label="Refresh queue"
+          className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+        >
+          <RefreshCw className={cn("size-4", loading && "animate-spin")} strokeWidth={2} />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -401,7 +322,7 @@ function FilterPill({
 
 function PanicList({ queue, onChanged }: { queue: Queue<PanicAlert>; onChanged: () => void }) {
   if (queue.state === "loading") {
-    return <QueueSkeleton rows={2} tone="accent" />;
+    return <QueueSkeleton rows={2} />;
   }
   if (queue.state === "error") {
     return <QueueErrorCard onRetry={onChanged} />;
@@ -410,15 +331,15 @@ function PanicList({ queue, onChanged }: { queue: Queue<PanicAlert>; onChanged: 
     return (
       <EmptyQueue
         accent="success"
-        headline="Quiet shift."
+        headline="Quiet shift"
         body="No active panic alerts."
-        icon={<CheckCircle2 className="size-6 text-success" strokeWidth={2} />}
+        icon={CheckCircle2}
       />
     );
   }
 
   return (
-    <ul className="space-y-4">
+    <ul className="space-y-3">
       {queue.list.map((alert) => (
         <li key={alert.id}>
           <PanicCard alert={alert} onChanged={onChanged} isOpenTab={queue.filter === "open"} />
@@ -462,7 +383,7 @@ function PanicCard({
       toast.success(`Acknowledged · alert #${alert.id}`);
       onChanged();
     } catch (err) {
-      setErrorMsg(extractError(err, "Couldn’t acknowledge — try again."));
+      setErrorMsg(extractError(err, "Couldn't acknowledge — try again."));
       setPhase("idle");
     }
   }
@@ -477,7 +398,7 @@ function PanicCard({
       setNote("");
       onChanged();
     } catch (err) {
-      setErrorMsg(extractError(err, "Couldn’t resolve — try again."));
+      setErrorMsg(extractError(err, "Couldn't resolve — try again."));
       setPhase("idle");
     }
   }
@@ -487,166 +408,144 @@ function PanicCard({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-card transition-colors",
-        isActive && "border-accent/50 bg-accent/[0.03]",
-        !isActive && !isResolved && "border-accent/30",
-        isResolved && "border-border/60",
+        "rounded-xl border bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-colors",
+        isActive ? "border-accent/40 bg-accent/[0.03]" : "border-border",
       )}
     >
-      {/* Ambient pulse on active alerts */}
-      {isActive && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_15%_10%,theme(colors.accent/0.12),transparent_60%)]"
-        />
+      {/* Header */}
+      <div className="flex items-start gap-3.5">
+        <span
+          className={cn(
+            "grid size-10 shrink-0 place-items-center rounded-lg",
+            isResolved ? "bg-success/10 text-success" : "bg-accent/10 text-accent",
+          )}
+        >
+          <Siren className="size-5" strokeWidth={2} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <h3 className="text-base font-semibold tracking-tight text-foreground">
+              {caregiverName}
+            </h3>
+            <PanicStatusPill status={alert.status} />
+            {alert.silent ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border">
+                <VolumeX className="size-3" strokeWidth={2.25} />
+                Silent
+              </span>
+            ) : isActive ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border">
+                <Volume2 className="size-3" strokeWidth={2.25} />
+                Audible
+              </span>
+            ) : null}
+          </div>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 tabular-nums">
+              <Clock className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
+              {triggered.toLocaleString("en-CA", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+            <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+            <span className="font-medium tabular-nums text-muted-foreground/70">
+              Booking #{String(alert.booking_id).padStart(5, "0")}
+            </span>
+            <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+            {hasGps ? (
+              <span className="inline-flex items-center gap-1 tabular-nums text-success">
+                <MapPin className="size-3.5" strokeWidth={2} />
+                {(alert.gps_lat ?? 0).toFixed(4)}, {(alert.gps_lng ?? 0).toFixed(4)}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
+                GPS denied
+              </span>
+            )}
+          </div>
+        </div>
+
+        <Link
+          href={`/admin/bookings/${alert.booking_id}`}
+          className="shrink-0 text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+        >
+          View booking ↗
+        </Link>
+      </div>
+
+      {alert.resolution_note && (
+        <div className="mt-4 border-t border-border/60 pt-4">
+          <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Resolution note
+          </p>
+          <p className="rounded-lg border border-success/25 bg-success/[0.05] px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+            {alert.resolution_note}
+          </p>
+        </div>
       )}
 
-      {/* Perforated left edge — ticket-stub vocab */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-      />
+      {errorMsg && <InlineError message={errorMsg} />}
 
-      <div className="p-5 pl-9 sm:p-6 sm:pl-11">
-        {/* Header row */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <p className="font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase tabular-nums">
-                {triggered.toLocaleDateString("en-CA", {
-                  month: "short",
-                  day: "numeric",
-                })}
-                {" · "}
-                <span className="text-foreground/80">
-                  {triggered.toLocaleTimeString("en-CA", {
+      {isOpenTab && !isResolved && (
+        <div className="mt-4 border-t border-border/60 pt-4">
+          {!showResolveNote ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {isActive && (
+                <Button
+                  onClick={runAcknowledge}
+                  disabled={busy}
+                  size="sm"
+                  className="cursor-pointer bg-accent text-accent-foreground hover:bg-accent/90"
+                >
+                  {phase === "acknowledging" ? (
+                    <span className="size-3.5 animate-spin rounded-full border-2 border-accent-foreground/40 border-t-accent-foreground" />
+                  ) : (
+                    <BookmarkCheck className="size-3.5" strokeWidth={2.25} />
+                  )}
+                  Acknowledge
+                </Button>
+              )}
+              <Button
+                onClick={() => setShowResolveNote(true)}
+                disabled={busy}
+                size="sm"
+                variant="outline"
+                className="cursor-pointer"
+              >
+                <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
+                Resolve
+              </Button>
+              {alert.acknowledged_at && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  Ack&rsquo;d{" "}
+                  {new Date(alert.acknowledged_at).toLocaleTimeString("en-CA", {
                     hour: "numeric",
                     minute: "2-digit",
                   })}
                 </span>
-              </p>
-              <PanicStatusPill status={alert.status} />
-              {alert.silent && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 font-mono text-[9px] tracking-[0.18em] uppercase">
-                  <VolumeX className="size-2.5" strokeWidth={2.25} />
-                  Silent
-                </span>
-              )}
-              {!alert.silent && isActive && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted/40 px-2 py-0.5 font-mono text-[9px] tracking-[0.18em] text-muted-foreground uppercase">
-                  <Volume2 className="size-2.5" strokeWidth={2.25} />
-                  Audible
-                </span>
               )}
             </div>
-
-            <h3 className="mt-2 text-xl font-semibold tracking-tight">{caregiverName}</h3>
-            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-              <span className="font-mono tabular-nums">
-                Booking #{String(alert.booking_id).padStart(5, "0")}
-              </span>
-              <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-              {hasGps ? (
-                <span className="inline-flex items-center gap-1 text-success">
-                  <MapPin className="size-3" strokeWidth={2} />
-                  <span className="font-mono tracking-[0.12em] normal-case text-success/90 tabular-nums">
-                    {(alert.gps_lat ?? 0).toFixed(4)}, {(alert.gps_lng ?? 0).toFixed(4)}
-                  </span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-muted-foreground">
-                  <MapPin className="size-3" strokeWidth={2} />
-                  GPS denied
-                </span>
-              )}
-            </p>
-          </div>
-
-          <Link
-            href={`/bookings/${alert.booking_id}`}
-            className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase underline-offset-4 transition-colors hover:text-primary hover:underline"
-          >
-            View booking ↗
-          </Link>
+          ) : (
+            <ResolveNoteForm
+              busy={phase === "resolving"}
+              note={note}
+              onNoteChange={setNote}
+              onConfirm={runResolve}
+              onCancel={() => {
+                setShowResolveNote(false);
+                setNote("");
+                setErrorMsg(null);
+              }}
+            />
+          )}
         </div>
-
-        {/* Resolution note on resolved alerts */}
-        {alert.resolution_note && (
-          <div className="mt-5 border-t border-dashed border-border/60 pt-4">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Resolution note
-            </p>
-            <blockquote className="mt-2 border-l-2 border-success/40 pl-3 text-sm leading-relaxed text-foreground/85 italic">
-              &ldquo;{alert.resolution_note}&rdquo;
-            </blockquote>
-          </div>
-        )}
-
-        {/* Inline error */}
-        {errorMsg && (
-          <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-            <p className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              {errorMsg}
-            </p>
-          </div>
-        )}
-
-        {/* Action bar — only on Open tab */}
-        {isOpenTab && !isResolved && (
-          <div className="mt-5 border-t border-dashed border-border/60 pt-4">
-            {!showResolveNote ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {isActive && (
-                  <Button
-                    onClick={runAcknowledge}
-                    disabled={busy}
-                    size="sm"
-                    className="bg-accent text-accent-foreground hover:bg-accent/90"
-                  >
-                    {phase === "acknowledging" ? (
-                      <span className="size-3.5 animate-spin rounded-full border-2 border-accent-foreground/40 border-t-accent-foreground" />
-                    ) : (
-                      <BookmarkCheck className="size-3.5" strokeWidth={2.25} />
-                    )}
-                    Acknowledge
-                  </Button>
-                )}
-                <Button
-                  onClick={() => setShowResolveNote(true)}
-                  disabled={busy}
-                  size="sm"
-                  variant="outline"
-                >
-                  <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
-                  Resolve
-                </Button>
-                {alert.acknowledged_at && (
-                  <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase tabular-nums">
-                    Ack&rsquo;d{" "}
-                    {new Date(alert.acknowledged_at).toLocaleTimeString("en-CA", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <ResolveNoteForm
-                busy={phase === "resolving"}
-                note={note}
-                onNoteChange={setNote}
-                onConfirm={runResolve}
-                onCancel={() => {
-                  setShowResolveNote(false);
-                  setNote("");
-                  setErrorMsg(null);
-                }}
-              />
-            )}
-          </div>
-        )}
-      </div>
+      )}
     </article>
   );
 }
@@ -654,7 +553,7 @@ function PanicCard({
 function PanicStatusPill({ status }: { status: PanicAlertStatus }) {
   if (status === "active") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-accent/50 bg-accent/10 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-accent uppercase">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent ring-1 ring-accent/20">
         <span className="relative flex size-1.5 items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-accent/70" />
           <span className="relative size-1.5 rounded-full bg-accent" />
@@ -665,15 +564,15 @@ function PanicStatusPill({ status }: { status: PanicAlertStatus }) {
   }
   if (status === "acknowledged") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-primary uppercase">
-        <BookmarkCheck className="size-2.5" strokeWidth={2.25} />
+      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+        <BookmarkCheck className="size-3" strokeWidth={2.25} />
         {panicStatusLabel(status)}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-success uppercase">
-      <CheckCircle2 className="size-2.5" strokeWidth={2.25} />
+    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+      <CheckCircle2 className="size-3" strokeWidth={2.25} />
       {panicStatusLabel(status)}
     </span>
   );
@@ -691,7 +590,7 @@ function IncidentList({
   onChanged: () => void;
 }) {
   if (queue.state === "loading") {
-    return <QueueSkeleton rows={3} tone="primary" />;
+    return <QueueSkeleton rows={3} />;
   }
   if (queue.state === "error") {
     return <QueueErrorCard onRetry={onChanged} />;
@@ -700,15 +599,15 @@ function IncidentList({
     return (
       <EmptyQueue
         accent="primary"
-        headline="Good days happen."
+        headline="Good days happen"
         body="No open incidents."
-        icon={<Sparkles className="size-6 text-primary" strokeWidth={2} />}
+        icon={Sparkles}
       />
     );
   }
 
   return (
-    <ul className="space-y-4">
+    <ul className="space-y-3">
       {queue.list.map((incident) => (
         <li key={incident.id}>
           <IncidentCard
@@ -750,6 +649,7 @@ function IncidentCard({
   const created = new Date(incident.created_at);
   const canAct = isOpenTab && (incident.status === "open" || incident.status === "investigating");
   const descriptionNeedsExpand = incident.description.length > 180;
+  const isCritical = incident.severity === "critical";
 
   async function runAssign() {
     if (!adminUserId) {
@@ -763,7 +663,7 @@ function IncidentCard({
       toast.success(`Assigned · incident #${incident.id}`);
       onChanged();
     } catch (err) {
-      setErrorMsg(extractError(err, "Couldn’t assign — try again."));
+      setErrorMsg(extractError(err, "Couldn't assign — try again."));
       setPhase("idle");
     }
   }
@@ -783,7 +683,7 @@ function IncidentCard({
       setErrorMsg(
         extractError(
           err,
-          action === "resolve" ? "Couldn’t resolve — try again." : "Couldn’t dismiss — try again.",
+          action === "resolve" ? "Couldn't resolve — try again." : "Couldn't dismiss — try again.",
         ),
       );
       setPhase("idle");
@@ -795,196 +695,180 @@ function IncidentCard({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-card transition-colors",
-        incident.severity === "critical" && "border-accent/50 bg-accent/[0.03]",
-        incident.severity !== "critical" && "border-border/60",
+        "rounded-xl border bg-card p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-colors",
+        isCritical ? "border-accent/40 bg-accent/[0.03]" : "border-border",
       )}
     >
-      {/* Critical shine */}
-      {incident.severity === "critical" && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_0%_0%,theme(colors.accent/0.12),transparent_55%)]"
-        />
-      )}
-
-      {/* Perforated left edge */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.25)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-      />
-
-      <div className="p-5 pl-9 sm:p-6 sm:pl-11">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <SeverityPill severity={incident.severity} />
-              <IncidentStatusPill status={incident.status} />
-              <span className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase tabular-nums">
-                {incidentTypeLabel(incident.type)}
-              </span>
-            </div>
-
-            <h3 className="mt-2 text-xl font-semibold tracking-tight">Filed by {reporterName}</h3>
-            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-              <span className="font-mono tabular-nums">
-                Booking #{String(incident.booking_id).padStart(5, "0")}
-              </span>
-              <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-              <span className="inline-flex items-center gap-1">
-                <Clock className="size-3" strokeWidth={2} />
-                <span className="font-mono normal-case tracking-[0.12em] tabular-nums">
-                  {created.toLocaleDateString("en-CA", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                  {" · "}
-                  {created.toLocaleTimeString("en-CA", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </span>
-              {incident.assigned_to && (
-                <>
-                  <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-                  <span className="inline-flex items-center gap-1 text-primary">
-                    <UserCheck className="size-3" strokeWidth={2} />
-                    <span className="font-mono normal-case tracking-[0.12em] tabular-nums">
-                      Assigned · admin #{incident.assigned_to}
-                    </span>
-                  </span>
-                </>
-              )}
-            </p>
-          </div>
-
-          <Link
-            href={`/bookings/${incident.booking_id}`}
-            className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase underline-offset-4 transition-colors hover:text-primary hover:underline"
-          >
-            View booking ↗
-          </Link>
-        </div>
-
-        {/* Description */}
-        <div className="mt-4 border-t border-dashed border-border/60 pt-4">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            What happened
-          </p>
-          <p
-            className={cn(
-              "mt-2 text-[14px] leading-relaxed text-foreground/85",
-              !expanded && descriptionNeedsExpand && "line-clamp-2",
-            )}
-          >
-            {incident.description}
-          </p>
-          {descriptionNeedsExpand && (
-            <button
-              type="button"
-              onClick={() => setExpanded((e) => !e)}
-              className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase transition-colors hover:text-foreground"
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="size-3" strokeWidth={2} />
-                  Collapse
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="size-3" strokeWidth={2} />
-                  Read more
-                </>
-              )}
-            </button>
+      <div className="flex items-start gap-3.5">
+        <span
+          className={cn(
+            "grid size-10 shrink-0 place-items-center rounded-lg",
+            isCritical ? "bg-accent/15 text-accent" : "bg-primary/10 text-primary",
           )}
-        </div>
+        >
+          {isCritical ? (
+            <AlertOctagon className="size-5" strokeWidth={2} />
+          ) : (
+            <ShieldAlert className="size-5" strokeWidth={2} />
+          )}
+        </span>
 
-        {/* Resolution note */}
-        {incident.resolution_note && (
-          <div className="mt-4 border-t border-dashed border-border/60 pt-4">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-              Resolution note
-            </p>
-            <blockquote className="mt-2 border-l-2 border-success/40 pl-3 text-sm leading-relaxed text-foreground/85 italic">
-              &ldquo;{incident.resolution_note}&rdquo;
-            </blockquote>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <h3 className="text-base font-semibold tracking-tight text-foreground">
+              Filed by {reporterName}
+            </h3>
+            <SeverityPill severity={incident.severity} />
+            <IncidentStatusPill status={incident.status} />
+            <span className="text-xs font-medium text-muted-foreground capitalize">
+              {incidentTypeLabel(incident.type)}
+            </span>
           </div>
-        )}
 
-        {errorMsg && (
-          <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-            <p className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              {errorMsg}
-            </p>
-          </div>
-        )}
-
-        {canAct && (
-          <div className="mt-5 border-t border-dashed border-border/60 pt-4">
-            {noteMode === null ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {!incident.assigned_to ? (
-                  <Button onClick={runAssign} disabled={busy} size="sm">
-                    {phase === "assigning" ? (
-                      <span className="size-3.5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-                    ) : (
-                      <UserCheck className="size-3.5" strokeWidth={2.25} />
-                    )}
-                    Assign to me
-                  </Button>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-primary uppercase tabular-nums">
-                    <UserCheck className="size-3" strokeWidth={2.25} />
-                    Assigned · admin #{incident.assigned_to}
-                  </span>
-                )}
-                <Button
-                  onClick={() => setNoteMode("resolve")}
-                  disabled={busy}
-                  size="sm"
-                  variant="outline"
-                >
-                  <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
-                  Resolve
-                </Button>
-                <Button
-                  onClick={() => setNoteMode("dismiss")}
-                  disabled={busy}
-                  size="sm"
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <UserMinus className="size-3.5" strokeWidth={2.25} />
-                  Dismiss
-                </Button>
-              </div>
-            ) : (
-              <NoteAction
-                title={noteMode === "resolve" ? "Resolve this report" : "Dismiss this report"}
-                description={
-                  noteMode === "resolve"
-                    ? "Leave a note for the audit trail — what was done."
-                    : "Explain why this report doesn’t warrant further action."
-                }
-                ctaLabel={noteMode === "resolve" ? "Confirm resolve" : "Confirm dismiss"}
-                destructive={noteMode === "dismiss"}
-                busy={phase === "resolving" || phase === "dismissing"}
-                note={note}
-                onNoteChange={setNote}
-                onConfirm={() => void runNoteAction(noteMode)}
-                onCancel={() => {
-                  setNoteMode(null);
-                  setNote("");
-                  setErrorMsg(null);
-                }}
-              />
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+            <span className="font-medium tabular-nums text-muted-foreground/70">
+              Booking #{String(incident.booking_id).padStart(5, "0")}
+            </span>
+            <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+            <span className="inline-flex items-center gap-1.5 tabular-nums">
+              <Clock className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
+              {created.toLocaleString("en-CA", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+            {incident.assigned_to && (
+              <>
+                <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
+                <span className="inline-flex items-center gap-1 tabular-nums text-primary">
+                  <UserCheck className="size-3.5" strokeWidth={2} />
+                  admin #{incident.assigned_to}
+                </span>
+              </>
             )}
           </div>
+        </div>
+
+        <Link
+          href={`/admin/bookings/${incident.booking_id}`}
+          className="shrink-0 text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+        >
+          View booking ↗
+        </Link>
+      </div>
+
+      {/* Description */}
+      <div className="mt-4 border-t border-border/60 pt-4">
+        <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          What happened
+        </p>
+        <p
+          className={cn(
+            "text-sm leading-relaxed text-foreground/85",
+            !expanded && descriptionNeedsExpand && "line-clamp-2",
+          )}
+        >
+          {incident.description}
+        </p>
+        {descriptionNeedsExpand && (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="mt-2 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="size-3.5" strokeWidth={2} />
+                Collapse
+              </>
+            ) : (
+              <>
+                <ChevronDown className="size-3.5" strokeWidth={2} />
+                Read more
+              </>
+            )}
+          </button>
         )}
       </div>
+
+      {incident.resolution_note && (
+        <div className="mt-4 border-t border-border/60 pt-4">
+          <p className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Resolution note
+          </p>
+          <p className="rounded-lg border border-success/25 bg-success/[0.05] px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+            {incident.resolution_note}
+          </p>
+        </div>
+      )}
+
+      {errorMsg && <InlineError message={errorMsg} />}
+
+      {canAct && (
+        <div className="mt-4 border-t border-border/60 pt-4">
+          {noteMode === null ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {!incident.assigned_to ? (
+                <Button onClick={runAssign} disabled={busy} size="sm" className="cursor-pointer">
+                  {phase === "assigning" ? (
+                    <span className="size-3.5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                  ) : (
+                    <UserCheck className="size-3.5" strokeWidth={2.25} />
+                  )}
+                  Assign to me
+                </Button>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary tabular-nums">
+                  <UserCheck className="size-3" strokeWidth={2.25} />
+                  Assigned · admin #{incident.assigned_to}
+                </span>
+              )}
+              <Button
+                onClick={() => setNoteMode("resolve")}
+                disabled={busy}
+                size="sm"
+                variant="outline"
+                className="cursor-pointer"
+              >
+                <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
+                Resolve
+              </Button>
+              <Button
+                onClick={() => setNoteMode("dismiss")}
+                disabled={busy}
+                size="sm"
+                variant="ghost"
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <UserMinus className="size-3.5" strokeWidth={2.25} />
+                Dismiss
+              </Button>
+            </div>
+          ) : (
+            <NoteAction
+              title={noteMode === "resolve" ? "Resolve this report" : "Dismiss this report"}
+              description={
+                noteMode === "resolve"
+                  ? "Leave a note for the audit trail — what was done."
+                  : "Explain why this report doesn't warrant further action."
+              }
+              ctaLabel={noteMode === "resolve" ? "Confirm resolve" : "Confirm dismiss"}
+              destructive={noteMode === "dismiss"}
+              busy={phase === "resolving" || phase === "dismissing"}
+              note={note}
+              onNoteChange={setNote}
+              onConfirm={() => void runNoteAction(noteMode)}
+              onCancel={() => {
+                setNoteMode(null);
+                setNote("");
+                setErrorMsg(null);
+              }}
+            />
+          )}
+        </div>
+      )}
     </article>
   );
 }
@@ -992,7 +876,7 @@ function IncidentCard({
 function IncidentStatusPill({ status }: { status: IncidentStatus }) {
   const toneMap: Record<IncidentStatus, { cls: string; icon: React.ReactNode }> = {
     open: {
-      cls: "border-accent/40 bg-accent/10 text-accent",
+      cls: "bg-accent/10 text-accent",
       icon: (
         <span className="relative flex size-1.5 items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-accent/60" />
@@ -1001,23 +885,23 @@ function IncidentStatusPill({ status }: { status: IncidentStatus }) {
       ),
     },
     investigating: {
-      cls: "border-primary/30 bg-primary/10 text-primary",
-      icon: <AlertOctagon className="size-2.5" strokeWidth={2.25} />,
+      cls: "bg-primary/10 text-primary",
+      icon: <AlertOctagon className="size-3" strokeWidth={2.25} />,
     },
     resolved: {
-      cls: "border-success/30 bg-success/10 text-success",
-      icon: <CheckCircle2 className="size-2.5" strokeWidth={2.25} />,
+      cls: "bg-success/10 text-success",
+      icon: <CheckCircle2 className="size-3" strokeWidth={2.25} />,
     },
     dismissed: {
-      cls: "border-border/60 bg-muted/40 text-muted-foreground",
-      icon: <X className="size-2.5" strokeWidth={2.25} />,
+      cls: "bg-muted text-muted-foreground ring-1 ring-border",
+      icon: <X className="size-3" strokeWidth={2.25} />,
     },
   };
   const tone = toneMap[status];
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase",
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
         tone.cls,
       )}
     >
@@ -1029,16 +913,15 @@ function IncidentStatusPill({ status }: { status: IncidentStatus }) {
 
 function SeverityPill({ severity }: { severity: IncidentSeverity }) {
   const variants: Record<IncidentSeverity, string> = {
-    low: "border-border/60 bg-muted/60 text-muted-foreground",
-    medium: "border-primary/30 bg-primary/10 text-primary",
-    high: "border-accent/40 bg-accent/10 text-accent",
-    critical:
-      "border-accent bg-accent text-accent-foreground shadow-[0_2px_10px_-4px_theme(colors.accent/0.6)]",
+    low: "bg-muted text-muted-foreground ring-1 ring-border",
+    medium: "bg-primary/10 text-primary",
+    high: "bg-accent/10 text-accent",
+    critical: "bg-accent text-accent-foreground",
   };
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-mono text-[10px] tracking-[0.22em] uppercase",
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
         variants[severity],
       )}
     >
@@ -1049,8 +932,20 @@ function SeverityPill({ severity }: { severity: IncidentSeverity }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Inline note forms
+ * Inline note forms + error
  * ───────────────────────────────────────────────────────────── */
+
+function InlineError({ message }: { message: string }) {
+  return (
+    <p className="mt-4 flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/[0.05] p-3 text-sm text-accent">
+      <AlertCircle className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+      {message}
+    </p>
+  );
+}
+
+const NOTE_TEXTAREA_CLASS =
+  "w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring focus:ring-2 focus:ring-ring/50 disabled:opacity-60";
 
 function ResolveNoteForm({
   busy,
@@ -1066,8 +961,8 @@ function ResolveNoteForm({
   onCancel: () => void;
 }) {
   return (
-    <div className="space-y-3 rounded-xl border border-dashed border-border/70 bg-background/40 p-4">
-      <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+      <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         Resolution note — optional
       </p>
       <textarea
@@ -1077,17 +972,23 @@ function ResolveNoteForm({
         maxLength={2000}
         disabled={busy}
         placeholder="What was done, who was contacted, outcome."
-        className="w-full resize-none rounded-lg border border-border/60 bg-background px-3 py-2 text-sm leading-relaxed outline-none ring-success/30 transition-shadow focus:ring-2 disabled:opacity-60"
+        className={NOTE_TEXTAREA_CLASS}
       />
       <div className="flex items-center justify-end gap-2">
-        <Button onClick={onCancel} disabled={busy} variant="ghost" size="sm">
+        <Button
+          onClick={onCancel}
+          disabled={busy}
+          variant="ghost"
+          size="sm"
+          className="cursor-pointer"
+        >
           Cancel
         </Button>
         <Button
           onClick={onConfirm}
           disabled={busy}
           size="sm"
-          className="bg-success text-success-foreground hover:bg-success/90"
+          className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
         >
           {busy ? (
             <span className="size-3.5 animate-spin rounded-full border-2 border-success-foreground/40 border-t-success-foreground" />
@@ -1123,10 +1024,10 @@ function NoteAction({
   onCancel: () => void;
 }) {
   return (
-    <div className="space-y-3 rounded-xl border border-dashed border-border/70 bg-background/40 p-4">
+    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
       <div>
-        <p className="text-sm font-semibold tracking-tight">{title}</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{description}</p>
+        <p className="text-sm font-semibold tracking-tight text-foreground">{title}</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{description}</p>
       </div>
       <textarea
         value={note}
@@ -1135,10 +1036,16 @@ function NoteAction({
         maxLength={2000}
         disabled={busy}
         placeholder="Note for the audit trail."
-        className="w-full resize-none rounded-lg border border-border/60 bg-background px-3 py-2 text-sm leading-relaxed outline-none ring-primary/30 transition-shadow focus:ring-2 disabled:opacity-60"
+        className={NOTE_TEXTAREA_CLASS}
       />
       <div className="flex items-center justify-end gap-2">
-        <Button onClick={onCancel} disabled={busy} variant="ghost" size="sm">
+        <Button
+          onClick={onCancel}
+          disabled={busy}
+          variant="ghost"
+          size="sm"
+          className="cursor-pointer"
+        >
           Cancel
         </Button>
         <Button
@@ -1146,7 +1053,10 @@ function NoteAction({
           disabled={busy}
           size="sm"
           variant={destructive ? "outline" : "default"}
-          className={cn(destructive && "text-muted-foreground hover:text-foreground")}
+          className={cn(
+            "cursor-pointer",
+            destructive && "text-muted-foreground hover:text-foreground",
+          )}
         >
           {busy ? (
             <span
@@ -1177,63 +1087,44 @@ function EmptyQueue({
   accent,
   headline,
   body,
-  icon,
+  icon: Icon,
 }: {
   accent: "success" | "primary";
   headline: string;
   body: string;
-  icon: React.ReactNode;
+  icon: typeof CheckCircle2;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-3xl border-2 border-dashed bg-card/50 p-8 text-center sm:p-10",
-        accent === "success" ? "border-success/30" : "border-primary/30",
-      )}
-    >
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
       <span
         className={cn(
-          "mx-auto grid size-14 place-items-center rounded-2xl ring-1",
-          accent === "success" ? "bg-success/10 ring-success/25" : "bg-primary/10 ring-primary/25",
+          "grid size-14 place-items-center rounded-2xl",
+          accent === "success" ? "bg-success/10 text-success" : "bg-primary/10 text-primary",
         )}
       >
-        {icon}
+        <Icon className="size-7" strokeWidth={1.75} />
       </span>
-      <h3 className="mt-5 text-2xl font-semibold tracking-tight">
-        <span className={cn("italic", accent === "success" ? "text-success" : "text-primary")}>
-          {headline}
-        </span>
-      </h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-    </section>
+      <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">{headline}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+    </div>
   );
 }
 
-function QueueSkeleton({ rows, tone }: { rows: number; tone: "accent" | "primary" }) {
+function QueueSkeleton({ rows }: { rows: number }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
           aria-busy="true"
-          className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-5 pl-9 sm:p-6 sm:pl-11"
+          className="flex items-start gap-3.5 rounded-xl border border-border bg-card p-5"
         >
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.15)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-          />
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-            <div
-              className={cn(
-                "h-3 w-16 animate-pulse rounded-full",
-                tone === "accent" ? "bg-accent/20" : "bg-primary/20",
-              )}
-            />
+          <div className="size-10 shrink-0 animate-pulse rounded-lg bg-muted" />
+          <div className="flex-1 space-y-2.5">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted/70" />
+            <div className="h-3 w-full animate-pulse rounded bg-muted/70" />
           </div>
-          <div className="mt-3 h-5 w-52 animate-pulse rounded bg-muted" />
-          <div className="mt-4 h-3 w-full animate-pulse rounded bg-muted/70" />
-          <div className="mt-2 h-3 w-11/12 animate-pulse rounded bg-muted/70" />
         </div>
       ))}
     </div>
@@ -1242,21 +1133,21 @@ function QueueSkeleton({ rows, tone }: { rows: number; tone: "accent" | "primary
 
 function QueueErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <section className="rounded-3xl border border-accent/30 bg-accent/[0.03] p-6">
-      <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={2} />
-        <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-semibold tracking-tight">Couldn&rsquo;t load the queue.</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            A hiccup on our end. Try again in a moment.
-          </p>
-          <Button onClick={onRetry} variant="outline" size="sm" className="mt-4">
-            <RefreshCw className="size-3.5" strokeWidth={2} />
-            Retry
-          </Button>
-        </div>
-      </div>
-    </section>
+    <div className="flex flex-col items-center rounded-xl border border-accent/30 bg-accent/[0.04] px-6 py-10 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">
+        <AlertCircle className="size-6" strokeWidth={1.75} />
+      </span>
+      <h3 className="mt-3 text-base font-semibold tracking-tight text-foreground">
+        Couldn&rsquo;t load the queue.
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        A hiccup on our end. Try again in a moment.
+      </p>
+      <Button onClick={onRetry} variant="outline" size="sm" className="mt-4 cursor-pointer">
+        <RefreshCw className="size-3.5" strokeWidth={2} />
+        Retry
+      </Button>
+    </div>
   );
 }
 
