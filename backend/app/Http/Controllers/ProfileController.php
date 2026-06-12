@@ -111,13 +111,20 @@ class ProfileController extends Controller
 
         $path = $request->file('photo')->store('avatars', 'public');
 
+        // Auto-approve on upload. The full admin-moderation workflow
+        // (review queue, approve/reject UI, rejection-reason notifications)
+        // isn't worth building before we have meaningful caregiver volume
+        // — we'll catch bad photos reactively via the Report mechanism on
+        // family-facing surfaces. The schema keeps a `photo_status` column
+        // so we can tighten back to pre-moderation by flipping this string
+        // back to 'pending_review' once the admin tooling lands.
         $profile->update([
             'photo_path' => $path,
-            'photo_status' => 'pending_review',
+            'photo_status' => 'approved',
         ]);
 
         return response()->json([
-            'message' => 'Photo uploaded. Pending review.',
+            'message' => 'Photo updated.',
             'photo_url' => Storage::disk('public')->url($path),
         ]);
     }

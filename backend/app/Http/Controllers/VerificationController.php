@@ -104,9 +104,13 @@ class VerificationController extends Controller
                 if ($contents !== null) {
                     $publicPath = 'avatars/'.$user->id.'-'.uniqid('selfie-', true).'.'.$file->getClientOriginalExtension();
                     Storage::disk('public')->put($publicPath, $contents);
+                    // Auto-approve — mirrors ProfileController::uploadPhoto.
+                    // The verification selfie has already cleared review when
+                    // identity verification clears, so there's no value in a
+                    // second moderation hop just for the public mirror.
                     $profile->update([
                         'photo_path' => $publicPath,
-                        'photo_status' => 'pending_review',
+                        'photo_status' => 'approved',
                     ]);
                 }
             }
