@@ -5,12 +5,14 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
-  ArrowRight,
   CreditCard,
+  Lock,
+  type LucideIcon,
   Plus,
-  Sparkles,
+  ShieldCheck,
   Star,
   Trash2,
+  Wallet,
   X,
 } from "lucide-react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
@@ -103,42 +105,29 @@ function PaymentMethodsView() {
   }, []);
 
   return (
-    <div className="relative">
-      {/* Paper wash — same vocabulary as /bookings/[id] */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-background to-background" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.3] mix-blend-multiply"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0 0.2  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
-        }}
-      />
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <Link
+        href="/settings"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to settings
+      </Link>
 
-      <div className="mx-auto max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-        <Link
-          href="/settings"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back to settings
-        </Link>
+      <Header />
 
-        <Header />
-
-        <div className="mt-10 space-y-6">
-          {state === "loading" && <LoadingList />}
-          {state === "error" && <ErrorCard onRetry={reload} />}
-          {state === "ready" && setupPending && <StripeSetupPendingCard />}
-          {state === "ready" && !setupPending && (
-            <ConfiguredView
-              methods={methods}
-              onChanged={reload}
-              adding={adding}
-              setAdding={setAdding}
-            />
-          )}
-        </div>
+      <div className="mt-6 space-y-6">
+        {state === "loading" && <LoadingCard />}
+        {state === "error" && <ErrorCard onRetry={reload} />}
+        {state === "ready" && setupPending && <StripeSetupPendingCard />}
+        {state === "ready" && !setupPending && (
+          <ConfiguredView
+            methods={methods}
+            onChanged={reload}
+            adding={adding}
+            setAdding={setAdding}
+          />
+        )}
       </div>
     </div>
   );
@@ -151,15 +140,84 @@ function PaymentMethodsView() {
 function Header() {
   return (
     <header>
-      <h1 className="text-2xl font-semibold leading-[1.15] tracking-tight sm:text-3xl">
-        <span className="font-normal italic text-primary">How we&rsquo;ll charge you.</span>
+      <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+        Payment methods
       </h1>
-
-      <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         One card on file is all we need. You won&rsquo;t be charged until a visit ends — until then,
-        we hold an authorization that releases automatically if anything changes.
+        we hold an authorization that releases automatically if anything changes. Your card details
+        stay with Stripe; we only ever see the last four digits.
       </p>
     </header>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Shared card shell — mirrors the Payouts page so the "warming up"
+ * state feels consistent across settings.
+ * ───────────────────────────────────────────────────────────── */
+
+const TONES = {
+  primary: {
+    tile: "bg-primary/10 text-primary ring-primary/20",
+    band: "from-primary/[0.06]",
+    pill: "bg-primary/10 text-primary ring-primary/20",
+  },
+} as const;
+
+function StateCard({
+  tone,
+  icon: Icon,
+  title,
+  subtitle,
+  status,
+  children,
+}: {
+  tone: keyof typeof TONES;
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  status: string;
+  children: React.ReactNode;
+}) {
+  const t = TONES[tone];
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-3 border-b border-border bg-gradient-to-br to-transparent px-6 py-4 sm:px-8",
+          t.band,
+        )}
+      >
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl ring-1", t.tile)}>
+          <Icon className="size-5" strokeWidth={2} />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        <span
+          className={cn(
+            "ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
+            t.pill,
+          )}
+        >
+          {status}
+        </span>
+      </div>
+      <div className="px-6 py-6 sm:px-8">{children}</div>
+    </section>
+  );
+}
+
+function FeatureRow({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-3">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <span className="pt-0.5 text-sm leading-relaxed text-foreground/90">{children}</span>
+    </li>
   );
 }
 
@@ -167,82 +225,40 @@ function Header() {
  * State A — Stripe setup pending
  *   Frontend missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY OR backend
  *   reporting stripe_configured=false. We explain clearly, promise
- *   nothing will break, and show what the page will become.
+ *   nothing will break, and preview what the page will become.
  * ───────────────────────────────────────────────────────────── */
 
 function StripeSetupPendingCard() {
   return (
-    <section
-      aria-label="Stripe setup pending"
-      className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.05] via-card to-card p-6 sm:p-10"
+    <StateCard
+      tone="primary"
+      icon={CreditCard}
+      title="Card payments are warming up"
+      subtitle="Stripe isn't live in this environment yet"
+      status="Coming soon"
     >
-      {/* Paper-corner stamp */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-6 -right-6 size-24 rotate-12 rounded-full bg-primary/[0.04] blur-2xl"
-      />
+      <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+        Bookings still work during this window — the platform runs a stub payment channel, so nothing
+        is blocked. The moment Stripe is live, this page becomes your card wallet and we&rsquo;ll
+        charge the card you save here.
+      </p>
 
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="relative shrink-0">
-          <span className="relative grid size-16 -rotate-[6deg] place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-            <CreditCard className="size-7" strokeWidth={1.75} />
-            <span className="absolute -right-2 -bottom-2 grid size-6 place-items-center rounded-full bg-background text-primary ring-1 ring-primary/25">
-              <Sparkles className="size-3" strokeWidth={2} />
-            </span>
-          </span>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-            <span className="h-px w-6 bg-foreground/30" />
-            Still warming up
-          </div>
-
-          <h2 className="mt-3 text-2xl leading-[1.1] font-semibold tracking-tight">
-            Card payments <span className="italic text-primary">land soon.</span>
-          </h2>
-
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            We&rsquo;re setting up Stripe for real card capture. Bookings still work during this
-            window — the platform is running a stub payment channel, so nothing is blocked. The
-            moment Stripe is live, this page becomes your card wallet.
-          </p>
-
-          <div className="my-7 border-t-2 border-dashed border-primary/20" />
-
-          <p className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
-            What goes here, once it&rsquo;s ready
-          </p>
-
-          <ul className="mt-4 space-y-3 text-sm">
-            <Bullet>
-              Attach a card, Apple Pay, or Google Pay — whatever your phone already knows.
-            </Bullet>
-            <Bullet>
-              The rate you see at booking is the rate you pay. No drip-pricing, no surprise add-ons.
-            </Bullet>
-            <Bullet>
-              We authorize on the caregiver&rsquo;s accept, capture only when the visit ends. Short
-              visits pro-rate automatically.
-            </Bullet>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Bullet({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span
-        aria-hidden
-        className="mt-[0.3rem] grid size-4 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
-      >
-        <ArrowRight className="size-2.5" strokeWidth={2.25} />
-      </span>
-      <span className="leading-relaxed text-foreground/85">{children}</span>
-    </li>
+      <p className="mt-6 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        What goes here, once it&rsquo;s ready
+      </p>
+      <ul className="mt-3 space-y-2.5">
+        <FeatureRow icon={Wallet}>
+          Attach a card, Apple Pay, or Google Pay — whatever your phone already knows.
+        </FeatureRow>
+        <FeatureRow icon={ShieldCheck}>
+          The rate you see at booking is the rate you pay. No drip-pricing, no surprise add-ons.
+        </FeatureRow>
+        <FeatureRow icon={Lock}>
+          We authorize on the caregiver&rsquo;s accept and capture only when the visit ends — short
+          visits pro-rate automatically.
+        </FeatureRow>
+      </ul>
+    </StateCard>
   );
 }
 
@@ -748,27 +764,25 @@ function SavedCardRow({ pm, onChanged }: { pm: PaymentMethod; onChanged: () => P
  * transition from loading to ready doesn't jolt layout.
  * ───────────────────────────────────────────────────────────── */
 
-function LoadingList() {
+function LoadingCard() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card px-5 py-4">
-        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-        <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
-      </div>
-      {[0, 1].map((i) => (
-        <div
-          key={i}
-          className="relative rounded-2xl border border-border/60 bg-card p-5 pl-9 sm:p-6 sm:pl-11"
-        >
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-4 bottom-4 left-3 w-px bg-[radial-gradient(circle_at_50%_6px,theme(colors.foreground/0.15)_1px,transparent_1.5px)] bg-[length:100%_12px]"
-          />
-          <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-          <div className="mt-3 h-7 w-40 animate-pulse rounded bg-muted" />
-          <div className="mt-2 h-3 w-28 animate-pulse rounded bg-muted" />
+    <div
+      aria-busy="true"
+      className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+    >
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4 sm:px-8">
+        <div className="size-10 shrink-0 animate-pulse rounded-xl bg-muted" />
+        <div className="space-y-2">
+          <div className="h-4 w-44 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-56 animate-pulse rounded bg-muted/70" />
         </div>
-      ))}
+      </div>
+      <div className="space-y-3 px-6 py-6 sm:px-8">
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-muted/70" />
+        <div className="mt-2 h-14 w-full animate-pulse rounded-xl bg-muted/50" />
+        <div className="h-14 w-full animate-pulse rounded-xl bg-muted/50" />
+      </div>
     </div>
   );
 }
@@ -781,12 +795,16 @@ function ErrorCard({ onRetry }: { onRetry: () => Promise<void> }) {
   return (
     <section
       aria-label="Error loading payment methods"
-      className="rounded-3xl border border-accent/30 bg-accent/[0.03] p-6 sm:p-8"
+      className="rounded-2xl border border-destructive/30 bg-destructive/[0.04] p-6 shadow-sm sm:p-8"
     >
       <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={2} />
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive">
+          <AlertCircle className="size-5" strokeWidth={2} />
+        </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold tracking-tight">Couldn&rsquo;t load your cards.</h2>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
+            Couldn&rsquo;t load your cards.
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             A hiccup on our end, most likely. Try again in a moment.
           </p>
