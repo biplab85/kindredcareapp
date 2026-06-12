@@ -34,7 +34,7 @@ class PanicTriggered extends Notification
             ->subject("🚨 PANIC: {$caregiver} needs help NOW")
             ->greeting("Panic alert from {$caregiver}")
             ->line('Booking #'.str_pad((string) $a->booking_id, 5, '0', STR_PAD_LEFT))
-            ->line('Triggered at '.$a->triggered_at->format('Y-m-d H:i:s'));
+            ->line('Triggered at '.$a->triggered_at->copy()->setTimezone(config('app.display_timezone'))->format('Y-m-d H:i:s'));
 
         if ($a->gps_lat !== null && $a->gps_lng !== null) {
             $msg->line("GPS: {$a->gps_lat}, {$a->gps_lng}");
