@@ -34,6 +34,16 @@ export interface GigCaregiverSummary {
   languages: string[];
   /** Whole `availability` JSON column — null/missing = always available. */
   availability: { weekly?: AvailabilityWeekly } | null;
+  /** True only when ALL four background checks have cleared. */
+  is_verified: boolean;
+  /** Per-check public slice — drives the verification breakdown chips. */
+  verification_checks: Array<{
+    check_type: "identity" | "cpic" | "aml" | "reference";
+    status: "not_started" | "pending_review" | "cleared" | "flagged" | "rejected";
+    reviewed_at: string | null;
+  }>;
+  /** Visible-review summary. `average` is null when there are no reviews. */
+  rating: { average: number | null; count: number };
 }
 
 export interface Gig {

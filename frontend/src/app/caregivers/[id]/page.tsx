@@ -38,6 +38,14 @@ import {
 import api from "@/lib/api";
 import { type Gig, listGigsByCaregiver } from "@/lib/gigs";
 import { getUserReviews, type Review } from "@/lib/reviews";
+import {
+  type VerificationCheck,
+  VerificationBreakdown,
+} from "@/components/caregiver/verification-breakdown";
+import {
+  type TrustComponents,
+  TrustScoreBreakdown,
+} from "@/components/caregiver/trust-score-breakdown";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────
@@ -87,6 +95,13 @@ interface CaregiverData {
   caregiver_profile: CaregiverProfile;
 }
 
+interface TrustState {
+  score: number | null;
+  components: TrustComponents | null;
+  isNew: boolean;
+  verificationChecks: VerificationCheck[];
+}
+
 interface ReviewsState {
   list: Review[];
   count: number;
@@ -131,6 +146,12 @@ function ProfileView({ caregiverId }: { caregiverId: string }) {
   const [phase, setPhase] = useState<LoadPhase>("loading");
   const [caregiver, setCaregiver] = useState<CaregiverData | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [trust, setTrust] = useState<TrustState>({
+    score: null,
+    components: null,
+    isNew: true,
+    verificationChecks: [],
+  });
   const [reviews, setReviews] = useState<ReviewsState>({
     list: [],
     count: 0,
@@ -146,6 +167,16 @@ function ProfileView({ caregiverId }: { caregiverId: string }) {
         const data: CaregiverData = res.data.caregiver;
         setCaregiver(data);
         setIsVerified(res.data.is_verified ?? false);
+        // The trust score, component breakdown, and per-check verification
+        // status come back at the TOP LEVEL of the response, not nested on
+        // the caregiver record. The hero used to read `caregiver.trust_score`
+        // which was always undefined — surfacing them here fixes that.
+        setTrust({
+          score: res.data.trust_score ?? null,
+          components: res.data.trust_components ?? null,
+          isNew: res.data.trust_is_new ?? true,
+          verificationChecks: res.data.verification_checks ?? [],
+        });
 
         try {
           const reviewsRes = await getUserReviews(data.id);
@@ -182,7 +213,12 @@ function ProfileView({ caregiverId }: { caregiverId: string }) {
       {phase === "loading" && <LoadingScreen />}
       {phase === "error" && <ErrorScreen />}
       {phase === "ready" && caregiver && (
-        <ProfileBody caregiver={caregiver} isVerified={isVerified} reviews={reviews} />
+        <ProfileBody
+          caregiver={caregiver}
+          isVerified={isVerified}
+          reviews={reviews}
+          trust={trust}
+        />
       )}
     </div>
   );
@@ -196,10 +232,12 @@ function ProfileBody({
   caregiver,
   isVerified,
   reviews,
+  trust,
 }: {
   caregiver: CaregiverData;
   isVerified: boolean;
   reviews: ReviewsState;
+  trust: TrustState;
 }) {
   const { caregiver_profile: profile } = caregiver;
   const firstName = caregiver.name.split(/\s+/)[0] ?? caregiver.name;
@@ -211,10 +249,19 @@ function ProfileBody({
         profile={profile}
         isVerified={isVerified}
         reviews={reviews}
+        trustScore={trust.score}
+        trustIsNew={trust.isNew}
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:items-start">
         <div className="space-y-6">
+          {/* Background-check breakdown — placed high in the main column so
+              families see exactly what was screened before reading the bio,
+              services, or reviews. Falls back gracefully if the API didn't
+              return any records (e.g. a profile that pre-dates the wiring). */}
+          {trust.verificationChecks.length > 0 && (
+            <VerificationBreakdown checks={trust.verificationChecks} variant="card" />
+          )}
           {profile.bio && <AboutBlock bio={profile.bio} firstName={firstName} />}
           <GigsBlock caregiverUserId={caregiver.id} firstName={firstName} />
           {profile.services.length > 0 && <ServicesBlock services={profile.services} />}
@@ -226,6 +273,13 @@ function ProfileBody({
 
         <aside className="space-y-6 lg:sticky lg:top-24">
           <FactsBlock caregiver={caregiver} profile={profile} />
+          {/* Trust score component breakdown sits in the sidebar next to the
+              composite stat tile in the hero — answers "why this score" for
+              families who care to look. Hidden if the backend didn't return
+              components (shouldn't happen for fully-onboarded caregivers). */}
+          {trust.components && (
+            <TrustComponentsCard components={trust.components} isNew={trust.isNew} />
+          )}
           {(profile.languages?.length ?? 0) > 0 && (
             <LanguagesBlock languages={profile.languages ?? []} />
           )}
@@ -242,6 +296,32 @@ function ProfileBody({
   );
 }
 
+function TrustComponentsCard({
+  components,
+  isNew,
+}: {
+  components: TrustComponents;
+  isNew: boolean;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+      <div className="flex min-h-14 items-center gap-2 border-b border-border px-5">
+        <ShieldCheck className="size-4 text-primary" strokeWidth={2} />
+        <h2 className="text-base font-semibold tracking-tight">Trust score breakdown</h2>
+      </div>
+      <div className="px-5 py-4">
+        {isNew && (
+          <p className="mb-3 rounded-lg bg-accent/5 px-3 py-2 text-[11px] leading-relaxed text-accent ring-1 ring-accent/15">
+            New caregiver — review and reliability scores stay neutral until at least three visits
+            have been completed.
+          </p>
+        )}
+        <TrustScoreBreakdown components={components} />
+      </div>
+    </section>
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────
  * Hero — cover, avatar, identity, and the key-stat strip
  * ───────────────────────────────────────────────────────────── */
@@ -251,15 +331,23 @@ function ProfileHero({
   profile,
   isVerified,
   reviews,
+  trustScore,
+  trustIsNew,
 }: {
   caregiver: CaregiverData;
   profile: CaregiverProfile;
   isVerified: boolean;
   reviews: ReviewsState;
+  trustScore: number | null;
+  trustIsNew: boolean;
 }) {
-  const isNew = reviews.count < 3;
-  const score = caregiver.trust_score ?? null;
-  const hasScore = score !== null && score !== undefined;
+  // For "new" caregivers (fewer than 3 reviews) we suppress the composite
+  // trust score because review-component neutrality artificially inflates
+  // it. Verification still scores meaningfully on its own and stays visible
+  // in the sidebar breakdown card.
+  const isNew = trustIsNew;
+  const hasScore = trustScore !== null && !isNew;
+  const score = trustScore;
   const average = reviews.average;
 
   return (
