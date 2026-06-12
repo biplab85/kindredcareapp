@@ -20,6 +20,7 @@ import {
   Eye,
   UserRound,
   MoreVertical,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -383,15 +384,37 @@ function GigCard({ gig }: { gig: Gig }) {
                     {initials}
                   </span>
                 )}
-                <span className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-card">
-                  <ShieldCheck className="size-4 text-success" strokeWidth={2.25} />
-                </span>
+                {/* Avatar shield only when ALL four checks are cleared. The
+                    prior version showed it unconditionally, which lied on
+                    partially-verified profiles. */}
+                {gig.caregiver.is_verified && (
+                  <span
+                    className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-card"
+                    title="Fully verified"
+                  >
+                    <ShieldCheck className="size-4 text-success" strokeWidth={2.25} />
+                  </span>
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">
                   {gig.caregiver.display_name}
                 </p>
-                <p className="text-xs text-muted-foreground">Verified caregiver</p>
+                <p className="flex items-center gap-x-2 text-xs text-muted-foreground">
+                  <span>{gig.caregiver.is_verified ? "Verified caregiver" : "Pending verification"}</span>
+                  {gig.caregiver.rating && gig.caregiver.rating.average !== null && (
+                    <span className="inline-flex items-center gap-0.5 font-semibold text-foreground">
+                      <Star
+                        className="size-3 fill-accent text-accent"
+                        strokeWidth={0}
+                      />
+                      {gig.caregiver.rating.average.toFixed(1)}
+                      <span className="font-medium text-muted-foreground">
+                        ({gig.caregiver.rating.count})
+                      </span>
+                    </span>
+                  )}
+                </p>
               </div>
               <ArrowRight className="size-4 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
             </Link>

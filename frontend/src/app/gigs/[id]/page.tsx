@@ -20,11 +20,13 @@ import {
   Languages,
   UserRound,
   Pencil,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/layouts";
+import { VerificationBreakdown } from "@/components/caregiver/verification-breakdown";
 import { getGig, type Gig } from "@/lib/gigs";
 import { useAuthStore } from "@/lib/auth";
 
@@ -200,24 +202,51 @@ function GigDetailView({ gigId }: { gigId: number }) {
                       {initials}
                     </span>
                   )}
-                  <span className="absolute right-0.5 bottom-0.5 grid size-7 place-items-center rounded-full bg-success text-white ring-2 ring-card">
-                    <ShieldCheck className="size-4" strokeWidth={2.5} />
-                  </span>
+                  {/* Only stamp the avatar shield when the caregiver has
+                      actually cleared all four background checks. The
+                      previous overlay was hard-coded on every gig and
+                      misled families on partially-verified profiles. */}
+                  {gig.caregiver?.is_verified && (
+                    <span
+                      className="absolute right-0.5 bottom-0.5 grid size-7 place-items-center rounded-full bg-success text-white ring-2 ring-card"
+                      title="Fully verified"
+                    >
+                      <ShieldCheck className="size-4" strokeWidth={2.5} />
+                    </span>
+                  )}
                 </div>
 
                 <div className="min-w-0 flex-1 pb-1">
                   <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
                     {gig.caregiver?.display_name ?? "Caregiver"}
                   </h2>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success ring-1 ring-success/30">
-                      <ShieldCheck className="size-3" strokeWidth={2.5} />
-                      Verified
-                    </span>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                     <span className="text-xs font-medium text-muted-foreground">
                       {gig.caregiver?.years_of_experience ?? 0} yrs experience
                     </span>
+                    {gig.caregiver?.rating && gig.caregiver.rating.average !== null && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+                        <Star
+                          className="size-3.5 fill-accent text-accent"
+                          strokeWidth={0}
+                        />
+                        {gig.caregiver.rating.average.toFixed(1)}
+                        <span className="font-medium text-muted-foreground">
+                          ({gig.caregiver.rating.count})
+                        </span>
+                      </span>
+                    )}
                   </div>
+                  {/* Slim 4-chip breakdown — replaces the prior hard-coded
+                      "Verified" text pill with the actual per-check state. */}
+                  {gig.caregiver?.verification_checks &&
+                    gig.caregiver.verification_checks.length > 0 && (
+                      <VerificationBreakdown
+                        checks={gig.caregiver.verification_checks}
+                        variant="slim"
+                        className="mt-2"
+                      />
+                    )}
                 </div>
               </div>
 
