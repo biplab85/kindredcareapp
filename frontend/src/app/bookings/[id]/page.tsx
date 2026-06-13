@@ -83,6 +83,10 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
   const role = user?.role as "family" | "caregiver" | "admin" | undefined;
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<"notfound" | "generic" | null>(null);
+  // Lifted out of FloatingMessages so the inline "Messages" button in
+  // PartyBlock can open the same floating panel — single source of
+  // truth for whether the chat is open.
+  const [messagesOpen, setMessagesOpen] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -163,7 +167,11 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
             </div>
             <FamilyConfirmBlock booking={booking} role={role} onChanged={reload} />
             <RatingPromptBlock booking={booking} />
-            <PartyBlock booking={booking} role={role} />
+            <PartyBlock
+              booking={booking}
+              role={role}
+              onOpenMessages={() => setMessagesOpen(true)}
+            />
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24">
@@ -172,7 +180,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
         </div>
       </div>
 
-      <FloatingMessages bookingId={booking.id} />
+      <FloatingMessages bookingId={booking.id} open={messagesOpen} setOpen={setMessagesOpen} />
     </>
   );
 }
@@ -183,9 +191,15 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
  * The inline Messages card stays exactly where it is.
  * ───────────────────────────────────────────────────────────── */
 
-function FloatingMessages({ bookingId }: { bookingId: number }) {
-  const [open, setOpen] = useState(false);
-
+function FloatingMessages({
+  bookingId,
+  open,
+  setOpen,
+}: {
+  bookingId: number;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   return (
     <>
       {open && (
@@ -196,7 +210,7 @@ function FloatingMessages({ bookingId }: { bookingId: number }) {
 
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-label={open ? "Close messages" : "Open messages"}
         aria-expanded={open}
         className="fixed right-4 bottom-6 z-50 grid size-12 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-100 sm:right-6"
@@ -1081,10 +1095,17 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
   const defaultTasks = booking.gig?.service_category?.default_tasks ?? [];
 
   return (
-    <section
-      aria-label="Visit in progress"
-      className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
-    >
+    <>
+      {/* Both parties need the safety escalation during an active visit.
+          The caregiver-side branches above already render PanicButton;
+          the family had no equivalent — so a family seeing something
+          alarming had no in-app way to summon admin. */}
+      <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+
+      <section
+        aria-label="Visit in progress"
+        className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
+      >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="relative flex size-2.5 items-center justify-center">
@@ -1132,7 +1153,8 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
           </ul>
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -1313,7 +1335,15 @@ function FlagPill({ reasons }: { reasons: VisitFlagReason[] }) {
  * Party block (caregiver card / family card)
  * ───────────────────────────────────────────────────────────── */
 
-function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
+function PartyBlock({
+  booking,
+  role,
+  onOpenMessages,
+}: {
+  booking: Booking;
+  role: string;
+  onOpenMessages: () => void;
+}) {
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* Card header */}
@@ -1383,15 +1413,11 @@ function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
       <div className="border-t border-border bg-muted/30 px-6 py-4 sm:px-8">
         <button
           type="button"
-          disabled
-          title="Messaging arrives in Phase 10"
-          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground"
+          onClick={onOpenMessages}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.04] hover:text-primary"
         >
           <MessageCircle className="size-4" />
           Messages
-          <span className="ml-1 text-[9px] font-semibold tracking-wide uppercase opacity-70">
-            soon
-          </span>
         </button>
       </div>
     </section>
