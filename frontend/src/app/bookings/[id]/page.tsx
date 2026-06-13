@@ -1081,10 +1081,17 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
   const defaultTasks = booking.gig?.service_category?.default_tasks ?? [];
 
   return (
-    <section
-      aria-label="Visit in progress"
-      className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
-    >
+    <>
+      {/* Both parties need the safety escalation during an active visit.
+          The caregiver-side branches above already render PanicButton;
+          the family had no equivalent — so a family seeing something
+          alarming had no in-app way to summon admin. */}
+      <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+
+      <section
+        aria-label="Visit in progress"
+        className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
+      >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="relative flex size-2.5 items-center justify-center">
@@ -1132,7 +1139,8 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
           </ul>
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 }
 
