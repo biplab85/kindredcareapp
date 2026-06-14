@@ -257,6 +257,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::patch('/panic-alerts/{panicAlert}/acknowledge', [PanicAlertController::class, 'acknowledge']);
     Route::patch('/panic-alerts/{panicAlert}/resolve', [PanicAlertController::class, 'resolve']);
 
+    Route::patch(
+        '/arrival-reports/{arrivalReport}/resolve',
+        [App\Http\Controllers\Admin\ArrivalReportController::class, 'resolve'],
+    );
+
     Route::get('/analytics', [AnalyticsController::class, 'index']);
     Route::get('/revenue', [RevenueController::class, 'index']);
 
