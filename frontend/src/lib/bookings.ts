@@ -217,6 +217,42 @@ export async function confirmBooking(id: number): Promise<Booking> {
   return res.data.data;
 }
 
+/** Mirror of BookingDispute::REASON_CODES on the backend. */
+export type DisputeReasonCode =
+  | "no_show"
+  | "late_arrival"
+  | "early_leave"
+  | "scope_creep"
+  | "property_damage"
+  | "theft"
+  | "safety"
+  | "quality"
+  | "fraud"
+  | "other";
+
+export interface DisputeRecord {
+  id: number;
+  booking_id: number;
+  reason_code: DisputeReasonCode;
+  description: string;
+  status: string;
+  created_at: string | null;
+}
+
+export async function openDispute(
+  bookingId: number,
+  payload: { reason_code: DisputeReasonCode; description: string },
+): Promise<DisputeRecord> {
+  const res = await api.post<{ data: DisputeRecord }>(
+    `/api/bookings/${bookingId}/dispute`,
+    payload,
+  );
+  return res.data.data;
+}
+
+/** Hours from check-out during which the family can open a dispute. */
+export const DISPUTE_WINDOW_HOURS = 48;
+
 /**
  * Promise wrapper around navigator.geolocation. Resolves with lat/lng on
  * success; rejects with a human-readable reason when the user denies
