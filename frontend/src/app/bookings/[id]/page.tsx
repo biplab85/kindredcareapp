@@ -35,6 +35,7 @@ import { IncidentReportTrigger } from "@/components/bookings/incident-form";
 import { MessagesBlock } from "@/components/bookings/messages-block";
 import { ArrivalReportCard } from "@/components/bookings/arrival-report-card";
 import { CaregiverArrivalResponseCard } from "@/components/bookings/caregiver-arrival-response-card";
+import { DisputeForm } from "@/components/bookings/dispute-form";
 import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
@@ -46,6 +47,7 @@ import {
   checkOutBooking,
   confirmBooking,
   declineBooking,
+  DISPUTE_WINDOW_HOURS,
   flagReasonLabel,
   formatCents,
   formatHours,
@@ -1721,6 +1723,7 @@ function FamilyConfirmBlock({
 }) {
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   if (role !== "family") return null;
   if (booking.status !== "completed") return null;
@@ -1744,6 +1747,21 @@ function FamilyConfirmBlock({
     } finally {
       setBusy(false);
     }
+  }
+
+  // When the family taps "Report a problem" we swap this block for the
+  // dispute form — same column slot, no modal, scrolls into view.
+  if (reporting && !isConfirmed) {
+    return (
+      <DisputeForm
+        bookingId={booking.id}
+        onCancel={() => setReporting(false)}
+        onFiled={() => {
+          setReporting(false);
+          onChanged();
+        }}
+      />
+    );
   }
 
   return (
@@ -1786,7 +1804,18 @@ function FamilyConfirmBlock({
                 waiting on the 24-hour hold. You still have 48 hours to open a dispute either way.
               </p>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  onClick={() => setReporting(true)}
+                  disabled={busy}
+                  variant="ghost"
+                  size="sm"
+                  className="cursor-pointer text-muted-foreground hover:bg-accent/[0.06] hover:text-accent"
+                >
+                  <AlertCircle className="size-3.5" strokeWidth={2.25} />
+                  Report a problem
+                </Button>
                 <Button
                   type="button"
                   onClick={handleConfirm}
@@ -1795,12 +1824,14 @@ function FamilyConfirmBlock({
                   className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
                 >
                   <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
-                  {busy ? "Confirming…" : "Yes, this visit happened as described"}
+                  {busy ? "Confirming…" : "Confirm visit"}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Optional · skip and the payout still releases at the 24 h mark
-                </p>
               </div>
+
+              <DisputeWindowCountdown
+                checkOutAt={booking.visit.check_out_at}
+                className="mt-3"
+              />
 
               {errorMsg !== null && (
                 <p
@@ -1815,6 +1846,41 @@ function FamilyConfirmBlock({
         </div>
       </div>
     </section>
+  );
+}
+
+function DisputeWindowCountdown({
+  checkOutAt,
+  className,
+}: {
+  checkOutAt: string | null;
+  className?: string;
+}) {
+  // Snapshot now once — the 48h window is precise to the minute, not the
+  // millisecond, and a live tick would need useSyncExternalStore per
+  // CLAUDE.md. The page already reloads on common state changes.
+  const [nowMs] = useState(() => Date.now());
+
+  if (!checkOutAt) return null;
+  const deadline = new Date(checkOutAt).getTime() + DISPUTE_WINDOW_HOURS * 60 * 60 * 1000;
+  const remainingMs = deadline - nowMs;
+  if (remainingMs <= 0) return null;
+
+  const remainingMinutes = Math.floor(remainingMs / 60_000);
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  const label = hours >= 1 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+  return (
+    <p
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60",
+        className,
+      )}
+    >
+      <Clock className="size-3" strokeWidth={2} />
+      {label} left to confirm or report
+    </p>
   );
 }
 
