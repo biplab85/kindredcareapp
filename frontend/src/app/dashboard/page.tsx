@@ -412,9 +412,10 @@ function CaregiverDashboard() {
               <MetricTile
                 label="Earned this month"
                 value={formatCents(stats.monthCents)}
-                hint="After the 7.5% platform fee."
+                hint="Includes pending — see breakdown."
                 icon={DollarSign}
                 tone="success"
+                href="/caregiver/earnings"
               />
             </div>
 

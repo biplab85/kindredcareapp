@@ -43,8 +43,11 @@ export type PayoutStatus = "pending" | "released" | "held";
 
 export interface EarningsTotals {
   lifetime_cents: number;
+  lifetime_released_cents: number;
   this_month_cents: number;
+  this_month_released_cents: number;
   this_year_cents: number;
+  this_year_released_cents: number;
   pending_cents: number;
 }
 
