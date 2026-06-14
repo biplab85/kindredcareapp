@@ -33,6 +33,7 @@ import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
 import { IncidentReportTrigger } from "@/components/bookings/incident-form";
 import { MessagesBlock } from "@/components/bookings/messages-block";
+import { ArrivalReportCard } from "@/components/bookings/arrival-report-card";
 import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
@@ -687,6 +688,17 @@ function VisitBlock({
 }) {
   const { status } = booking;
   const isCaregiver = role === "caregiver";
+  const isFamily = role === "family";
+
+  // Family-side "Caregiver hasn't arrived" surfaces only after the
+  // scheduled start has passed AND the caregiver still hasn't checked
+  // in. Snapshot now at mount — React 19 rejects Date.now() in render
+  // bodies, and second-precision drift over a single visit doesn't
+  // matter for this soft UI gate.
+  const [nowMs] = useState(() => Date.now());
+  const scheduledStartMs = new Date(booking.scheduled_start).getTime();
+  const arrivalWindowOpen =
+    status === "confirmed" && !booking.visit.check_in_at && nowMs > scheduledStartMs;
 
   if (status === "confirmed" && isCaregiver) {
     return (
@@ -711,7 +723,21 @@ function VisitBlock({
   }
 
   if (status === "in_progress" && role === "family") {
-    return <VisitInProgressWatch booking={booking} />;
+    return (
+      <>
+        <VisitInProgressWatch booking={booking} />
+        {/* Family-side arrival report for the in-progress dispute case:
+            caregiver checked in (GPS recorded) but family says they're
+            not actually at the address. Admin gets paged with the GPS
+            evidence inline. */}
+        <ArrivalReportCard bookingId={booking.id} reason="not_at_site_despite_checkin" />
+      </>
+    );
+  }
+
+  // Confirmed + family + past start + no check-in → "caregiver hasn't arrived"
+  if (isFamily && arrivalWindowOpen) {
+    return <ArrivalReportCard bookingId={booking.id} reason="not_yet_arrived" />;
   }
 
   if (status === "completed") {
