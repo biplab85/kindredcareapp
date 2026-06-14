@@ -93,7 +93,7 @@ export default function TermsOfServicePage() {
                 caregiver&apos;s gross.
               </li>
               <li>
-                Payment is captured at check-out via Stripe. Caregiver payouts are released 24 hours
+                Payment is captured at check-out via Stripe. Caregiver payouts are released 48 hours
                 later (held longer if a dispute is filed).
               </li>
               <li>

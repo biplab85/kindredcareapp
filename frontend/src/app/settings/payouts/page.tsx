@@ -110,7 +110,7 @@ function PayoutsView() {
       <header>
         <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Payouts</h1>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          We hold each visit&rsquo;s payment for 24 hours after the visit ends, then transfer your
+          We hold each visit&rsquo;s payment for 48 hours after the visit ends, then transfer your
           share directly to your bank through Stripe. Your info stays with Stripe — we only see
           whether payouts are enabled.
         </p>
@@ -243,7 +243,7 @@ function StripePendingCard() {
           Connect your bank directly through Stripe — it takes about five minutes.
         </FeatureRow>
         <FeatureRow icon={Banknote}>
-          Every visit pays out 24 hours after it ends, minus the 7.5% platform fee.
+          Every visit pays out 48 hours after it ends, minus the 7.5% platform fee.
         </FeatureRow>
         <FeatureRow icon={FileCheck}>
           Your earnings history, year-to-date totals, and T4A-ready statements live here too.
@@ -445,7 +445,7 @@ function EnabledCard({ status }: { status: ConnectStatus }) {
       status="Active"
     >
       <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-        Every completed visit pays out 24 hours after it ends. Stripe takes care of the rest —
+        Every completed visit pays out 48 hours after it ends. Stripe takes care of the rest —
         expect each transfer in your bank a business day or two later.
       </p>
 
