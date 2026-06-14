@@ -46,23 +46,37 @@ class EarningsController extends Controller
         $yearStart = $now->copy()->startOfYear();
 
         $lifetime = 0;
+        $lifetimeReleased = 0;
         $thisMonth = 0;
+        $thisMonthReleased = 0;
         $thisYear = 0;
+        $thisYearReleased = 0;
         $pending = 0;
         $history = [];
 
         foreach ($bookings as $booking) {
             $payout = $booking->caregiver_payout_cents;
+            $status = $this->payoutStatus($booking);
+            $isReleased = $status === 'released';
+
             $lifetime += $payout;
+            if ($isReleased) {
+                $lifetimeReleased += $payout;
+            }
 
             if ($booking->check_out_at && $booking->check_out_at->greaterThanOrEqualTo($monthStart)) {
                 $thisMonth += $payout;
+                if ($isReleased) {
+                    $thisMonthReleased += $payout;
+                }
             }
             if ($booking->check_out_at && $booking->check_out_at->greaterThanOrEqualTo($yearStart)) {
                 $thisYear += $payout;
+                if ($isReleased) {
+                    $thisYearReleased += $payout;
+                }
             }
 
-            $status = $this->payoutStatus($booking);
             if ($status === 'pending' || $status === 'held') {
                 $pending += $payout;
             }
@@ -83,9 +97,17 @@ class EarningsController extends Controller
         return response()->json([
             'data' => [
                 'totals' => [
+                    // "Earned" totals include pending — they're the dollar value
+                    // of completed visits that haven't been disputed/refunded.
+                    // "Released" totals are what actually transferred to the
+                    // caregiver's Connect account. Frontend renders both so the
+                    // caregiver isn't surprised by what's still in escrow.
                     'lifetime_cents' => $lifetime,
+                    'lifetime_released_cents' => $lifetimeReleased,
                     'this_month_cents' => $thisMonth,
+                    'this_month_released_cents' => $thisMonthReleased,
                     'this_year_cents' => $thisYear,
+                    'this_year_released_cents' => $thisYearReleased,
                     'pending_cents' => $pending,
                 ],
                 'history' => $history,

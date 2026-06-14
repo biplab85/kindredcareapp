@@ -125,28 +125,28 @@ function StatGrid({ totals }: { totals: EarningsTotals }) {
     <section aria-label="Totals">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <Stat
-          label="Pending"
+          label="Pending payout"
           value={formatCents(totals.pending_cents)}
-          hint="awaiting transfer"
+          hint="in 48h escrow — not yet in your bank"
           icon={Wallet}
           emphasized
         />
         <Stat
-          label="This month"
+          label="Earned this month"
           value={formatCents(totals.this_month_cents)}
-          hint={monthLabel()}
+          hint={`${formatCents(totals.this_month_released_cents)} paid out · ${monthLabel()}`}
           icon={CalendarDays}
         />
         <Stat
-          label="This year"
+          label="Earned this year"
           value={formatCents(totals.this_year_cents)}
-          hint={String(new Date().getFullYear())}
+          hint={`${formatCents(totals.this_year_released_cents)} paid out · ${new Date().getFullYear()}`}
           icon={CalendarRange}
         />
         <Stat
-          label="Lifetime"
+          label="Lifetime earned"
           value={formatCents(totals.lifetime_cents)}
-          hint="since joining"
+          hint={`${formatCents(totals.lifetime_released_cents)} paid out · since joining`}
           icon={CheckCircle2}
         />
       </div>
@@ -297,13 +297,22 @@ function HistoryRow({ row }: { row: EarningsHistoryRow }) {
         </div>
 
         {/* Money column — fee-on-top so the caregiver receives the base in
-            full; the family-paid total just adds the platform's cut on top. */}
+            full; the family-paid total just adds the platform's cut on top.
+            Label flips between "Received" (released) and "You'll receive"
+            (pending) so a row never claims paid out before the cron transfer
+            actually fired. */}
         <dl className="border-t border-border/60 pt-4 sm:border-0 sm:pt-0 sm:text-right">
           <MoneyLine label="Family paid" value={formatCents(row.subtotal_cents)} muted />
           <MoneyLine label="Platform fee" value={formatCents(row.platform_fee_cents)} muted />
           <div className="mt-2 border-t border-border/60 pt-2">
             <MoneyLine
-              label="You received"
+              label={
+                row.payout_status === "released"
+                  ? "You received"
+                  : row.payout_status === "held"
+                    ? "On hold"
+                    : "You'll receive"
+              }
               value={formatCents(row.caregiver_payout_cents)}
               emphasized
             />
