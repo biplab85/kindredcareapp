@@ -110,7 +110,7 @@ function Header() {
       </h1>
       <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
         The running ledger of every visit you&rsquo;ve completed. Each payout transfers
-        automatically 24 hours after the visit ends.
+        automatically 48 hours after the visit ends.
       </p>
     </div>
   );

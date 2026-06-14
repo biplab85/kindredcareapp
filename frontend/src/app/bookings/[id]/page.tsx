@@ -589,7 +589,7 @@ function paymentStatusMessage(
       return isFamily
         ? `${total} charged to your card.`
         : isCaregiver
-          ? "Visit captured. Payout transfers after the 24-hour hold."
+          ? "Visit captured. Payout transfers after the 48-hour hold."
           : null;
 
     case "released":
@@ -1801,7 +1801,8 @@ function FamilyConfirmBlock({
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                 Confirming releases the {payout} payout to your caregiver right away instead of
-                waiting on the 24-hour hold. You still have 48 hours to open a dispute either way.
+                waiting on the 48-hour hold. You can still open a dispute within the 48-hour window
+                either way.
               </p>
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

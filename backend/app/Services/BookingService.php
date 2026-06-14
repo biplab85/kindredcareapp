@@ -290,8 +290,11 @@ class BookingService
                 'payment_status' => $captured
                     ? Booking::PAYMENT_CAPTURED
                     : Booking::PAYMENT_CAPTURED_STUB,
-                // 24-hour hold before the caregiver payout is released.
-                // The ReleasePayouts command polls this timestamp.
+                // 48-hour hold before the caregiver payout is released —
+                // matches the family's dispute window so a late dispute
+                // can't fire after Stripe has already moved money out of
+                // the platform balance. The ReleasePayouts command polls
+                // this timestamp.
                 'payout_at' => now()->addHours(Booking::PAYOUT_HOLD_HOURS),
             ]);
 
@@ -360,7 +363,8 @@ class BookingService
 
     /**
      * Family opens a dispute on a completed booking. Freezes the payment
-     * (relevant once the 24-hour payout hold from 9.2 is in place) and
+     * (relevant during the 48-hour payout hold; outside that window the
+     * money has already moved to the caregiver's Connect balance) and
      * creates the dispute row that admin will resolve.
      *
      * @param  array<int, string>  $evidencePaths
@@ -430,7 +434,7 @@ class BookingService
      *
      * Pulls payout_at forward to now() so ReleasePayouts transfers the
      * funds on its next tick (every 5 min) instead of waiting on the
-     * 24-hour auto-release. Silence is still treated as success — this
+     * 48-hour auto-release. Silence is still treated as success — this
      * is a fast-path lever, not a hard gate.
      */
     public function confirmVisit(Booking $booking, User $actor): Booking
