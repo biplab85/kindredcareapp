@@ -10,7 +10,9 @@ import {
   CalendarClock,
   CheckCheck,
   CheckCircle2,
+  Clock,
   FileText,
+  MapPinOff,
   MessageSquare,
   RefreshCw,
   ShieldCheck,
@@ -327,6 +329,8 @@ function TypeIcon({ type }: { type: NotificationType | string }) {
   if (type === "certification_rejected") return <XCircle {...props} />;
   if (type === "certification_document_submitted") return <FileText {...props} />;
   if (type === "verification_documents_submitted") return <ShieldCheck {...props} />;
+  if (type === "arrival_report_filed") return <MapPinOff {...props} />;
+  if (type === "caregiver_arrival_ping") return <Clock {...props} />;
   return <Bell {...props} />;
 }
 
@@ -335,6 +339,7 @@ function toneFor(type: NotificationType | string): "alarm" | "good" | "neutral" 
   if (type === "booking_confirmed" || type === "visit_completed") return "good";
   if (type === "certification_verified") return "good";
   if (type === "certification_rejected") return "alarm";
+  if (type === "arrival_report_filed" || type === "caregiver_arrival_ping") return "alarm";
   return "neutral";
 }
 
