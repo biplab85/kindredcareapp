@@ -213,12 +213,12 @@ export async function refundBooking(id: number, payload: RefundPayload): Promise
   return res.data.data;
 }
 
-export async function updateCheckInAt(
+export async function resetCheckIn(
   id: number,
-  payload: { check_in_at: string; reason: string },
+  payload: { reason: string },
 ): Promise<BookingCard> {
-  const res = await api.patch<{ data: BookingCard }>(
-    `/api/admin/bookings/${id}/check-in-at`,
+  const res = await api.post<{ data: BookingCard }>(
+    `/api/admin/bookings/${id}/reset-check-in`,
     payload,
   );
   return res.data.data;

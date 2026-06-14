@@ -15,7 +15,6 @@ use App\Services\StripePaymentService;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 /**
@@ -330,56 +329,57 @@ class BookingController extends Controller
     }
 
     /**
-     * Admin rewrites the GPS check-in timestamp on a booking. Used when an
-     * arrival report establishes that the recorded check_in_at lies — e.g.,
-     * caregiver tapped check-in 20 min before they actually arrived.
+     * Admin resets the check-in entirely. Used when an arrival report
+     * establishes the recorded check_in_at lies — caregiver tapped check-in
+     * 20 min before they actually arrived. Clears the GPS slot, returns the
+     * booking to `confirmed`, and the caregiver's UI shows the Start visit
+     * button again so they have to re-check-in for real.
      *
-     * The original value is captured in the audit log so the edit is
-     * fully reversible / inspectable. For active visits, computeCaptureAmount
-     * picks up the new check_in_at automatically on check-out. For
-     * completed visits, billing is already settled — admin issues a
-     * separate refund if the new duration would have produced a different
-     * capture amount.
+     * Only works on in_progress visits that haven't checked out yet. The
+     * original check_in_at + lat/lng land in the audit log for a fully
+     * reversible / inspectable trail.
      */
-    public function updateCheckInAt(Request $request, Booking $booking): JsonResponse
+    public function resetCheckIn(Request $request, Booking $booking): JsonResponse
     {
         if ($booking->check_in_at === null) {
-            return response()->json(['message' => 'This booking has no check-in to override.'], 422);
+            return response()->json(['message' => 'This booking has no check-in to reset.'], 422);
+        }
+
+        if ($booking->status !== Booking::STATUS_IN_PROGRESS) {
+            return response()->json(['message' => 'Only in-progress visits can be reset to awaiting check-in.'], 422);
+        }
+
+        if ($booking->check_out_at !== null) {
+            return response()->json(['message' => 'This visit has already checked out — reset is not allowed after check-out.'], 422);
         }
 
         $data = $request->validate([
-            'check_in_at' => ['required', 'date'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
-
-        $newCheckIn = Carbon::parse($data['check_in_at']);
-
-        // Sanity bounds: must be between scheduled_start (no earlier than
-        // the visit was supposed to start) and either check_out_at if set,
-        // or scheduled_end + a 4h buffer for visits that ran over.
-        $lowerBound = $booking->scheduled_start;
-        $upperBound = $booking->check_out_at ?? $booking->scheduled_end->copy()->addHours(4);
-
-        if ($newCheckIn->lt($lowerBound) || $newCheckIn->gt($upperBound)) {
-            return response()->json([
-                'message' => 'New check-in time must be between the scheduled start and either check-out or 4 hours after the scheduled end.',
-            ], 422);
-        }
 
         /** @var User $admin */
         $admin = $request->user();
         $oldCheckIn = $booking->check_in_at->toIso8601String();
+        $oldLat = $booking->check_in_lat;
+        $oldLng = $booking->check_in_lng;
 
-        $booking->update(['check_in_at' => $newCheckIn]);
+        $booking->update([
+            'status' => Booking::STATUS_CONFIRMED,
+            'check_in_at' => null,
+            'check_in_lat' => null,
+            'check_in_lng' => null,
+            'check_in_distance_m' => null,
+        ]);
 
         $this->auditLogger->record(
             admin: $admin,
-            action: 'booking.check_in_at_overridden',
+            action: 'booking.check_in_reset',
             targetType: AdminAuditLog::TARGET_BOOKING,
             targetId: $booking->id,
             metadata: [
                 'old_check_in_at' => $oldCheckIn,
-                'new_check_in_at' => $newCheckIn->toIso8601String(),
+                'old_check_in_lat' => $oldLat,
+                'old_check_in_lng' => $oldLng,
             ],
             reason: $data['reason'],
         );
