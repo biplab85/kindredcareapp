@@ -311,18 +311,23 @@ class BookingService
      * Releases the authorization (family isn't charged) and returns the
      * gig to open so the family can re-match.
      */
-    public function markNoShow(Booking $booking): ?Booking
+    public function markNoShow(Booking $booking, bool $forceByAdmin = false): ?Booking
     {
         if ($booking->status !== Booking::STATUS_CONFIRMED) {
             return null;
         }
 
-        $threshold = $booking->scheduled_start->copy()->addMinutes(Booking::NO_SHOW_THRESHOLD_MINUTES);
-        if (now()->lessThan($threshold)) {
-            return null;
+        // The cron's 30-min threshold protects against early triggers from
+        // a racing scheduler; admin resolving an arrival report is an
+        // explicit decision, so we let them skip it.
+        if (! $forceByAdmin) {
+            $threshold = $booking->scheduled_start->copy()->addMinutes(Booking::NO_SHOW_THRESHOLD_MINUTES);
+            if (now()->lessThan($threshold)) {
+                return null;
+            }
         }
 
-        return DB::transaction(function () use ($booking) {
+        return DB::transaction(function () use ($booking, $forceByAdmin) {
             $this->stripe->cancelAuthorization($booking);
 
             $booking->update([
@@ -332,7 +337,9 @@ class BookingService
                     : Booking::PAYMENT_RELEASED_STUB,
                 'cancelled_at' => now(),
                 'cancelled_by' => Booking::CANCELLED_BY_SYSTEM,
-                'cancellation_reason' => 'Caregiver did not check in within '.Booking::NO_SHOW_THRESHOLD_MINUTES.' minutes of the scheduled start.',
+                'cancellation_reason' => $forceByAdmin
+                    ? 'Admin confirmed no-show after family report.'
+                    : 'Caregiver did not check in within '.Booking::NO_SHOW_THRESHOLD_MINUTES.' minutes of the scheduled start.',
             ]);
 
             // No gig-status mutation under the Fiverr direction — the

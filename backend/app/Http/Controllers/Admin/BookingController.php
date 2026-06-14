@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
+use App\Models\ArrivalReport;
 use App\Models\Booking;
 use App\Models\BookingDispute;
 use App\Models\Message;
@@ -136,6 +137,11 @@ class BookingController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        $arrivalReports = ArrivalReport::query()
+            ->where('booking_id', $booking->id)
+            ->orderByDesc('created_at')
+            ->get();
+
         return response()->json([
             'data' => [
                 ...$this->card($booking),
@@ -194,6 +200,15 @@ class BookingController extends Controller
                     'ratee_user_id' => $r->ratee_user_id,
                     'stars' => $r->stars,
                     'body' => $r->body,
+                ]),
+                'arrival_reports' => $arrivalReports->map(fn (ArrivalReport $r) => [
+                    'id' => $r->id,
+                    'reason_code' => $r->reason_code,
+                    'description' => $r->description,
+                    'status' => $r->status,
+                    'admin_notes' => $r->admin_notes,
+                    'created_at' => $this->isoTimestamp($r->created_at),
+                    'resolved_at' => $this->isoTimestamp($r->resolved_at),
                 ]),
                 'disputes' => $disputes->map(fn (BookingDispute $d) => [
                     'id' => $d->id,

@@ -8,8 +8,11 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
+  Check,
+  CheckCircle2,
   ClipboardCheck,
   ClipboardList,
+  Clock,
   DollarSign,
   Eye,
   EyeOff,
@@ -18,11 +21,13 @@ import {
   type LucideIcon,
   Mail,
   MapPin,
+  MapPinOff,
   MessageSquare,
   RefreshCw,
   ShieldAlert,
   Star,
   TimerReset,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -30,6 +35,7 @@ import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
 import {
   type AdminMessage,
+  type ArrivalReportSummary,
   type BookingDetail,
   type DisputeSummary,
   formatDollars,
@@ -38,6 +44,7 @@ import {
   paymentStatusLabel,
   paymentTone,
   refundBooking,
+  resolveArrivalReport,
   statusLabel,
   type StatusTone,
   statusTone,
@@ -236,6 +243,10 @@ function Body({ data, onMutated }: { data: BookingDetail; onMutated: () => void 
       </div>
 
       <VisitEvidencePanel data={data} />
+
+      {data.arrival_reports.length > 0 && (
+        <ArrivalReportsPanel reports={data.arrival_reports} onMutated={onMutated} />
+      )}
 
       <MessagesPanel messages={data.messages} onMutated={onMutated} />
 
@@ -1136,5 +1147,227 @@ function ErrorCard({ onRetry }: { onRetry: () => void }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Arrival reports — family-side reports plus the resolve panel
+ * for any that are still open.
+ * ───────────────────────────────────────────────────────────── */
+
+function ArrivalReportsPanel({
+  reports,
+  onMutated,
+}: {
+  reports: ArrivalReportSummary[];
+  onMutated: () => void;
+}) {
+  return (
+    <Panel icon={MapPinOff} title="Arrival reports">
+      <ul className="space-y-3">
+        {reports.map((r) => (
+          <li key={r.id}>
+            <ArrivalReportRow report={r} onMutated={onMutated} />
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+function ArrivalReportRow({
+  report,
+  onMutated,
+}: {
+  report: ArrivalReportSummary;
+  onMutated: () => void;
+}) {
+  const isOpen = report.status === "open" || report.status === "acknowledged";
+  const reasonLabel =
+    report.reason_code === "not_yet_arrived"
+      ? "Caregiver hasn't arrived"
+      : "Caregiver checked in but family disputes presence";
+  const created = report.created_at ? new Date(report.created_at) : null;
+  const resolved = report.resolved_at ? new Date(report.resolved_at) : null;
+
+  return (
+    <article
+      className={cn(
+        "rounded-xl border p-4",
+        isOpen ? "border-primary/40 bg-primary/[0.03]" : "border-border/70 bg-muted/20",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Pill tone={isOpen ? "alarm" : "good"}>
+          <span className="capitalize">{report.status.replace(/_/g, " ")}</span>
+        </Pill>
+        <span className="text-xs font-semibold text-foreground/70">{reasonLabel}</span>
+      </div>
+
+      {created && (
+        <p className="mt-2 text-xs text-muted-foreground tabular-nums">
+          Filed{" "}
+          {created.toLocaleString("en-CA", {
+            timeZone: "America/Toronto",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+          {resolved &&
+            ` · resolved ${resolved.toLocaleString("en-CA", {
+              timeZone: "America/Toronto",
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })}`}
+        </p>
+      )}
+
+      {report.description && (
+        <p className="mt-3 rounded-lg bg-card/60 px-3 py-2 text-sm leading-relaxed text-foreground/85 ring-1 ring-border/60">
+          {report.description}
+        </p>
+      )}
+
+      {report.admin_notes && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground/70">Admin note:</span> {report.admin_notes}
+        </p>
+      )}
+
+      {isOpen && <ArrivalReportResolveControls reportId={report.id} onMutated={onMutated} />}
+    </article>
+  );
+}
+
+function ArrivalReportResolveControls({
+  reportId,
+  onMutated,
+}: {
+  reportId: number;
+  onMutated: () => void;
+}) {
+  const [resolution, setResolution] = useState<
+    "resolved_arrived" | "resolved_no_show" | "resolved_false_report" | null
+  >(null);
+  const [adminNotes, setAdminNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (!resolution) return;
+    setBusy(true);
+    try {
+      await resolveArrivalReport(reportId, {
+        resolution,
+        admin_notes: adminNotes.trim() || undefined,
+      });
+      const successMessage = {
+        resolved_arrived: "Marked as arrived. Visit continues.",
+        resolved_no_show: "No-show confirmed. Hold released, family notified.",
+        resolved_false_report: "Closed as false report.",
+      }[resolution];
+      toast.success(successMessage);
+      onMutated();
+    } catch {
+      toast.error("Couldn't resolve. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-3 rounded-lg border border-primary/30 bg-card/60 p-3">
+      <p className="text-[11px] font-semibold tracking-wide text-foreground uppercase">Resolve</p>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <ResolutionChip
+          icon={CheckCircle2}
+          label="Arrived"
+          hint="Caregiver showed up"
+          active={resolution === "resolved_arrived"}
+          tone="good"
+          onClick={() => setResolution("resolved_arrived")}
+        />
+        <ResolutionChip
+          icon={Clock}
+          label="No-show"
+          hint="Confirm no-show, release hold"
+          active={resolution === "resolved_no_show"}
+          tone="alarm"
+          onClick={() => setResolution("resolved_no_show")}
+        />
+        <ResolutionChip
+          icon={XCircle}
+          label="False report"
+          hint="No issue, close out"
+          active={resolution === "resolved_false_report"}
+          tone="neutral"
+          onClick={() => setResolution("resolved_false_report")}
+        />
+      </div>
+
+      <textarea
+        value={adminNotes}
+        onChange={(e) => setAdminNotes(e.target.value)}
+        rows={2}
+        maxLength={1000}
+        placeholder="Admin notes (optional) — context, who you spoke to, what they said"
+        className="w-full resize-none rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+      />
+
+      <div className="flex justify-end">
+        <Button onClick={submit} disabled={!resolution || busy} size="sm">
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          Resolve
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ResolutionChip({
+  icon: Icon,
+  label,
+  hint,
+  active,
+  tone,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  active: boolean;
+  tone: "good" | "alarm" | "neutral";
+  onClick: () => void;
+}) {
+  const activeRing =
+    tone === "good"
+      ? "border-success/50 bg-success/[0.06]"
+      : tone === "alarm"
+        ? "border-accent/50 bg-accent/[0.06]"
+        : "border-foreground/40 bg-muted/40";
+  const activeIcon =
+    tone === "good" ? "text-success" : tone === "alarm" ? "text-accent" : "text-foreground";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
+        active
+          ? activeRing
+          : "border-border/60 bg-card hover:border-foreground/30 hover:bg-muted/30",
+        "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
+      )}
+    >
+      <span className="flex items-center gap-2">
+        <Icon className={cn("size-4", active ? activeIcon : "text-muted-foreground")} />
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+      </span>
+      <span className="text-[11px] leading-relaxed text-muted-foreground">{hint}</span>
+    </button>
   );
 }

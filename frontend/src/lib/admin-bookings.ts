@@ -119,7 +119,37 @@ export interface BookingDetail extends BookingCard {
     body: string | null;
   }>;
   disputes: DisputeSummary[];
+  arrival_reports: ArrivalReportSummary[];
   messages: AdminMessage[];
+}
+
+export interface ArrivalReportSummary {
+  id: number;
+  reason_code: "not_yet_arrived" | "not_at_site_despite_checkin";
+  description: string | null;
+  status:
+    | "open"
+    | "acknowledged"
+    | "resolved_arrived"
+    | "resolved_no_show"
+    | "resolved_false_report";
+  admin_notes: string | null;
+  created_at: string | null;
+  resolved_at: string | null;
+}
+
+export async function resolveArrivalReport(
+  id: number,
+  payload: {
+    resolution: "resolved_arrived" | "resolved_no_show" | "resolved_false_report";
+    admin_notes?: string;
+  },
+): Promise<ArrivalReportSummary> {
+  const res = await api.patch<{ report: ArrivalReportSummary }>(
+    `/api/admin/arrival-reports/${id}/resolve`,
+    payload,
+  );
+  return res.data.report;
 }
 
 export interface BookingListResponse {
