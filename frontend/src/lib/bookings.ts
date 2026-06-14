@@ -73,6 +73,28 @@ export interface BookingActivePanicAlert {
   acknowledged_at: string | null;
 }
 
+export interface BookingActiveArrivalReport {
+  id: number;
+  reason_code: "not_yet_arrived" | "not_at_site_despite_checkin";
+  status: "open" | "acknowledged";
+  created_at: string | null;
+  acknowledged_at: string | null;
+  eta_at: string | null;
+  description: string | null;
+}
+
+export async function acknowledgeArrivalReport(
+  bookingId: number,
+  reportId: number,
+  payload: { eta_minutes?: number },
+): Promise<BookingActiveArrivalReport> {
+  const res = await api.patch<{ report: BookingActiveArrivalReport }>(
+    `/api/bookings/${bookingId}/arrival-reports/${reportId}/acknowledge`,
+    payload,
+  );
+  return res.data.report;
+}
+
 export interface Booking {
   id: number;
   gig_id: number;
@@ -100,6 +122,7 @@ export interface Booking {
   visit: BookingVisit;
   safety_acknowledged_at?: string | null;
   active_panic_alert?: BookingActivePanicAlert | null;
+  active_arrival_report?: BookingActiveArrivalReport | null;
   created_at: string;
   updated_at: string;
 }

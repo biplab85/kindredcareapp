@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { IncidentReportTrigger } from "@/components/bookings/incident-form";
 import { MessagesBlock } from "@/components/bookings/messages-block";
 import { ArrivalReportCard } from "@/components/bookings/arrival-report-card";
+import { CaregiverArrivalResponseCard } from "@/components/bookings/caregiver-arrival-response-card";
 import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
@@ -704,6 +705,13 @@ function VisitBlock({
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.active_arrival_report && (
+          <CaregiverArrivalResponseCard
+            bookingId={booking.id}
+            report={booking.active_arrival_report}
+            onChanged={onChanged}
+          />
+        )}
         {booking.safety_acknowledged_at ? (
           <VisitStartPanel booking={booking} onChanged={onChanged} />
         ) : (
@@ -717,6 +725,13 @@ function VisitBlock({
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.active_arrival_report && (
+          <CaregiverArrivalResponseCard
+            bookingId={booking.id}
+            report={booking.active_arrival_report}
+            onChanged={onChanged}
+          />
+        )}
         <VisitLiveLog booking={booking} onChanged={onChanged} />
       </>
     );

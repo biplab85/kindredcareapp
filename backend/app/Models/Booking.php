@@ -317,6 +317,14 @@ class Booking extends Model
         return $this->hasMany(IncidentReport::class);
     }
 
+    /**
+     * @return HasMany<ArrivalReport, $this>
+     */
+    public function arrivalReports(): HasMany
+    {
+        return $this->hasMany(ArrivalReport::class);
+    }
+
     public function isActive(): bool
     {
         return in_array($this->status, self::ACTIVE_STATUSES, true);

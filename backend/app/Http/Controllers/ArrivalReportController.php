@@ -6,6 +6,7 @@ use App\Models\ArrivalReport;
 use App\Models\Booking;
 use App\Models\User;
 use App\Notifications\ArrivalReportFiled;
+use App\Notifications\CaregiverArrivalAcknowledged;
 use App\Notifications\CaregiverArrivalPing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -95,5 +96,60 @@ class ArrivalReportController extends Controller
         });
 
         return response()->json(['report' => $report], 201);
+    }
+
+    /**
+     * Caregiver acknowledges an open arrival report — "I'm on my way" with
+     * an optional ETA, or "I'm here now" (the in-app button hits this with
+     * no eta_minutes and the frontend immediately routes them to check-in).
+     * Status moves from `open` to `acknowledged`; admin and family both get
+     * notified so the family knows the caregiver saw the report.
+     */
+    public function acknowledge(Request $request, Booking $booking, ArrivalReport $arrivalReport): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($booking->caregiver_user_id !== $user->id) {
+            return response()->json(['message' => 'Only the assigned caregiver can respond to this report.'], 403);
+        }
+
+        if ($arrivalReport->booking_id !== $booking->id) {
+            return response()->json(['message' => 'Arrival report does not belong to this booking.'], 404);
+        }
+
+        if (! in_array($arrivalReport->status, ArrivalReport::OPEN_STATUSES, true)) {
+            return response()->json(['message' => 'This arrival report is already resolved.'], 422);
+        }
+
+        $validated = $request->validate([
+            'eta_minutes' => ['nullable', 'integer', 'min:1', 'max:180'],
+        ]);
+
+        $etaMinutes = $validated['eta_minutes'] ?? null;
+        $etaAt = $etaMinutes !== null ? now()->addMinutes($etaMinutes) : null;
+
+        $arrivalReport = DB::transaction(function () use ($arrivalReport, $user, $etaAt) {
+            $arrivalReport->update([
+                'status' => ArrivalReport::STATUS_ACKNOWLEDGED,
+                'acknowledged_at' => now(),
+                'acknowledged_by' => $user->id,
+                'eta_at' => $etaAt,
+            ]);
+
+            // Soft notification to the family — caregiver saw the report
+            // and either committed to an ETA or is already at the door.
+            $family = $arrivalReport->booking->familyProfile->user;
+            $family->notify(new CaregiverArrivalAcknowledged($arrivalReport->fresh()));
+
+            // Admin gets the in-app row so the report's flow is auditable
+            // without dragging a separate email through.
+            $admins = User::where('role', 'admin')->where('status', 'active')->get();
+            Notification::send($admins, new CaregiverArrivalAcknowledged($arrivalReport->fresh()));
+
+            return $arrivalReport->fresh();
+        });
+
+        return response()->json(['report' => $arrivalReport]);
     }
 }

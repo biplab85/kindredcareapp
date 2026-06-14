@@ -23,9 +23,10 @@ export type NotificationType =
   | "certification_document_submitted"
   | "verification_documents_submitted"
   // Family-side arrival reports — admin sees ArrivalReportFiled, caregiver
-  // sees CaregiverArrivalPing.
+  // sees CaregiverArrivalPing, family + admin sees the ack.
   | "arrival_report_filed"
-  | "caregiver_arrival_ping";
+  | "caregiver_arrival_ping"
+  | "caregiver_arrival_acknowledged";
 
 export interface NotificationItem {
   id: string;
@@ -199,6 +200,20 @@ export function renderNotification(n: NotificationItem): NotificationDisplay {
           ? "Caregiver checked in but the family says they're not actually at the address. Pull GPS + contact both sides."
           : "Caregiver hasn't checked in. Nudge them and confirm with the family.",
         href: bookingHref ? `/admin/bookings/${bookingId}` : "/admin/bookings",
+      };
+    }
+    case "caregiver_arrival_acknowledged": {
+      const etaIso = typeof d.eta_at === "string" ? d.eta_at : null;
+      const etaLabel = etaIso ? new Date(etaIso).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }) : null;
+      return {
+        title: "Caregiver responded",
+        body: etaLabel
+          ? `They're on their way — ETA ${etaLabel}.`
+          : "They're heading to check in now.",
+        href: bookingHref,
       };
     }
     case "caregiver_arrival_ping": {
