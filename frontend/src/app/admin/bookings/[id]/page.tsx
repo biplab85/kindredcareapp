@@ -44,9 +44,9 @@ import {
   paymentStatusLabel,
   paymentTone,
   refundBooking,
+  resetCheckIn,
   resolveArrivalReport,
   statusLabel,
-  updateCheckInAt,
   type StatusTone,
   statusTone,
   unhideMessage,
@@ -621,7 +621,7 @@ function VisitEvidencePanel({
           time={checkIn}
           lat={data.check_in.lat}
           lng={data.check_in.lng}
-          editable={{ bookingId: data.id, onMutated }}
+          resettable={{ bookingId: data.id, onMutated }}
         />
         <CheckTimeBlock
           label="Check-out"
@@ -757,22 +757,21 @@ function CheckTimeBlock({
   time,
   lat,
   lng,
-  editable,
+  resettable,
 }: {
   label: string;
   time: Date | null;
   lat: number | null;
   lng: number | null;
   /**
-   * Admin-only override surface — when present, the block shows an Edit
-   * affordance that opens an inline form for rewriting the timestamp.
-   * Reserved for check-in (caregiver fake check-ins are the main case
-   * this exists for).
+   * Admin-only — when present, the block shows a Reset affordance that
+   * clears the check-in entirely (booking returns to `confirmed`, the
+   * caregiver's Start visit button comes back). Reserved for check-in.
    */
-  editable?: { bookingId: number; onMutated: () => void };
+  resettable?: { bookingId: number; onMutated: () => void };
 }) {
   const hasGps = lat !== null && lng !== null;
-  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
@@ -780,13 +779,13 @@ function CheckTimeBlock({
         <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
           {label}
         </p>
-        {editable && time && !editing && (
+        {resettable && time && !confirming && (
           <button
             type="button"
-            onClick={() => setEditing(true)}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase hover:border-primary/40 hover:bg-primary/[0.04] hover:text-primary"
+            onClick={() => setConfirming(true)}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase hover:border-accent/40 hover:bg-accent/[0.04] hover:text-accent"
           >
-            Edit
+            Reset
           </button>
         )}
       </div>
@@ -809,14 +808,13 @@ function CheckTimeBlock({
       ) : (
         <p className="mt-1 text-sm text-muted-foreground">Not yet</p>
       )}
-      {editable && time && editing && (
-        <CheckInOverrideForm
-          bookingId={editable.bookingId}
-          current={time}
-          onCancel={() => setEditing(false)}
-          onSaved={() => {
-            setEditing(false);
-            editable.onMutated();
+      {resettable && time && confirming && (
+        <ResetCheckInForm
+          bookingId={resettable.bookingId}
+          onCancel={() => setConfirming(false)}
+          onDone={() => {
+            setConfirming(false);
+            resettable.onMutated();
           }}
         />
       )}
@@ -824,21 +822,15 @@ function CheckTimeBlock({
   );
 }
 
-function CheckInOverrideForm({
+function ResetCheckInForm({
   bookingId,
-  current,
   onCancel,
-  onSaved,
+  onDone,
 }: {
   bookingId: number;
-  current: Date;
   onCancel: () => void;
-  onSaved: () => void;
+  onDone: () => void;
 }) {
-  // datetime-local takes "YYYY-MM-DDTHH:mm" in Eastern local time so the
-  // admin sees the same wall-clock format the rest of the page uses.
-  const initialLocal = formatForDateTimeLocal(current);
-  const [value, setValue] = useState(initialLocal);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -849,54 +841,38 @@ function CheckInOverrideForm({
     }
     setBusy(true);
     try {
-      // Interpret the picker as Eastern wall-clock and send as ISO UTC.
-      const localOffsetIso = toEasternIso(value);
-      await updateCheckInAt(bookingId, {
-        check_in_at: localOffsetIso,
-        reason: reason.trim(),
-      });
-      toast.success("Check-in time updated.");
-      onSaved();
+      await resetCheckIn(bookingId, { reason: reason.trim() });
+      toast.success("Check-in reset. Caregiver must check in again.");
+      onDone();
     } catch {
-      toast.error("Couldn't update. Check the time bounds and try again.");
+      toast.error("Couldn't reset. Try again.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="mt-3 space-y-3 rounded-lg border border-primary/30 bg-card/60 p-3">
-      <div>
-        <label
-          htmlFor="check-in-override"
-          className="text-[11px] font-semibold tracking-wide text-foreground uppercase"
-        >
-          New check-in time (Eastern)
-        </label>
-        <input
-          id="check-in-override"
-          type="datetime-local"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          disabled={busy}
-          className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-        />
-      </div>
+    <div className="mt-3 space-y-3 rounded-lg border border-accent/30 bg-accent/[0.04] p-3">
+      <p className="text-[12px] leading-relaxed text-foreground">
+        This clears the GPS check-in entirely and returns the booking to{" "}
+        <span className="font-semibold">awaiting check-in</span>. The caregiver will see the Start
+        visit button again and must GPS check-in from the actual address.
+      </p>
 
       <div>
         <label
-          htmlFor="check-in-reason"
+          htmlFor="check-in-reset-reason"
           className="text-[11px] font-semibold tracking-wide text-foreground uppercase"
         >
           Reason
         </label>
         <textarea
-          id="check-in-reason"
+          id="check-in-reset-reason"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={2}
           maxLength={500}
-          placeholder="What evidence supports this change? (logged to audit trail)"
+          placeholder="What evidence supports this reset? (logged to audit trail)"
           disabled={busy}
           className="mt-1.5 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
         />
@@ -906,45 +882,18 @@ function CheckInOverrideForm({
         <Button onClick={onCancel} variant="ghost" size="sm" disabled={busy}>
           Cancel
         </Button>
-        <Button onClick={submit} disabled={busy} size="sm">
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-          Save
+        <Button
+          onClick={submit}
+          disabled={busy}
+          size="sm"
+          className="bg-accent text-accent-foreground hover:bg-accent/90"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+          Reset check-in
         </Button>
       </div>
     </div>
   );
-}
-
-function formatForDateTimeLocal(date: Date): string {
-  // Render a Date as YYYY-MM-DDTHH:mm in Eastern wall-clock so the picker
-  // matches what admin sees everywhere else on the page.
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Toronto",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
-}
-
-function toEasternIso(local: string): string {
-  // Reverse of formatForDateTimeLocal — interpret the wall-clock as
-  // Eastern, find the actual UTC instant, return ISO. DST-aware via
-  // probing the offset Intl reports for the target moment.
-  const [datePart, timePart] = local.split("T");
-  if (!datePart || !timePart) return new Date(local).toISOString();
-  const probe = new Date(`${datePart}T${timePart}:00`);
-  const tzParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Toronto",
-    timeZoneName: "longOffset",
-  }).formatToParts(probe);
-  const offset =
-    tzParts.find((p) => p.type === "timeZoneName")?.value.replace("GMT", "") ?? "-05:00";
-  return new Date(`${datePart}T${timePart}:00${offset}`).toISOString();
 }
 
 /* ─────────────────────────────────────────────────────────────
