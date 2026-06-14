@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\PanicAlertController;
 use App\Http\Controllers\Admin\RevenueController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\ArrivalReportController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -190,6 +191,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/emergency/panic', [EmergencyController::class, 'panic']);
     Route::post('/bookings/{booking}/safety-ack', [EmergencyController::class, 'safetyAck']);
     Route::post('/bookings/{booking}/incidents', [EmergencyController::class, 'submitIncident']);
+    Route::post('/bookings/{booking}/arrival-reports', [ArrivalReportController::class, 'store']);
 
     // ─── NOTIFICATIONS ───
     Route::get('/notifications', [NotificationController::class, 'index']);
