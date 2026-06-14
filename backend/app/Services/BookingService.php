@@ -273,7 +273,10 @@ class BookingService
             // Partial-capture support: if actual duration is shorter than the
             // booked duration, capture only the pro-rated amount. mvp-reqs
             // §4.9 — "handle partial captures if visit was shorter than booked".
-            $captureAmount = $this->computeCaptureAmount($booking, $completedAt);
+            // The booking's subtotal_cents / platform_fee_cents /
+            // caregiver_payout_cents are rewritten to match what was actually
+            // captured, so the ReleasePayouts cron transfers the right amount.
+            $amounts = $this->computeFinalAmounts($booking, $completedAt);
 
             $booking->update([
                 'status' => Booking::STATUS_COMPLETED,
@@ -283,9 +286,12 @@ class BookingService
                 'check_out_distance_m' => $distanceM,
                 'tasks_completed' => $tasks === [] ? $booking->tasks_completed : $tasks,
                 'caregiver_notes' => $notes ?? $booking->caregiver_notes,
+                'subtotal_cents' => $amounts['subtotal'],
+                'platform_fee_cents' => $amounts['platform_fee'],
+                'caregiver_payout_cents' => $amounts['caregiver_payout'],
             ]);
 
-            $captured = $this->stripe->captureForBooking($booking->fresh(), $captureAmount);
+            $captured = $this->stripe->captureForBooking($booking->fresh(), $amounts['subtotal']);
             $booking->update([
                 'payment_status' => $captured
                     ? Booking::PAYMENT_CAPTURED
@@ -667,28 +673,52 @@ class BookingService
     /**
      * Actual vs booked duration → pro-rated capture in cents. Short-visit
      * cases (mvp-reqs §4.9) capture less than the full authorization.
-     * Longer-than-booked is capped at subtotal_cents — we don't charge
+     * Longer-than-booked is capped at the booked subtotal — we don't charge
      * families for over-stay without re-authorization.
      *
      * Under the fee-on-top model the pro-rated amount has to include both
      * the pro-rated base (caregiver's portion) AND the pro-rated platform
      * fee, otherwise short visits would silently waive the platform's cut.
+     *
+     * Returns the post-pro-rate breakdown for the booking so checkOut can
+     * persist subtotal_cents, platform_fee_cents, and caregiver_payout_cents
+     * to match what was actually captured. Without that update, the
+     * ReleasePayouts cron would try to transfer the booked payout amount to
+     * a charge that only holds the pro-rated portion — Stripe rejects via
+     * source_transaction linkage and the caregiver doesn't get paid.
+     *
+     * @return array{subtotal: int, platform_fee: int, caregiver_payout: int}
      */
-    private function computeCaptureAmount(Booking $booking, CarbonInterface $completedAt): int
+    private function computeFinalAmounts(Booking $booking, CarbonInterface $completedAt): array
     {
+        $bookedFee = $booking->platform_fee_cents;
+        $bookedPayout = $booking->caregiver_payout_cents;
+
         if (! $booking->check_in_at || $booking->duration_minutes <= 0) {
-            return $booking->subtotal_cents;
+            return [
+                'subtotal' => $booking->subtotal_cents,
+                'platform_fee' => $bookedFee,
+                'caregiver_payout' => $bookedPayout,
+            ];
         }
 
         $actualMinutes = (int) $booking->check_in_at->diffInMinutes($completedAt, absolute: true);
         if ($actualMinutes >= $booking->duration_minutes) {
-            return $booking->subtotal_cents;
+            return [
+                'subtotal' => $booking->subtotal_cents,
+                'platform_fee' => $bookedFee,
+                'caregiver_payout' => $bookedPayout,
+            ];
         }
 
-        $proRatedBase = (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
-        $proRatedFee = (int) round($proRatedBase * Booking::PLATFORM_FEE_BPS / 10000);
+        $proRatedPayout = (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
+        $proRatedFee = (int) round($proRatedPayout * Booking::PLATFORM_FEE_BPS / 10000);
 
-        return $proRatedBase + $proRatedFee;
+        return [
+            'subtotal' => $proRatedPayout + $proRatedFee,
+            'platform_fee' => $proRatedFee,
+            'caregiver_payout' => $proRatedPayout,
+        ];
     }
 
     private function metersFromGig(Booking $booking, float $lat, float $lng): int
