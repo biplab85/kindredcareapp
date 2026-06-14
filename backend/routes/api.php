@@ -192,6 +192,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/bookings/{booking}/safety-ack', [EmergencyController::class, 'safetyAck']);
     Route::post('/bookings/{booking}/incidents', [EmergencyController::class, 'submitIncident']);
     Route::post('/bookings/{booking}/arrival-reports', [ArrivalReportController::class, 'store']);
+    Route::patch(
+        '/bookings/{booking}/arrival-reports/{arrivalReport}/acknowledge',
+        [ArrivalReportController::class, 'acknowledge'],
+    );
 
     // ─── NOTIFICATIONS ───
     Route::get('/notifications', [NotificationController::class, 'index']);

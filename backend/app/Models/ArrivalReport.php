@@ -15,6 +15,8 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property int|null $resolved_by
  * @property Carbon|null $acknowledged_at
+ * @property Carbon|null $eta_at
+ * @property int|null $acknowledged_by
  * @property Carbon|null $resolved_at
  * @property string|null $admin_notes
  * @property Carbon|null $created_at
@@ -55,6 +57,8 @@ class ArrivalReport extends Model
         'status',
         'resolved_by',
         'acknowledged_at',
+        'eta_at',
+        'acknowledged_by',
         'resolved_at',
         'admin_notes',
     ];
@@ -68,7 +72,9 @@ class ArrivalReport extends Model
             'booking_id' => 'int',
             'reporter_user_id' => 'int',
             'resolved_by' => 'int',
+            'acknowledged_by' => 'int',
             'acknowledged_at' => 'datetime',
+            'eta_at' => 'datetime',
             'resolved_at' => 'datetime',
         ];
     }
