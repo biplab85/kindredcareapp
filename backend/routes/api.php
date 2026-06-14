@@ -251,6 +251,10 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::get('/bookings', [App\Http\Controllers\Admin\BookingController::class, 'index']);
     Route::get('/bookings/{booking}', [App\Http\Controllers\Admin\BookingController::class, 'show']);
     Route::post('/bookings/{booking}/refund', [App\Http\Controllers\Admin\BookingController::class, 'refund']);
+    Route::patch(
+        '/bookings/{booking}/check-in-at',
+        [App\Http\Controllers\Admin\BookingController::class, 'updateCheckInAt'],
+    );
 
     Route::get('/incidents', [IncidentController::class, 'index']);
     Route::get('/incidents/{incident}', [IncidentController::class, 'show']);

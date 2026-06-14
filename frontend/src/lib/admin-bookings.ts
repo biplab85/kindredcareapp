@@ -213,6 +213,17 @@ export async function refundBooking(id: number, payload: RefundPayload): Promise
   return res.data.data;
 }
 
+export async function updateCheckInAt(
+  id: number,
+  payload: { check_in_at: string; reason: string },
+): Promise<BookingCard> {
+  const res = await api.patch<{ data: BookingCard }>(
+    `/api/admin/bookings/${id}/check-in-at`,
+    payload,
+  );
+  return res.data.data;
+}
+
 export async function hideMessage(messageId: number, reason: string): Promise<void> {
   await api.patch(`/api/admin/messages/${messageId}/hide`, { reason });
 }

@@ -15,6 +15,7 @@ use App\Services\StripePaymentService;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 /**
@@ -326,6 +327,66 @@ class BookingController extends Controller
             Booking::PAYMENT_RELEASED_STUB,
             Booking::PAYMENT_HELD_PENDING_DISPUTE,
         ], true);
+    }
+
+    /**
+     * Admin rewrites the GPS check-in timestamp on a booking. Used when an
+     * arrival report establishes that the recorded check_in_at lies — e.g.,
+     * caregiver tapped check-in 20 min before they actually arrived.
+     *
+     * The original value is captured in the audit log so the edit is
+     * fully reversible / inspectable. For active visits, computeCaptureAmount
+     * picks up the new check_in_at automatically on check-out. For
+     * completed visits, billing is already settled — admin issues a
+     * separate refund if the new duration would have produced a different
+     * capture amount.
+     */
+    public function updateCheckInAt(Request $request, Booking $booking): JsonResponse
+    {
+        if ($booking->check_in_at === null) {
+            return response()->json(['message' => 'This booking has no check-in to override.'], 422);
+        }
+
+        $data = $request->validate([
+            'check_in_at' => ['required', 'date'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        $newCheckIn = Carbon::parse($data['check_in_at']);
+
+        // Sanity bounds: must be between scheduled_start (no earlier than
+        // the visit was supposed to start) and either check_out_at if set,
+        // or scheduled_end + a 4h buffer for visits that ran over.
+        $lowerBound = $booking->scheduled_start;
+        $upperBound = $booking->check_out_at ?? $booking->scheduled_end->copy()->addHours(4);
+
+        if ($newCheckIn->lt($lowerBound) || $newCheckIn->gt($upperBound)) {
+            return response()->json([
+                'message' => 'New check-in time must be between the scheduled start and either check-out or 4 hours after the scheduled end.',
+            ], 422);
+        }
+
+        /** @var User $admin */
+        $admin = $request->user();
+        $oldCheckIn = $booking->check_in_at->toIso8601String();
+
+        $booking->update(['check_in_at' => $newCheckIn]);
+
+        $this->auditLogger->record(
+            admin: $admin,
+            action: 'booking.check_in_at_overridden',
+            targetType: AdminAuditLog::TARGET_BOOKING,
+            targetId: $booking->id,
+            metadata: [
+                'old_check_in_at' => $oldCheckIn,
+                'new_check_in_at' => $newCheckIn->toIso8601String(),
+            ],
+            reason: $data['reason'],
+        );
+
+        return response()->json([
+            'data' => $this->card($booking->fresh()),
+        ]);
     }
 
     /**
