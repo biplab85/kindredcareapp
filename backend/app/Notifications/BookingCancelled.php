@@ -39,10 +39,15 @@ class BookingCancelled extends Notification
             ? " Reason given: {$this->booking->cancellation_reason}"
             : '';
 
+        $start = $this->booking->scheduled_start
+            ->copy()
+            ->setTimezone(config('app.display_timezone'))
+            ->format('l F j, g:i A');
+
         return (new MailMessage)
             ->subject('A booking was cancelled')
             ->greeting("{$who} cancelled a booking.")
-            ->line('Originally scheduled for '.$this->booking->scheduled_start->format('l F j, g:i A').'.'.$reason)
+            ->line('Originally scheduled for '.$start.'.'.$reason)
             ->action('View booking', config('app.frontend_url')."/bookings/{$this->booking->id}");
     }
 

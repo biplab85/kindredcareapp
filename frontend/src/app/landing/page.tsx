@@ -61,7 +61,7 @@ const caregiverSteps = [
   {
     icon: Briefcase,
     title: "Accept Bookings, Get Paid",
-    desc: "Review every booking offer before you accept. Payouts transfer to your bank 24 hours after each visit ends.",
+    desc: "Review every booking offer before you accept. Payouts transfer to your bank 48 hours after each visit ends.",
   },
 ];
 

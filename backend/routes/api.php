@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\PanicAlertController;
 use App\Http\Controllers\Admin\RevenueController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\ArrivalReportController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -190,6 +191,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/emergency/panic', [EmergencyController::class, 'panic']);
     Route::post('/bookings/{booking}/safety-ack', [EmergencyController::class, 'safetyAck']);
     Route::post('/bookings/{booking}/incidents', [EmergencyController::class, 'submitIncident']);
+    Route::post('/bookings/{booking}/arrival-reports', [ArrivalReportController::class, 'store']);
+    Route::patch(
+        '/bookings/{booking}/arrival-reports/{arrivalReport}/acknowledge',
+        [ArrivalReportController::class, 'acknowledge'],
+    );
 
     // ─── NOTIFICATIONS ───
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -245,6 +251,10 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::get('/bookings', [App\Http\Controllers\Admin\BookingController::class, 'index']);
     Route::get('/bookings/{booking}', [App\Http\Controllers\Admin\BookingController::class, 'show']);
     Route::post('/bookings/{booking}/refund', [App\Http\Controllers\Admin\BookingController::class, 'refund']);
+    Route::post(
+        '/bookings/{booking}/reset-check-in',
+        [App\Http\Controllers\Admin\BookingController::class, 'resetCheckIn'],
+    );
 
     Route::get('/incidents', [IncidentController::class, 'index']);
     Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
@@ -254,6 +264,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::get('/panic-alerts/{panicAlert}', [PanicAlertController::class, 'show']);
     Route::patch('/panic-alerts/{panicAlert}/acknowledge', [PanicAlertController::class, 'acknowledge']);
     Route::patch('/panic-alerts/{panicAlert}/resolve', [PanicAlertController::class, 'resolve']);
+
+    Route::patch(
+        '/arrival-reports/{arrivalReport}/resolve',
+        [App\Http\Controllers\Admin\ArrivalReportController::class, 'resolve'],
+    );
 
     Route::get('/analytics', [AnalyticsController::class, 'index']);
     Route::get('/revenue', [RevenueController::class, 'index']);

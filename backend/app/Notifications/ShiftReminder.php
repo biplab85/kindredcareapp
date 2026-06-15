@@ -36,7 +36,10 @@ class ShiftReminder extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $b = $this->booking;
-        $time = $b->scheduled_start->format('l F j, g:i A');
+        $time = $b->scheduled_start
+            ->copy()
+            ->setTimezone(config('app.display_timezone'))
+            ->format('l F j, g:i A');
         $lead = $this->window === self::WINDOW_24H ? 'tomorrow' : 'in an hour';
 
         // Magic link bootstraps a Sanctum session as the caregiver and drops

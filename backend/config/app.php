@@ -67,11 +67,31 @@ return [
     |
     */
 
-    // KindredCare serves Ontario — pull from .env so prod can override.
-    // Database datetimes are stored as UTC via Eloquent casts; this only
-    // affects what now(), date formatters, and validators like `after:now`
-    // treat as "current time".
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    // Keep at UTC. Eloquent stores datetimes in whatever timezone the
+    // bound Carbon happens to be in (UTC for ISO-8601 API input) but
+    // reads them back assuming `app.timezone`. Mismatching the two
+    // shifts every read by the offset — flipping this to Toronto
+    // broke booking 3, which round-tripped 10:30 EDT into 2:30 PM
+    // because the stored UTC clock face got re-interpreted as Toronto
+    // on read. Storage stays UTC end-to-end; display happens at the
+    // boundaries (frontend EASTERN_TZ, email setTimezone in
+    // notifications).
+    'timezone' => 'UTC',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Timezone server-rendered surfaces (notification emails, exported
+    | CSVs, admin reports) format datetimes in. Independent from
+    | `timezone` above, which must stay UTC for Eloquent's read/write
+    | round-trip to work. Defaults to Ontario for the MVP — flip the env
+    | var if KindredCare expands to another region.
+    |
+    */
+
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'America/Toronto'),
 
     /*
     |--------------------------------------------------------------------------

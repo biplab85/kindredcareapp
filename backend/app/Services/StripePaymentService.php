@@ -396,7 +396,7 @@ class StripePaymentService
     /**
      * Transfers the caregiver's payout portion from the platform balance
      * to their Connect account. Called by the ReleasePayouts scheduler
-     * after the 24-hour hold. Returns the Transfer on success or null if
+     * after the 48-hour hold. Returns the Transfer on success or null if
      * we weren't in a state to issue one (unconfigured, no account, no
      * captured charge, already transferred).
      */

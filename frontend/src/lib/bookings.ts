@@ -73,6 +73,28 @@ export interface BookingActivePanicAlert {
   acknowledged_at: string | null;
 }
 
+export interface BookingActiveArrivalReport {
+  id: number;
+  reason_code: "not_yet_arrived" | "not_at_site_despite_checkin";
+  status: "open" | "acknowledged";
+  created_at: string | null;
+  acknowledged_at: string | null;
+  eta_at: string | null;
+  description: string | null;
+}
+
+export async function acknowledgeArrivalReport(
+  bookingId: number,
+  reportId: number,
+  payload: { eta_minutes?: number },
+): Promise<BookingActiveArrivalReport> {
+  const res = await api.patch<{ report: BookingActiveArrivalReport }>(
+    `/api/bookings/${bookingId}/arrival-reports/${reportId}/acknowledge`,
+    payload,
+  );
+  return res.data.report;
+}
+
 export interface Booking {
   id: number;
   gig_id: number;
@@ -100,6 +122,7 @@ export interface Booking {
   visit: BookingVisit;
   safety_acknowledged_at?: string | null;
   active_panic_alert?: BookingActivePanicAlert | null;
+  active_arrival_report?: BookingActiveArrivalReport | null;
   created_at: string;
   updated_at: string;
 }
@@ -193,6 +216,42 @@ export async function confirmBooking(id: number): Promise<Booking> {
   const res = await api.patch<SingleBookingResponse>(`/api/bookings/${id}/confirm`);
   return res.data.data;
 }
+
+/** Mirror of BookingDispute::REASON_CODES on the backend. */
+export type DisputeReasonCode =
+  | "no_show"
+  | "late_arrival"
+  | "early_leave"
+  | "scope_creep"
+  | "property_damage"
+  | "theft"
+  | "safety"
+  | "quality"
+  | "fraud"
+  | "other";
+
+export interface DisputeRecord {
+  id: number;
+  booking_id: number;
+  reason_code: DisputeReasonCode;
+  description: string;
+  status: string;
+  created_at: string | null;
+}
+
+export async function openDispute(
+  bookingId: number,
+  payload: { reason_code: DisputeReasonCode; description: string },
+): Promise<DisputeRecord> {
+  const res = await api.post<{ data: DisputeRecord }>(
+    `/api/bookings/${bookingId}/dispute`,
+    payload,
+  );
+  return res.data.data;
+}
+
+/** Hours from check-out during which the family can open a dispute. */
+export const DISPUTE_WINDOW_HOURS = 48;
 
 /**
  * Promise wrapper around navigator.geolocation. Resolves with lat/lng on

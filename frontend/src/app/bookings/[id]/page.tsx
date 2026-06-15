@@ -33,6 +33,9 @@ import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
 import { IncidentReportTrigger } from "@/components/bookings/incident-form";
 import { MessagesBlock } from "@/components/bookings/messages-block";
+import { ArrivalReportCard } from "@/components/bookings/arrival-report-card";
+import { CaregiverArrivalResponseCard } from "@/components/bookings/caregiver-arrival-response-card";
+import { DisputeForm } from "@/components/bookings/dispute-form";
 import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
@@ -44,6 +47,7 @@ import {
   checkOutBooking,
   confirmBooking,
   declineBooking,
+  DISPUTE_WINDOW_HOURS,
   flagReasonLabel,
   formatCents,
   formatHours,
@@ -83,6 +87,10 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
   const role = user?.role as "family" | "caregiver" | "admin" | undefined;
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<"notfound" | "generic" | null>(null);
+  // Lifted out of FloatingMessages so the inline "Messages" button in
+  // PartyBlock can open the same floating panel — single source of
+  // truth for whether the chat is open.
+  const [messagesOpen, setMessagesOpen] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -163,7 +171,11 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
             </div>
             <FamilyConfirmBlock booking={booking} role={role} onChanged={reload} />
             <RatingPromptBlock booking={booking} />
-            <PartyBlock booking={booking} role={role} />
+            <PartyBlock
+              booking={booking}
+              role={role}
+              onOpenMessages={() => setMessagesOpen(true)}
+            />
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24">
@@ -172,7 +184,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
         </div>
       </div>
 
-      <FloatingMessages bookingId={booking.id} />
+      <FloatingMessages bookingId={booking.id} open={messagesOpen} setOpen={setMessagesOpen} />
     </>
   );
 }
@@ -183,9 +195,15 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
  * The inline Messages card stays exactly where it is.
  * ───────────────────────────────────────────────────────────── */
 
-function FloatingMessages({ bookingId }: { bookingId: number }) {
-  const [open, setOpen] = useState(false);
-
+function FloatingMessages({
+  bookingId,
+  open,
+  setOpen,
+}: {
+  bookingId: number;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   return (
     <>
       {open && (
@@ -196,7 +214,7 @@ function FloatingMessages({ bookingId }: { bookingId: number }) {
 
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-label={open ? "Close messages" : "Open messages"}
         aria-expanded={open}
         className="fixed right-4 bottom-6 z-50 grid size-12 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-100 sm:right-6"
@@ -571,7 +589,7 @@ function paymentStatusMessage(
       return isFamily
         ? `${total} charged to your card.`
         : isCaregiver
-          ? "Visit captured. Payout transfers after the 24-hour hold."
+          ? "Visit captured. Payout transfers after the 48-hour hold."
           : null;
 
     case "released":
@@ -673,11 +691,29 @@ function VisitBlock({
 }) {
   const { status } = booking;
   const isCaregiver = role === "caregiver";
+  const isFamily = role === "family";
+
+  // Family-side "Caregiver hasn't arrived" surfaces only after the
+  // scheduled start has passed AND the caregiver still hasn't checked
+  // in. Snapshot now at mount — React 19 rejects Date.now() in render
+  // bodies, and second-precision drift over a single visit doesn't
+  // matter for this soft UI gate.
+  const [nowMs] = useState(() => Date.now());
+  const scheduledStartMs = new Date(booking.scheduled_start).getTime();
+  const arrivalWindowOpen =
+    status === "confirmed" && !booking.visit.check_in_at && nowMs > scheduledStartMs;
 
   if (status === "confirmed" && isCaregiver) {
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.active_arrival_report && (
+          <CaregiverArrivalResponseCard
+            bookingId={booking.id}
+            report={booking.active_arrival_report}
+            onChanged={onChanged}
+          />
+        )}
         {booking.safety_acknowledged_at ? (
           <VisitStartPanel booking={booking} onChanged={onChanged} />
         ) : (
@@ -691,13 +727,34 @@ function VisitBlock({
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.active_arrival_report && (
+          <CaregiverArrivalResponseCard
+            bookingId={booking.id}
+            report={booking.active_arrival_report}
+            onChanged={onChanged}
+          />
+        )}
         <VisitLiveLog booking={booking} onChanged={onChanged} />
       </>
     );
   }
 
   if (status === "in_progress" && role === "family") {
-    return <VisitInProgressWatch booking={booking} />;
+    return (
+      <>
+        <VisitInProgressWatch booking={booking} />
+        {/* Family-side arrival report for the in-progress dispute case:
+            caregiver checked in (GPS recorded) but family says they're
+            not actually at the address. Admin gets paged with the GPS
+            evidence inline. */}
+        <ArrivalReportCard bookingId={booking.id} reason="not_at_site_despite_checkin" />
+      </>
+    );
+  }
+
+  // Confirmed + family + past start + no check-in → "caregiver hasn't arrived"
+  if (isFamily && arrivalWindowOpen) {
+    return <ArrivalReportCard bookingId={booking.id} reason="not_yet_arrived" />;
   }
 
   if (status === "completed") {
@@ -1081,10 +1138,17 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
   const defaultTasks = booking.gig?.service_category?.default_tasks ?? [];
 
   return (
-    <section
-      aria-label="Visit in progress"
-      className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
-    >
+    <>
+      {/* Both parties need the safety escalation during an active visit.
+          The caregiver-side branches above already render PanicButton;
+          the family had no equivalent — so a family seeing something
+          alarming had no in-app way to summon admin. */}
+      <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+
+      <section
+        aria-label="Visit in progress"
+        className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
+      >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="relative flex size-2.5 items-center justify-center">
@@ -1132,7 +1196,8 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
           </ul>
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -1313,7 +1378,15 @@ function FlagPill({ reasons }: { reasons: VisitFlagReason[] }) {
  * Party block (caregiver card / family card)
  * ───────────────────────────────────────────────────────────── */
 
-function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
+function PartyBlock({
+  booking,
+  role,
+  onOpenMessages,
+}: {
+  booking: Booking;
+  role: string;
+  onOpenMessages: () => void;
+}) {
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* Card header */}
@@ -1383,15 +1456,11 @@ function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
       <div className="border-t border-border bg-muted/30 px-6 py-4 sm:px-8">
         <button
           type="button"
-          disabled
-          title="Messaging arrives in Phase 10"
-          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground"
+          onClick={onOpenMessages}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.04] hover:text-primary"
         >
           <MessageCircle className="size-4" />
           Messages
-          <span className="ml-1 text-[9px] font-semibold tracking-wide uppercase opacity-70">
-            soon
-          </span>
         </button>
       </div>
     </section>
@@ -1654,6 +1723,7 @@ function FamilyConfirmBlock({
 }) {
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   if (role !== "family") return null;
   if (booking.status !== "completed") return null;
@@ -1677,6 +1747,21 @@ function FamilyConfirmBlock({
     } finally {
       setBusy(false);
     }
+  }
+
+  // When the family taps "Report a problem" we swap this block for the
+  // dispute form — same column slot, no modal, scrolls into view.
+  if (reporting && !isConfirmed) {
+    return (
+      <DisputeForm
+        bookingId={booking.id}
+        onCancel={() => setReporting(false)}
+        onFiled={() => {
+          setReporting(false);
+          onChanged();
+        }}
+      />
+    );
   }
 
   return (
@@ -1716,10 +1801,22 @@ function FamilyConfirmBlock({
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                 Confirming releases the {payout} payout to your caregiver right away instead of
-                waiting on the 24-hour hold. You still have 48 hours to open a dispute either way.
+                waiting on the 48-hour hold. You can still open a dispute within the 48-hour window
+                either way.
               </p>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  onClick={() => setReporting(true)}
+                  disabled={busy}
+                  variant="ghost"
+                  size="sm"
+                  className="cursor-pointer text-muted-foreground hover:bg-accent/[0.06] hover:text-accent"
+                >
+                  <AlertCircle className="size-3.5" strokeWidth={2.25} />
+                  Report a problem
+                </Button>
                 <Button
                   type="button"
                   onClick={handleConfirm}
@@ -1728,12 +1825,14 @@ function FamilyConfirmBlock({
                   className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
                 >
                   <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
-                  {busy ? "Confirming…" : "Yes, this visit happened as described"}
+                  {busy ? "Confirming…" : "Confirm visit"}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Optional · skip and the payout still releases at the 24 h mark
-                </p>
               </div>
+
+              <DisputeWindowCountdown
+                checkOutAt={booking.visit.check_out_at}
+                className="mt-3"
+              />
 
               {errorMsg !== null && (
                 <p
@@ -1748,6 +1847,41 @@ function FamilyConfirmBlock({
         </div>
       </div>
     </section>
+  );
+}
+
+function DisputeWindowCountdown({
+  checkOutAt,
+  className,
+}: {
+  checkOutAt: string | null;
+  className?: string;
+}) {
+  // Snapshot now once — the 48h window is precise to the minute, not the
+  // millisecond, and a live tick would need useSyncExternalStore per
+  // CLAUDE.md. The page already reloads on common state changes.
+  const [nowMs] = useState(() => Date.now());
+
+  if (!checkOutAt) return null;
+  const deadline = new Date(checkOutAt).getTime() + DISPUTE_WINDOW_HOURS * 60 * 60 * 1000;
+  const remainingMs = deadline - nowMs;
+  if (remainingMs <= 0) return null;
+
+  const remainingMinutes = Math.floor(remainingMs / 60_000);
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  const label = hours >= 1 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+  return (
+    <p
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60",
+        className,
+      )}
+    >
+      <Clock className="size-3" strokeWidth={2} />
+      {label} left to confirm or report
+    </p>
   );
 }
 
