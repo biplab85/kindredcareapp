@@ -375,6 +375,9 @@ function OfferRespondPanel({
               <span className="font-semibold text-foreground tabular-nums">{payout}</span>
             </span>
           </p>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+            Paid for the time you actually work, up to the booked amount.
+          </p>
           {error && (
             <p className="mt-3 flex items-start gap-2 rounded-lg bg-destructive/[0.06] px-3 py-2 text-xs text-destructive ring-1 ring-destructive/20">
               <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
