@@ -33,6 +33,7 @@ import {
   type BookingTally,
   deleteUser,
   getAdminUser,
+  markEmailVerified,
   reactivateUser,
   roleLabel,
   suspendUser,
@@ -302,6 +303,28 @@ function ActionPanel({ user, onMutated }: { user: AdminUserDetail; onMutated: ()
   const [showDelete, setShowDelete] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [emailVerifyReason, setEmailVerifyReason] = useState("");
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [showEmailVerifyForm, setShowEmailVerifyForm] = useState(false);
+
+  async function onMarkEmailVerified() {
+    if (emailVerifyReason.trim().length < 5) {
+      toast.error("Reason must be at least 5 characters.");
+      return;
+    }
+    setVerifyingEmail(true);
+    try {
+      await markEmailVerified(user.id, emailVerifyReason.trim());
+      toast.success(`${user.name}'s email marked verified.`);
+      setEmailVerifyReason("");
+      setShowEmailVerifyForm(false);
+      onMutated();
+    } catch {
+      toast.error("Couldn't mark verified. Try again.");
+    } finally {
+      setVerifyingEmail(false);
+    }
+  }
 
   async function onDelete() {
     if (deleteReason.trim().length < 5) {
@@ -488,60 +511,146 @@ function ActionPanel({ user, onMutated }: { user: AdminUserDetail; onMutated: ()
   }
 
   return (
-    <section className="rounded-xl border border-accent/40 bg-accent/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
-      <div className="flex items-start gap-3.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
-          <ShieldX className="size-5" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-accent uppercase">
-            Kill-switch
-          </p>
-          <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
-            Pull them from the marketplace.
-          </h3>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            Caregivers drop out of matching immediately. Families lose booking access. The reason
-            below is logged on the audit trail — be specific enough that the next admin reading it
-            knows why.
-          </p>
+    <div className="grid gap-4 lg:grid-cols-2">
+      {!user.email_verified_at && (
+        <section className="rounded-xl border border-success/40 bg-success/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+          <div className="flex items-start gap-3.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-success/15 text-success">
+              <BadgeCheck className="size-5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
+                Email verification
+              </p>
+              <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
+                Mark email verified.
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Skips the self-service email-link flow. Use when the user verified identity another
+                way (phone, in-person, separate ID check) and you&rsquo;re unblocking them. Logged on
+                the audit trail.
+              </p>
 
-          <div className="mt-4">
-            <label
-              htmlFor="suspend-reason"
-              className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
-            >
-              Reason (5–500 chars)
-            </label>
-            <textarea
-              id="suspend-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              maxLength={500}
-              placeholder="Inconsistent behaviour reports. Pending investigation by safety team."
-              className={TEXTAREA_CLASS}
-            />
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground tabular-nums">{reason.length}/500</p>
-              <Button
-                onClick={onSuspend}
-                disabled={busy || reason.trim().length < 5}
-                variant="destructive"
-                size="sm"
-                className="cursor-pointer"
+              {!showEmailVerifyForm ? (
+                <div className="mt-4">
+                  <Button
+                    onClick={() => setShowEmailVerifyForm(true)}
+                    size="sm"
+                    className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
+                  >
+                    <BadgeCheck className="size-3.5" strokeWidth={2} />
+                    Mark email verified
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <label
+                    htmlFor="email-verify-reason"
+                    className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+                  >
+                    Reason (5–500 chars · audit trail)
+                  </label>
+                  <textarea
+                    id="email-verify-reason"
+                    value={emailVerifyReason}
+                    onChange={(e) => setEmailVerifyReason(e.target.value)}
+                    maxLength={500}
+                    placeholder="Confirmed by phone. They couldn't access the inbox the welcome email went to."
+                    className={TEXTAREA_CLASS}
+                  />
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {emailVerifyReason.length}/500
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          setShowEmailVerifyForm(false);
+                          setEmailVerifyReason("");
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={onMarkEmailVerified}
+                        disabled={verifyingEmail || emailVerifyReason.trim().length < 5}
+                        size="sm"
+                        className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
+                      >
+                        {verifyingEmail ? (
+                          <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
+                        ) : (
+                          <BadgeCheck className="size-3.5" strokeWidth={2} />
+                        )}
+                        Confirm
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-xl border border-accent/40 bg-accent/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
+        <div className="flex items-start gap-3.5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
+            <ShieldX className="size-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-accent uppercase">
+              Kill-switch
+            </p>
+            <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
+              Pull them from the marketplace.
+            </h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+              Caregivers drop out of matching immediately. Families lose booking access. The reason
+              below is logged on the audit trail — be specific enough that the next admin reading
+              it knows why.
+            </p>
+
+            <div className="mt-4">
+              <label
+                htmlFor="suspend-reason"
+                className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
               >
-                {busy ? (
-                  <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
-                ) : (
-                  <ShieldOff className="size-3.5" strokeWidth={2} />
-                )}
-                Suspend account
-              </Button>
+                Reason (5–500 chars)
+              </label>
+              <textarea
+                id="suspend-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={500}
+                placeholder="Inconsistent behaviour reports. Pending investigation by safety team."
+                className={TEXTAREA_CLASS}
+              />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground tabular-nums">{reason.length}/500</p>
+                <Button
+                  onClick={onSuspend}
+                  disabled={busy || reason.trim().length < 5}
+                  variant="destructive"
+                  size="sm"
+                  className="cursor-pointer"
+                >
+                  {busy ? (
+                    <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
+                  ) : (
+                    <ShieldOff className="size-3.5" strokeWidth={2} />
+                  )}
+                  Suspend account
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
 
