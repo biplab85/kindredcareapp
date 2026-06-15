@@ -247,6 +247,46 @@ class UserController extends Controller
     }
 
     /**
+     * Admin marks a user's email as verified without going through the
+     * self-service flow. Used when the user phoned in / verified another
+     * way, or when batch-onboarded users got an invalid welcome email and
+     * the team confirmed identity directly.
+     *
+     * Stamps email_verified_at = now(). Audit-logged so the override is
+     * inspectable later.
+     */
+    public function markEmailVerified(Request $request, User $user): JsonResponse
+    {
+        if ($user->email_verified_at !== null) {
+            return response()->json([
+                'message' => 'This user\'s email is already verified.',
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        /** @var User $admin */
+        $admin = $request->user();
+
+        $user->email_verified_at = now();
+        $user->save();
+
+        $this->auditLogger->record(
+            admin: $admin,
+            action: 'user.email_verified_by_admin',
+            targetType: AdminAuditLog::TARGET_USER,
+            targetId: $user->id,
+            reason: $data['reason'],
+        );
+
+        return response()->json([
+            'data' => $this->card($user->fresh()),
+        ]);
+    }
+
+    /**
      * Admin-initiated deletion. Reuses the Phase 15 AccountAnonymizer so
      * the same anonymization rules apply whether the user clicked
      * "Delete my account" or an admin removed them for cause. Reason is

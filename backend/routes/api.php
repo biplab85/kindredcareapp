@@ -236,6 +236,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:api'])->g
     Route::get('/users/{user}', [UserController::class, 'show']);
     Route::patch('/users/{user}/suspend', [UserController::class, 'suspend']);
     Route::patch('/users/{user}/reactivate', [UserController::class, 'reactivate']);
+    Route::patch('/users/{user}/verify-email', [UserController::class, 'markEmailVerified']);
     Route::delete('/users/{user}', [UserController::class, 'destroy']);
 
     Route::get('/verifications', [App\Http\Controllers\Admin\VerificationController::class, 'pending']);
