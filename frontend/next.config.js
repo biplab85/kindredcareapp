@@ -87,6 +87,8 @@ const nextConfig = {
       { protocol: "http", hostname: "localhost", port: "8000" },
       { protocol: "http", hostname: "127.0.0.1", port: "8000" },
       { protocol: "https", hostname: "api.kindredcare.ca" },
+      // Curated stock imagery for gig cards that don't carry an uploaded photo.
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
 

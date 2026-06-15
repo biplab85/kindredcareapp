@@ -72,6 +72,8 @@ export interface CreateGigPayload {
   tasks_included?: string[];
   photo?: File | null;
   status?: GigStatus;
+  /** Edit-only: clear the gig's stored photo (no new file uploaded). */
+  remove_photo?: boolean;
 }
 
 export type UpdateGigPayload = Partial<CreateGigPayload>;

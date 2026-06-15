@@ -27,7 +27,7 @@ function ProfileEditView() {
   return (
     <DashboardShell pageTitle="Edit profile">
       {role === "caregiver" ? (
-        <OnboardingForm />
+        <OnboardingForm embedded />
       ) : role === "family" ? (
         <FamilyOnboardingForm />
       ) : (

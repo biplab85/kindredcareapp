@@ -36,7 +36,13 @@ export interface CaregiverProfileSummary {
   photo_path?: string | null;
   photo_status?: string | null;
   payouts_enabled?: boolean;
-  services?: Array<{ id: number; name: string; slug: string }> | null;
+  services?: Array<{
+    id: number;
+    name: string;
+    slug: string;
+    icon?: string | null;
+    pivot?: { years_experience?: number | null } | null;
+  }> | null;
 }
 
 export interface CareRecipientSummary {

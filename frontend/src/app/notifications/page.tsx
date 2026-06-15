@@ -138,7 +138,7 @@ function NotificationsView() {
   const items = resp?.data ?? [];
 
   return (
-    <div className="max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
       {/* Page header */}
       <div>
         <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">Notifications</h1>
