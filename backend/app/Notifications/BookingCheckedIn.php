@@ -29,7 +29,10 @@ class BookingCheckedIn extends Notification
     {
         $b = $this->booking;
         $caregiverName = $b->caregiver->name;
-        $time = $b->check_in_at?->format('g:i A') ?? 'just now';
+        $time = $b->check_in_at
+            ?->copy()
+            ->setTimezone(config('app.display_timezone'))
+            ->format('g:i A') ?? 'just now';
 
         return (new MailMessage)
             ->subject("{$caregiverName} has arrived")

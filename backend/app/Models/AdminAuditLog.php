@@ -56,6 +56,8 @@ class AdminAuditLog extends Model
 
     public const TARGET_INCIDENT_REPORT = 'incident_report';
 
+    public const TARGET_ARRIVAL_REPORT = 'arrival_report';
+
     public const TARGET_BOOKING = 'booking';
 
     public const TARGET_CERTIFICATION = 'certification';

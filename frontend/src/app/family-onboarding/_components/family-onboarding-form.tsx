@@ -2,14 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Heart, CheckCircle2, X } from "lucide-react";
+import { Loader2, Heart, CheckCircle2, Check, X, MapPin, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { SlideTabs } from "@/components/ui/slide-tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuthStore } from "@/lib/auth";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -39,7 +45,10 @@ const LANGUAGES = [
   "Korean",
 ];
 
-export function FamilyOnboardingForm() {
+// {value,label} items so the shadcn Select trigger renders a readable label.
+const LANGUAGE_ITEMS = LANGUAGES.map((l) => ({ value: l, label: l }));
+
+export function FamilyOnboardingForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [step, setStep] = useState(1);
@@ -74,14 +83,14 @@ export function FamilyOnboardingForm() {
 
   const isSelf = relationship === "self";
 
-  const steps = [
-    { label: "Your Info", description: "About you" },
+  const steps: { label: string; description: string; icon: LucideIcon }[] = [
+    { label: "Your Info", description: "About you", icon: MapPin },
     {
       label: isSelf ? "About You" : "Care Recipient",
       description: isSelf ? "Your details" : "Who needs care",
+      icon: Heart,
     },
   ];
-  const totalSteps = 2;
 
   const addInterest = () => {
     const trimmed = interestInput.trim();
@@ -150,263 +159,377 @@ export function FamilyOnboardingForm() {
   };
 
   const isAlreadyOnboarded = user?.family_profile?.onboarding_complete === true;
+  const StepIcon = steps[step - 1].icon;
 
   return (
-    <div className="max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-      {/* ─── Header ─── */}
-      <header className="mb-6">
-        <h1 className="text-lg font-semibold leading-[1.15] tracking-tight text-foreground">
-          {isAlreadyOnboarded ? "Who you book for" : "Let's get you started"}
-        </h1>
-        <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          {isAlreadyOnboarded
-            ? "Switch tabs to edit any section. Changes save when you press the button at the bottom."
-            : "Just two quick sections so we can match you with the right caregivers."}
-        </p>
-      </header>
+    <div
+      className={cn(
+        "w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8",
+        // Centered for the focused standalone onboarding flow; left-aligned
+        // inside the dashboard shell (profile editor).
+        !embedded && "mx-auto",
+      )}
+    >
+      <div className="grid items-start gap-6 lg:grid-cols-[248px_minmax(0,1fr)]">
+        {/* ─── Vertical step nav ─── */}
+        <nav
+          role="tablist"
+          aria-label="Profile sections"
+          className={cn(
+            "rounded-2xl border border-border bg-card p-3 shadow-sm lg:sticky",
+            // Standalone onboarding has no fixed header → small offset. Inside
+            // the dashboard shell the topbar is sticky h-16 (64px), so clear it.
+            embedded ? "lg:top-20" : "lg:top-6",
+          )}
+        >
+          {/* Brand mark — standalone onboarding only; the profile editor sits
+              inside the dashboard shell, which already shows the logo. */}
+          {!embedded && (
+            <div className="px-2 pt-1 pb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="KindredCare" className="h-8 w-auto max-w-full" />
+            </div>
+          )}
 
-      {/* ─── Tab bar — sliding segmented control ─── */}
-      <SlideTabs
-        ariaLabel="Profile sections"
-        value={String(step)}
-        options={steps.map((tab, idx) => ({ value: String(idx + 1), label: tab.label }))}
-        onChange={(v) => setStep(Number(v))}
-        tabWidthClass="w-[132px]"
-      />
+          {/* Progress header */}
+          <div className={cn("px-2 pb-3", !embedded ? "border-t border-border/60 pt-3" : "pt-1")}>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                Setup
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                Step {step} of {steps.length}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary/75 transition-[width] duration-500 ease-out"
+                style={{ width: `${(step / steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
 
-      {/* ─── Tab body ─── */}
-      <div className="mt-6">
-        <Card>
-          <CardContent className="p-6 sm:p-8">
-            {/* Step 1 */}
-            {step === 1 && (
-              <div className="space-y-6">
-                <div>
-                  <Label className="mb-3">Who are you looking for care for?</Label>
-                  <div className="space-y-2">
-                    {RELATIONSHIPS.map((rel) => (
-                      <button
-                        key={rel.value}
-                        type="button"
-                        onClick={() => setRelationship(rel.value)}
-                        className={cn(
-                          "flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3.5 text-left transition-all",
-                          relationship === rel.value
-                            ? "border-primary bg-primary/[0.06] ring-1 ring-primary/20"
-                            : "border-border hover:border-primary/40 hover:bg-muted/30",
-                        )}
-                      >
-                        <div
+          <div className="space-y-1">
+            {steps.map((tab, idx) => {
+              const tabNum = idx + 1;
+              const active = step === tabNum;
+              const done = tabNum < step;
+              return (
+                <button
+                  key={tab.label}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setStep(tabNum)}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                    active ? "bg-primary/10 ring-1 ring-primary/15" : "hover:bg-muted",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid size-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums transition-all",
+                      active
+                        ? "bg-gradient-to-br from-primary to-primary/75 text-primary-foreground shadow-[0_4px_12px_-3px_oklch(0.56_0.13_240/0.55)] ring-1 ring-white/20 ring-inset"
+                        : done
+                          ? "bg-success/15 text-success"
+                          : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {done ? <Check className="size-4" strokeWidth={2.75} /> : tabNum}
+                  </span>
+                  <span className="min-w-0 leading-tight">
+                    <span
+                      className={cn(
+                        "block truncate text-sm font-semibold",
+                        active
+                          ? "text-foreground"
+                          : done
+                            ? "text-foreground/80"
+                            : "text-muted-foreground",
+                      )}
+                    >
+                      {tab.label}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {tab.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* ─── Tab body ─── */}
+        <div className="min-w-0">
+          {!isAlreadyOnboarded && (
+            <header className="mb-4">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Let&rsquo;s get you started
+              </h1>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Just two quick sections so we can match you with the right caregivers.
+              </p>
+            </header>
+          )}
+
+          <Card className="gap-0 overflow-hidden rounded-2xl border border-border py-0 shadow-sm ring-0">
+            <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-6 py-4 sm:px-8">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/75 text-primary-foreground shadow-[0_4px_12px_-3px_oklch(0.56_0.13_240/0.55)] ring-1 ring-white/20 ring-inset">
+                <StepIcon className="size-5" strokeWidth={2} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
+                  Step {step} of {steps.length} · {steps[step - 1].description}
+                </p>
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                  {steps[step - 1].label}
+                </h2>
+              </div>
+            </div>
+
+            <CardContent className="p-6 sm:p-8">
+              {/* ─── STEP 1: Your info ─── */}
+              {step === 1 && (
+                <div className="space-y-6">
+                  <div>
+                    <Label className="mb-3">Who are you looking for care for?</Label>
+                    <div className="space-y-2">
+                      {RELATIONSHIPS.map((rel) => (
+                        <button
+                          key={rel.value}
+                          type="button"
+                          onClick={() => setRelationship(rel.value)}
                           className={cn(
-                            "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                            "flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3.5 text-left transition-all",
                             relationship === rel.value
-                              ? "border-primary bg-primary"
-                              : "border-muted-foreground/30",
+                              ? "border-primary/40 bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
+                              : "border-border hover:border-primary/30 hover:bg-muted/30",
                           )}
                         >
-                          {relationship === rel.value && (
-                            <div className="size-2 rounded-full bg-white" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p
+                          <div
                             className={cn(
-                              "text-sm font-semibold",
-                              relationship === rel.value ? "text-primary" : "text-foreground",
+                              "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                              relationship === rel.value
+                                ? "border-primary bg-primary"
+                                : "border-muted-foreground/30",
                             )}
                           >
-                            {rel.label}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{rel.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    className="h-[35px]"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="Your city"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="postal">Postal Code</Label>
-                  <Input
-                    id="postal"
-                    className="h-[35px]"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
-                    placeholder="L1H 4G1"
-                    maxLength={7}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2 — Recipient details (about them, or about you in the self flow) */}
-            {step === 2 && (
-              <div className="space-y-6">
-                <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                    <Heart className="size-5" strokeWidth={2} />
-                  </span>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {isSelf
-                      ? "Tell us a little about yourself so caregivers can prepare. The address is where visits will happen — you can override it per booking."
-                      : "Tell us a bit about the person who needs care. This helps caregivers prepare and bookings auto-fill the address."}
-                  </p>
-                </div>
-
-                {/* Family flow asks for the recipient's name. Self flow
-                    skips it entirely — the user's name from signup is
-                    already on file and the submit handler falls back to
-                    user.name when recipientName is empty. */}
-                {!isSelf && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="rname">Their Name</Label>
-                    <Input
-                      id="rname"
-                      className="h-[35px]"
-                      value={recipientName}
-                      onChange={(e) => setRecipientName(e.target.value)}
-                      placeholder="First name is fine"
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="rstreet">
-                    {isSelf ? "Your Street Address" : "Their Street Address"}
-                  </Label>
-                  <Input
-                    id="rstreet"
-                    className="h-[35px]"
-                    value={recipientStreetAddress}
-                    onChange={(e) => setRecipientStreetAddress(e.target.value)}
-                    placeholder="123 Main Street"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Where visits will usually happen. You can override this on any single booking.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="rage">Age (optional)</Label>
-                  <Input
-                    id="rage"
-                    type="number"
-                    className="h-[35px]"
-                    value={recipientAge}
-                    onChange={(e) => setRecipientAge(e.target.value)}
-                    placeholder="78"
-                    min={0}
-                    max={120}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="rlang">Primary Language</Label>
-                  <select
-                    id="rlang"
-                    value={recipientLanguage}
-                    onChange={(e) => setRecipientLanguage(e.target.value)}
-                    className="h-[35px] w-full cursor-pointer rounded-lg border border-input bg-transparent px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/50"
-                  >
-                    {LANGUAGES.map((lang) => (
-                      <option key={lang} value={lang}>
-                        {lang}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label>Interests (helps with companionship matching)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      className="h-[35px]"
-                      value={interestInput}
-                      onChange={(e) => setInterestInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInterest())}
-                      placeholder="e.g. gardening, puzzles, music"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-[35px]"
-                      onClick={addInterest}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  {recipientInterests.length > 0 && (
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      {recipientInterests.map((interest) => (
-                        <span
-                          key={interest}
-                          className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 py-1 pr-1 pl-3 text-sm font-medium text-primary shadow-xs transition-colors hover:border-primary/30 hover:bg-primary/15"
-                        >
-                          {interest}
-                          <button
-                            type="button"
-                            aria-label={`Remove ${interest}`}
-                            onClick={() =>
-                              setRecipientInterests((prev) => prev.filter((i) => i !== interest))
-                            }
-                            className="grid size-5 place-items-center rounded-full text-primary/60 transition-colors hover:bg-primary/20 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                          >
-                            <X className="size-3.5" strokeWidth={2.5} />
-                          </button>
-                        </span>
+                            {relationship === rel.value && (
+                              <div className="size-2 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p
+                              className={cn(
+                                "text-sm font-semibold",
+                                relationship === rel.value ? "text-primary" : "text-foreground",
+                              )}
+                            >
+                              {rel.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{rel.desc}</p>
+                          </div>
+                        </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        className="h-10"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="Your city"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="postal">Postal Code</Label>
+                      <Input
+                        id="postal"
+                        className="h-10"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                        placeholder="L1H 4G1"
+                        maxLength={7}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── STEP 2: Recipient details (about them, or about you in the self flow) ─── */}
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                      <Heart className="size-5" strokeWidth={2} />
+                    </span>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {isSelf
+                        ? "Tell us a little about yourself so caregivers can prepare. The address is where visits will happen — you can override it per booking."
+                        : "Tell us a bit about the person who needs care. This helps caregivers prepare and bookings auto-fill the address."}
+                    </p>
+                  </div>
+
+                  {/* Family flow asks for the recipient's name. Self flow
+                      skips it entirely — the user's name from signup is
+                      already on file and the submit handler falls back to
+                      user.name when recipientName is empty. */}
+                  {!isSelf && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="rname">Their Name</Label>
+                      <Input
+                        id="rname"
+                        className="h-10"
+                        value={recipientName}
+                        onChange={(e) => setRecipientName(e.target.value)}
+                        placeholder="First name is fine"
+                      />
+                    </div>
                   )}
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="notes">Accessibility Notes (optional)</Label>
-                  <Textarea
-                    id="notes"
-                    value={accessibilityNotes}
-                    onChange={(e) => setAccessibilityNotes(e.target.value)}
-                    placeholder="e.g. Uses a walker, hearing aid in left ear, prefers a quiet environment"
-                    rows={3}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This helps caregivers prepare and provide better care.
-                  </p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rstreet">
+                      {isSelf ? "Your Street Address" : "Their Street Address"}
+                    </Label>
+                    <Input
+                      id="rstreet"
+                      className="h-10"
+                      value={recipientStreetAddress}
+                      onChange={(e) => setRecipientStreetAddress(e.target.value)}
+                      placeholder="123 Main Street"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Where visits will usually happen. You can override this on any single booking.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="rage">Age (optional)</Label>
+                      <Input
+                        id="rage"
+                        type="number"
+                        className="h-10"
+                        value={recipientAge}
+                        onChange={(e) => setRecipientAge(e.target.value)}
+                        placeholder="78"
+                        min={0}
+                        max={120}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="rlang">Primary Language</Label>
+                      <Select
+                        items={LANGUAGE_ITEMS}
+                        value={recipientLanguage || null}
+                        onValueChange={(value) => setRecipientLanguage(value ?? "English")}
+                      >
+                        <SelectTrigger id="rlang" className="w-full data-[size=default]:h-10">
+                          <SelectValue placeholder="Select…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LANGUAGES.map((lang) => (
+                            <SelectItem key={lang} value={lang}>
+                              {lang}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Interests (helps with companionship matching)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        className="h-10"
+                        value={interestInput}
+                        onChange={(e) => setInterestInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInterest())}
+                        placeholder="e.g. gardening, puzzles, music"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10"
+                        onClick={addInterest}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    {recipientInterests.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        {recipientInterests.map((interest) => (
+                          <span
+                            key={interest}
+                            className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 py-1 pr-1 pl-3 text-sm font-medium text-primary shadow-xs transition-colors hover:border-primary/30 hover:bg-primary/15"
+                          >
+                            {interest}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${interest}`}
+                              onClick={() =>
+                                setRecipientInterests((prev) => prev.filter((i) => i !== interest))
+                              }
+                              className="grid size-5 place-items-center rounded-full text-primary/60 transition-colors hover:bg-primary/20 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                            >
+                              <X className="size-3.5" strokeWidth={2.5} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="notes">Accessibility Notes (optional)</Label>
+                    <Textarea
+                      id="notes"
+                      value={accessibilityNotes}
+                      onChange={(e) => setAccessibilityNotes(e.target.value)}
+                      placeholder="e.g. Uses a walker, hearing aid in left ear, prefers a quiet environment"
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This helps caregivers prepare and provide better care.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Save action — sits directly below the card ─── */}
+          <div className="mt-6 flex items-center justify-end gap-4">
+            {lastSavedAt && (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
+                <CheckCircle2 className="size-4" strokeWidth={2.25} />
+                Saved · {lastSavedAt}
+              </span>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ─── Save row ─── */}
-      <div className="mt-6 flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          {lastSavedAt ? (
-            <p className="text-xs text-muted-foreground">Saved · {lastSavedAt}</p>
-          ) : !isAlreadyOnboarded ? (
-            <p className="text-xs text-muted-foreground">
-              {steps[step - 1].label} · step {step} of {totalSteps}
-            </p>
-          ) : null}
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              size="lg"
+              className="min-w-[140px]"
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1 size-4" />
+              )}
+              {isAlreadyOnboarded ? "Save changes" : "Find caregivers"}
+            </Button>
+          </div>
         </div>
-        <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="min-w-[140px]">
-          {isSubmitting ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <CheckCircle2 className="mr-1 size-4" />
-          )}
-          {isAlreadyOnboarded ? "Save changes" : "Find caregivers"}
-        </Button>
       </div>
     </div>
   );

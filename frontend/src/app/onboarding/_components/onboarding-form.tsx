@@ -19,8 +19,15 @@ import {
   X,
   Shield,
   UserCheck,
+  UserCircle,
+  Award,
+  Briefcase,
+  Check,
+  Calendar as CalendarIcon,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +36,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import {
@@ -58,6 +76,7 @@ const LANGUAGES = [
   "English",
   "French",
   "Hindi",
+  "Bangla",
   "Punjabi",
   "Tagalog",
   "Mandarin",
@@ -99,6 +118,13 @@ const COMMON_CERTS = [
   "WHMIS",
 ];
 
+// {value,label} items so the Select trigger renders the readable label
+// (not the raw value) for the chosen certification, incl. the "Other" entry.
+const CERT_ITEMS = [
+  ...COMMON_CERTS.map((c) => ({ value: c, label: c })),
+  { value: CERT_OTHER_VALUE, label: "Other (specify)" },
+];
+
 const GENDERS = [
   { value: "female", label: "Female" },
   { value: "male", label: "Male" },
@@ -106,12 +132,32 @@ const GENDERS = [
   { value: "prefer_not_to_say", label: "Prefer not to say" },
 ];
 
+// "09:00" → "9:00 AM" for the time pickers; storage stays 24-hour "HH:MM".
+function timeLabel(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+// 15-minute slots for the availability time selects.
+const TIME_OPTIONS = (() => {
+  const out: { value: string; label: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const v = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      out.push({ value: v, label: timeLabel(v) });
+    }
+  }
+  return out;
+})();
+
 const steps = [
-  { label: "Personal", description: "About you" },
-  { label: "Services", description: "What you offer" },
-  { label: "Skills", description: "Certs & languages" },
-  { label: "Rate", description: "Pay & schedule" },
-  { label: "Safety", description: "References" },
+  { label: "Personal", description: "About you", icon: UserCircle },
+  { label: "Services", description: "What you offer", icon: Briefcase },
+  { label: "Skills", description: "Certs & languages", icon: Award },
+  { label: "Rate", description: "Pay & schedule", icon: DollarSign },
+  { label: "Safety", description: "References", icon: Shield },
 ];
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -128,7 +174,7 @@ interface Reference {
   relationship: string;
 }
 
-export function OnboardingForm() {
+export function OnboardingForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Honor ?step=N from the URL so deep-links from dashboard CTAs ("add a
@@ -154,6 +200,7 @@ export function OnboardingForm() {
   const fetchedRef = useRef(false);
 
   const [dateOfBirth, setDateOfBirth] = useState("");
+  const [dobOpen, setDobOpen] = useState(false);
   const [gender, setGender] = useState("");
   const [bio, setBio] = useState("");
   const [address, setAddress] = useState("");
@@ -579,80 +626,132 @@ export function OnboardingForm() {
   const familyPays = +(hourlyRate + platformFee).toFixed(2);
   const youKeep = hourlyRate;
 
-  return (
-    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-      {!isAlreadyOnboarded && (
-        <header>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            Set up your profile
-          </h1>
-          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Walk through the steps — when each is filled out, families can find and book you.
-          </p>
-        </header>
-      )}
+  const StepIcon = steps[step - 1].icon;
 
-      <div
-        className={cn(
-          "grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start",
-          !isAlreadyOnboarded && "mt-6",
-        )}
-      >
+  return (
+    <div
+      className={cn(
+        "w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8",
+        // Centered for the focused standalone onboarding flow; left-aligned
+        // inside the dashboard shell (profile editor).
+        !embedded && "mx-auto",
+      )}
+    >
+      <div className="grid items-start gap-6 lg:grid-cols-[248px_minmax(0,1fr)]">
         {/* ─── Vertical step nav ─── */}
         <nav
           role="tablist"
-          className="space-y-1 rounded-2xl border border-border bg-card p-2 shadow-sm lg:sticky lg:top-20"
+          className={cn(
+            "rounded-2xl border border-border bg-card p-3 shadow-sm lg:sticky",
+            // Standalone onboarding has no fixed header → small offset. Inside
+            // the dashboard shell the topbar is sticky h-16 (64px), so clear it.
+            embedded ? "lg:top-20" : "lg:top-6",
+          )}
         >
-          {steps.map((tab, idx) => {
-            const tabNum = idx + 1;
-            const active = step === tabNum;
-            return (
-              <button
-                key={tab.label}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setStep(tabNum)}
-                className={cn(
-                  "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-                  active ? "bg-primary/10" : "hover:bg-muted",
-                )}
-              >
-                <span
+          {/* Brand mark — standalone onboarding only; the profile editor sits
+              inside the dashboard shell, which already shows the logo. */}
+          {!embedded && (
+            <div className="px-2 pt-1 pb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="KindredCare" className="h-8 w-auto max-w-full" />
+            </div>
+          )}
+
+          {/* Progress header */}
+          <div className={cn("px-2 pb-3", !embedded ? "border-t border-border/60 pt-3" : "pt-1")}>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                Setup
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                Step {step} of {steps.length}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary/75 transition-[width] duration-500 ease-out"
+                style={{ width: `${(step / steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            {steps.map((tab, idx) => {
+              const tabNum = idx + 1;
+              const active = step === tabNum;
+              const done = tabNum < step;
+              return (
+                <button
+                  key={tab.label}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setStep(tabNum)}
                   className={cn(
-                    "grid size-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground",
+                    "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                    active ? "bg-primary/10 ring-1 ring-primary/15" : "hover:bg-muted",
                   )}
                 >
-                  {tabNum}
-                </span>
-                <span className="min-w-0 leading-tight">
                   <span
                     className={cn(
-                      "block truncate text-sm font-semibold",
-                      active ? "text-foreground" : "text-muted-foreground",
+                      "grid size-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums transition-all",
+                      active
+                        ? "bg-gradient-to-br from-primary to-primary/75 text-primary-foreground shadow-[0_4px_12px_-3px_oklch(0.56_0.13_240/0.55)] ring-1 ring-white/20 ring-inset"
+                        : done
+                          ? "bg-success/15 text-success"
+                          : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {tab.label}
+                    {done ? <Check className="size-4" strokeWidth={2.75} /> : tabNum}
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {tab.description}
+                  <span className="min-w-0 leading-tight">
+                    <span
+                      className={cn(
+                        "block truncate text-sm font-semibold",
+                        active
+                          ? "text-foreground"
+                          : done
+                            ? "text-foreground/80"
+                            : "text-muted-foreground",
+                      )}
+                    >
+                      {tab.label}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {tab.description}
+                    </span>
                   </span>
-                </span>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
         {/* ─── Tab body ─── */}
         <div className="min-w-0">
-          <Card className="gap-0 border border-border py-0 shadow-sm ring-0">
-            <div className="border-b border-border px-6 py-4 sm:px-8">
-              <h2 className="text-base font-semibold tracking-tight text-foreground">
-                {steps[step - 1].label}
-              </h2>
+          {!isAlreadyOnboarded && (
+            <header className="mb-4">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Set up your profile
+              </h1>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Walk through the steps — when each is filled out, families can find and book you.
+              </p>
+            </header>
+          )}
+          <Card className="gap-0 overflow-hidden rounded-2xl border border-border py-0 shadow-sm ring-0">
+            <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-6 py-4 sm:px-8">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/75 text-primary-foreground shadow-[0_4px_12px_-3px_oklch(0.56_0.13_240/0.55)] ring-1 ring-white/20 ring-inset">
+                <StepIcon className="size-5" strokeWidth={2} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
+                  Step {step} of {steps.length} · {steps[step - 1].description}
+                </p>
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                  {steps[step - 1].label}
+                </h2>
+              </div>
             </div>
             <CardContent className="p-6 sm:p-8">
               {/* ─── STEP 1: Personal Info ─── */}
@@ -711,29 +810,47 @@ export function OnboardingForm() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label htmlFor="dob">Date of Birth</Label>
-                      <Input
-                        id="dob"
-                        type="date"
-                        className="h-[35px]"
-                        value={dateOfBirth}
-                        onChange={(e) => setDateOfBirth(e.target.value)}
-                      />
+                      <Popover open={dobOpen} onOpenChange={setDobOpen}>
+                        <PopoverTrigger
+                          id="dob"
+                          className="flex h-10 w-full cursor-pointer items-center justify-between rounded-lg border border-input bg-transparent px-3 text-sm outline-none transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-[popup-open]:border-ring"
+                        >
+                          <span className={cn(!dateOfBirth && "text-muted-foreground")}>
+                            {dateOfBirth
+                              ? format(parseISO(dateOfBirth), "MMM d, yyyy")
+                              : "Select date"}
+                          </span>
+                          <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-auto">
+                          <Calendar
+                            value={dateOfBirth ? parseISO(dateOfBirth) : null}
+                            onSelect={(date) => {
+                              setDateOfBirth(format(date, "yyyy-MM-dd"));
+                              setDobOpen(false);
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="gender">Gender</Label>
-                      <select
-                        id="gender"
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value)}
-                        className="h-[35px] w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+                      <Select
+                        items={GENDERS}
+                        value={gender || null}
+                        onValueChange={(value) => setGender(value ?? "")}
                       >
-                        <option value="">Select...</option>
-                        {GENDERS.map((g) => (
-                          <option key={g.value} value={g.value}>
-                            {g.label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger id="gender" className="w-full data-[size=default]:h-10">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENDERS.map((g) => (
+                            <SelectItem key={g.value} value={g.value}>
+                              {g.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -761,7 +878,7 @@ export function OnboardingForm() {
                     <Label htmlFor="address">Address</Label>
                     <Input
                       id="address"
-                      className="h-[35px]"
+                      className="h-10"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="123 Main St, City, Province"
@@ -772,7 +889,7 @@ export function OnboardingForm() {
                     <Label htmlFor="postal">Postal Code</Label>
                     <Input
                       id="postal"
-                      className="h-[35px]"
+                      className="h-10"
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                       placeholder="L1H 8C1"
@@ -796,7 +913,7 @@ export function OnboardingForm() {
                       <Input
                         id="yoe"
                         type="number"
-                        className="h-[35px] w-24"
+                        className="h-10 w-24"
                         min={0}
                         max={50}
                         value={yearsOfExperience}
@@ -857,7 +974,7 @@ export function OnboardingForm() {
                               </Label>
                               <Input
                                 type="number"
-                                className="h-8 w-16 text-sm"
+                                className="h-10 w-16 text-sm"
                                 min={0}
                                 max={50}
                                 value={selectedServices[cat.id]}
@@ -993,30 +1110,34 @@ export function OnboardingForm() {
                         Add a certification
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        <select
-                          value={certName}
-                          onChange={(e) => setCertName(e.target.value)}
-                          className="h-[35px] flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+                        <Select
+                          items={CERT_ITEMS}
+                          value={certName || null}
+                          onValueChange={(value) => setCertName(value ?? "")}
                         >
-                          <option value="">Select certification…</option>
-                          {COMMON_CERTS.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                          {/* Thin divider so "Other" reads as a different
-                            tier from the preset list. */}
-                          <option disabled>──────────</option>
-                          <option value={CERT_OTHER_VALUE}>Other (specify)</option>
-                        </select>
+                          <SelectTrigger className="flex-1 data-[size=default]:h-10">
+                            <SelectValue placeholder="Select certification…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COMMON_CERTS.map((c) => (
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
+                            ))}
+                            {/* Separator so "Other" reads as a different
+                              tier from the preset list. */}
+                            <SelectSeparator />
+                            <SelectItem value={CERT_OTHER_VALUE}>Other (specify)</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <Input
-                          className="h-[35px] w-32"
+                          className="h-10 w-32"
                           placeholder="Issuer"
                           value={certIssuer}
                           onChange={(e) => setCertIssuer(e.target.value)}
                         />
                         <Input
-                          className="h-[35px] w-20"
+                          className="h-10 w-20"
                           type="number"
                           placeholder="Year"
                           value={certYear}
@@ -1036,7 +1157,7 @@ export function OnboardingForm() {
                       >
                         <div className="overflow-hidden">
                           <Input
-                            className="h-[35px]"
+                            className="h-10"
                             placeholder="Name your certification — e.g. Vulnerable Sector Check"
                             value={certCustomName}
                             onChange={(e) => setCertCustomName(e.target.value)}
@@ -1118,7 +1239,7 @@ export function OnboardingForm() {
                     </p>
                     <div className="flex gap-2">
                       <Input
-                        className="h-[35px]"
+                        className="h-10"
                         value={interestInput}
                         onChange={(e) => setInterestInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInterest())}
@@ -1127,7 +1248,7 @@ export function OnboardingForm() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-[35px]"
+                        className="h-10"
                         onClick={addInterest}
                       >
                         Add
@@ -1195,13 +1316,12 @@ export function OnboardingForm() {
                     <div className="mt-4">
                       <div className="flex items-center gap-4">
                         <DollarSign className="size-5 text-muted-foreground" />
-                        <input
-                          type="range"
+                        <Slider
                           min={18}
                           max={50}
                           value={hourlyRate}
-                          onChange={(e) => setHourlyRate(Number(e.target.value))}
-                          className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+                          onValueChange={(value) => setHourlyRate(value as number)}
+                          className="flex-1"
                         />
                         <span className="w-16 text-right text-2xl font-bold text-foreground">
                           ${hourlyRate}
@@ -1244,13 +1364,12 @@ export function OnboardingForm() {
                       How far are you willing to travel?
                     </p>
                     <div className="mt-4 flex items-center gap-4">
-                      <input
-                        type="range"
+                      <Slider
                         min={1}
                         max={50}
                         value={travelRadius}
-                        onChange={(e) => setTravelRadius(Number(e.target.value))}
-                        className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+                        onValueChange={(value) => setTravelRadius(value as number)}
+                        className="flex-1"
                       />
                       <span className="w-20 text-right text-lg font-semibold">
                         {travelRadius} km
@@ -1293,19 +1412,41 @@ export function OnboardingForm() {
                             </span>
                             {dayData.available ? (
                               <div className="ml-auto flex items-center gap-2">
-                                <input
-                                  type="time"
+                                <Select
+                                  items={TIME_OPTIONS}
                                   value={dayData.start}
-                                  onChange={(e) => updateDay(key, "start", e.target.value)}
-                                  className="h-[35px] rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
-                                />
+                                  onValueChange={(v) => updateDay(key, "start", v ?? "")}
+                                >
+                                  <SelectTrigger className="w-[7.5rem] gap-1.5 data-[size=default]:h-10">
+                                    <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                                    <SelectValue placeholder="Start" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {TIME_OPTIONS.map((t) => (
+                                      <SelectItem key={t.value} value={t.value}>
+                                        {t.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <span className="text-xs text-muted-foreground">to</span>
-                                <input
-                                  type="time"
+                                <Select
+                                  items={TIME_OPTIONS}
                                   value={dayData.end}
-                                  onChange={(e) => updateDay(key, "end", e.target.value)}
-                                  className="h-[35px] rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
-                                />
+                                  onValueChange={(v) => updateDay(key, "end", v ?? "")}
+                                >
+                                  <SelectTrigger className="w-[7.5rem] gap-1.5 data-[size=default]:h-10">
+                                    <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                                    <SelectValue placeholder="End" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {TIME_OPTIONS.map((t) => (
+                                      <SelectItem key={t.value} value={t.value}>
+                                        {t.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             ) : (
                               <span className="ml-auto text-sm text-muted-foreground">
@@ -1338,7 +1479,7 @@ export function OnboardingForm() {
                         <Label htmlFor="ec-name">Name</Label>
                         <Input
                           id="ec-name"
-                          className="h-[35px]"
+                          className="h-10"
                           value={emergencyName}
                           onChange={(e) => setEmergencyName(e.target.value)}
                           placeholder="Full name"
@@ -1349,7 +1490,7 @@ export function OnboardingForm() {
                         <Input
                           id="ec-phone"
                           type="tel"
-                          className="h-[35px]"
+                          className="h-10"
                           value={emergencyPhone}
                           onChange={(e) => setEmergencyPhone(e.target.value)}
                           placeholder="+1 (416) 555-0000"
@@ -1359,7 +1500,7 @@ export function OnboardingForm() {
                         <Label htmlFor="ec-rel">Relationship</Label>
                         <Input
                           id="ec-rel"
-                          className="h-[35px]"
+                          className="h-10"
                           value={emergencyRelationship}
                           onChange={(e) => setEmergencyRelationship(e.target.value)}
                           placeholder="e.g. Spouse"
@@ -1392,7 +1533,7 @@ export function OnboardingForm() {
                           <div className="space-y-1.5">
                             <Label>Name</Label>
                             <Input
-                              className="h-[35px]"
+                              className="h-10"
                               value={ref.name}
                               onChange={(e) => updateReference(i, "name", e.target.value)}
                               placeholder="Full name"
@@ -1402,7 +1543,7 @@ export function OnboardingForm() {
                             <Label>Email</Label>
                             <Input
                               type="email"
-                              className="h-[35px]"
+                              className="h-10"
                               value={ref.email}
                               onChange={(e) => updateReference(i, "email", e.target.value)}
                               placeholder="email@example.com"
@@ -1412,7 +1553,7 @@ export function OnboardingForm() {
                             <Label>Phone (optional)</Label>
                             <Input
                               type="tel"
-                              className="h-[35px]"
+                              className="h-10"
                               value={ref.phone}
                               onChange={(e) => updateReference(i, "phone", e.target.value)}
                               placeholder="+1 (416) 555-0000"
@@ -1421,7 +1562,7 @@ export function OnboardingForm() {
                           <div className="space-y-1.5">
                             <Label>Relationship</Label>
                             <Input
-                              className="h-[35px]"
+                              className="h-10"
                               value={ref.relationship}
                               onChange={(e) => updateReference(i, "relationship", e.target.value)}
                               placeholder="e.g. Former employer"

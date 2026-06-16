@@ -233,6 +233,14 @@ class GigController extends Controller
                 Storage::disk('public')->delete($gig->photo_path);
             }
             $payload['photo_path'] = $this->storePhoto($request, $gig->id);
+        } elseif ($request->boolean('remove_photo')) {
+            // Explicit "remove photo" from the edit form — drop the stored
+            // file (no-op for seeded external URLs) and null the column so
+            // the gig falls back to its gradient placeholder.
+            if ($gig->photo_path) {
+                Storage::disk('public')->delete($gig->photo_path);
+            }
+            $payload['photo_path'] = null;
         }
 
         $gig->update($payload);

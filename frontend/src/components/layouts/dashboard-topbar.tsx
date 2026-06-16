@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Bell, LogOut, Menu, Settings, type LucideIcon, User, UserCircle } from "lucide-react";
+import { LogOut, Menu, Settings, type LucideIcon, User, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,8 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationBell } from "@/components/layouts/notification-bell";
 import { useAuthStore } from "@/lib/auth";
-import { listNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────
@@ -39,37 +38,6 @@ export function DashboardTopbar({
   notificationCount: notificationCountProp = 0,
 }: DashboardTopbarProps) {
   const { user, logout } = useAuthStore();
-  const [unread, setUnread] = useState<number>(notificationCountProp);
-
-  // Self-fetching unread count. Poll every 60s; pause when tab hidden so
-  // we don't burn cycles in the background. The prop is the initial value
-  // so the badge isn't blank during the first roundtrip.
-  useEffect(() => {
-    let alive = true;
-
-    const fetchOnce = async () => {
-      try {
-        const resp = await listNotifications();
-        if (!alive) return;
-        setUnread(resp.meta.unread);
-      } catch {
-        // Silent — bell badge is non-critical, page-load shouldn't fail.
-      }
-    };
-
-    void fetchOnce();
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      void fetchOnce();
-    }, 60_000);
-
-    return () => {
-      alive = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const notificationCount = unread;
 
   const handleLogout = async () => {
     await logout();
@@ -107,21 +75,7 @@ export function DashboardTopbar({
 
       {/* Right cluster */}
       <div className="flex shrink-0 items-center gap-1">
-        <Link
-          href="/notifications"
-          className="relative inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Notifications"
-        >
-          <Bell className="size-[18px]" strokeWidth={1.75} />
-          {notificationCount > 0 && (
-            <span
-              aria-hidden
-              className="absolute top-1.5 right-1.5 grid size-4 min-w-[1rem] place-items-center rounded-full bg-accent px-1 font-mono text-[9px] font-bold text-accent-foreground"
-            >
-              {notificationCount > 9 ? "9+" : notificationCount}
-            </span>
-          )}
-        </Link>
+        <NotificationBell initialCount={notificationCountProp} />
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -160,10 +114,12 @@ export function DashboardTopbar({
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/profile" />}>
-              <UserCircle className="size-4" strokeWidth={1.75} />
-              Profile
-            </DropdownMenuItem>
+            {user?.role !== "admin" && (
+              <DropdownMenuItem render={<Link href="/profile" />}>
+                <UserCircle className="size-4" strokeWidth={1.75} />
+                Profile
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem render={<Link href="/settings" />}>
               <Settings className="size-4" strokeWidth={1.75} />
               Settings

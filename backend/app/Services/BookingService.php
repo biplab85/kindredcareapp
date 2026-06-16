@@ -273,7 +273,10 @@ class BookingService
             // Partial-capture support: if actual duration is shorter than the
             // booked duration, capture only the pro-rated amount. mvp-reqs
             // §4.9 — "handle partial captures if visit was shorter than booked".
-            $captureAmount = $this->computeCaptureAmount($booking, $completedAt);
+            // The booking's subtotal_cents / platform_fee_cents /
+            // caregiver_payout_cents are rewritten to match what was actually
+            // captured, so the ReleasePayouts cron transfers the right amount.
+            $amounts = $this->computeFinalAmounts($booking, $completedAt);
 
             $booking->update([
                 'status' => Booking::STATUS_COMPLETED,
@@ -283,15 +286,21 @@ class BookingService
                 'check_out_distance_m' => $distanceM,
                 'tasks_completed' => $tasks === [] ? $booking->tasks_completed : $tasks,
                 'caregiver_notes' => $notes ?? $booking->caregiver_notes,
+                'subtotal_cents' => $amounts['subtotal'],
+                'platform_fee_cents' => $amounts['platform_fee'],
+                'caregiver_payout_cents' => $amounts['caregiver_payout'],
             ]);
 
-            $captured = $this->stripe->captureForBooking($booking->fresh(), $captureAmount);
+            $captured = $this->stripe->captureForBooking($booking->fresh(), $amounts['subtotal']);
             $booking->update([
                 'payment_status' => $captured
                     ? Booking::PAYMENT_CAPTURED
                     : Booking::PAYMENT_CAPTURED_STUB,
-                // 24-hour hold before the caregiver payout is released.
-                // The ReleasePayouts command polls this timestamp.
+                // 48-hour hold before the caregiver payout is released —
+                // matches the family's dispute window so a late dispute
+                // can't fire after Stripe has already moved money out of
+                // the platform balance. The ReleasePayouts command polls
+                // this timestamp.
                 'payout_at' => now()->addHours(Booking::PAYOUT_HOLD_HOURS),
             ]);
 
@@ -311,18 +320,23 @@ class BookingService
      * Releases the authorization (family isn't charged) and returns the
      * gig to open so the family can re-match.
      */
-    public function markNoShow(Booking $booking): ?Booking
+    public function markNoShow(Booking $booking, bool $forceByAdmin = false): ?Booking
     {
         if ($booking->status !== Booking::STATUS_CONFIRMED) {
             return null;
         }
 
-        $threshold = $booking->scheduled_start->copy()->addMinutes(Booking::NO_SHOW_THRESHOLD_MINUTES);
-        if (now()->lessThan($threshold)) {
-            return null;
+        // The cron's 30-min threshold protects against early triggers from
+        // a racing scheduler; admin resolving an arrival report is an
+        // explicit decision, so we let them skip it.
+        if (! $forceByAdmin) {
+            $threshold = $booking->scheduled_start->copy()->addMinutes(Booking::NO_SHOW_THRESHOLD_MINUTES);
+            if (now()->lessThan($threshold)) {
+                return null;
+            }
         }
 
-        return DB::transaction(function () use ($booking) {
+        return DB::transaction(function () use ($booking, $forceByAdmin) {
             $this->stripe->cancelAuthorization($booking);
 
             $booking->update([
@@ -332,7 +346,9 @@ class BookingService
                     : Booking::PAYMENT_RELEASED_STUB,
                 'cancelled_at' => now(),
                 'cancelled_by' => Booking::CANCELLED_BY_SYSTEM,
-                'cancellation_reason' => 'Caregiver did not check in within '.Booking::NO_SHOW_THRESHOLD_MINUTES.' minutes of the scheduled start.',
+                'cancellation_reason' => $forceByAdmin
+                    ? 'Admin confirmed no-show after family report.'
+                    : 'Caregiver did not check in within '.Booking::NO_SHOW_THRESHOLD_MINUTES.' minutes of the scheduled start.',
             ]);
 
             // No gig-status mutation under the Fiverr direction — the
@@ -353,7 +369,8 @@ class BookingService
 
     /**
      * Family opens a dispute on a completed booking. Freezes the payment
-     * (relevant once the 24-hour payout hold from 9.2 is in place) and
+     * (relevant during the 48-hour payout hold; outside that window the
+     * money has already moved to the caregiver's Connect balance) and
      * creates the dispute row that admin will resolve.
      *
      * @param  array<int, string>  $evidencePaths
@@ -423,7 +440,7 @@ class BookingService
      *
      * Pulls payout_at forward to now() so ReleasePayouts transfers the
      * funds on its next tick (every 5 min) instead of waiting on the
-     * 24-hour auto-release. Silence is still treated as success — this
+     * 48-hour auto-release. Silence is still treated as success — this
      * is a fast-path lever, not a hard gate.
      */
     public function confirmVisit(Booking $booking, User $actor): Booking
@@ -656,28 +673,52 @@ class BookingService
     /**
      * Actual vs booked duration → pro-rated capture in cents. Short-visit
      * cases (mvp-reqs §4.9) capture less than the full authorization.
-     * Longer-than-booked is capped at subtotal_cents — we don't charge
+     * Longer-than-booked is capped at the booked subtotal — we don't charge
      * families for over-stay without re-authorization.
      *
      * Under the fee-on-top model the pro-rated amount has to include both
      * the pro-rated base (caregiver's portion) AND the pro-rated platform
      * fee, otherwise short visits would silently waive the platform's cut.
+     *
+     * Returns the post-pro-rate breakdown for the booking so checkOut can
+     * persist subtotal_cents, platform_fee_cents, and caregiver_payout_cents
+     * to match what was actually captured. Without that update, the
+     * ReleasePayouts cron would try to transfer the booked payout amount to
+     * a charge that only holds the pro-rated portion — Stripe rejects via
+     * source_transaction linkage and the caregiver doesn't get paid.
+     *
+     * @return array{subtotal: int, platform_fee: int, caregiver_payout: int}
      */
-    private function computeCaptureAmount(Booking $booking, CarbonInterface $completedAt): int
+    private function computeFinalAmounts(Booking $booking, CarbonInterface $completedAt): array
     {
+        $bookedFee = $booking->platform_fee_cents;
+        $bookedPayout = $booking->caregiver_payout_cents;
+
         if (! $booking->check_in_at || $booking->duration_minutes <= 0) {
-            return $booking->subtotal_cents;
+            return [
+                'subtotal' => $booking->subtotal_cents,
+                'platform_fee' => $bookedFee,
+                'caregiver_payout' => $bookedPayout,
+            ];
         }
 
         $actualMinutes = (int) $booking->check_in_at->diffInMinutes($completedAt, absolute: true);
         if ($actualMinutes >= $booking->duration_minutes) {
-            return $booking->subtotal_cents;
+            return [
+                'subtotal' => $booking->subtotal_cents,
+                'platform_fee' => $bookedFee,
+                'caregiver_payout' => $bookedPayout,
+            ];
         }
 
-        $proRatedBase = (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
-        $proRatedFee = (int) round($proRatedBase * Booking::PLATFORM_FEE_BPS / 10000);
+        $proRatedPayout = (int) round($booking->hourly_rate_cents * $actualMinutes / 60);
+        $proRatedFee = (int) round($proRatedPayout * Booking::PLATFORM_FEE_BPS / 10000);
 
-        return $proRatedBase + $proRatedFee;
+        return [
+            'subtotal' => $proRatedPayout + $proRatedFee,
+            'platform_fee' => $proRatedFee,
+            'caregiver_payout' => $proRatedPayout,
+        ];
     }
 
     private function metersFromGig(Booking $booking, float $lat, float $lng): int

@@ -138,10 +138,13 @@ class Booking extends Model
 
     /**
      * How long the platform holds captured funds before transferring them
-     * to the caregiver. Gives the family a dispute window and matches the
-     * mvp-requirements §4.9 escrow promise.
+     * to the caregiver. MUST be at least DISPUTE_WINDOW_HOURS — otherwise
+     * a late dispute can fire after the Connect transfer has already
+     * landed in the caregiver's balance (and possibly paid out to their
+     * bank), at which point the family's refund clawback is no longer
+     * fully recoverable. Matched at 48h so the two windows close together.
      */
-    public const PAYOUT_HOLD_HOURS = 24;
+    public const PAYOUT_HOLD_HOURS = 48;
 
     /** Geofence radius (meters) for a clean GPS check-in. */
     public const CHECK_IN_RADIUS_M = 200;
@@ -315,6 +318,14 @@ class Booking extends Model
     public function incidentReports(): HasMany
     {
         return $this->hasMany(IncidentReport::class);
+    }
+
+    /**
+     * @return HasMany<ArrivalReport, $this>
+     */
+    public function arrivalReports(): HasMany
+    {
+        return $this->hasMany(ArrivalReport::class);
     }
 
     public function isActive(): bool

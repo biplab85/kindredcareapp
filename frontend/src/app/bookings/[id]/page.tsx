@@ -33,6 +33,9 @@ import { DashboardShell } from "@/components/layouts";
 import { Button } from "@/components/ui/button";
 import { IncidentReportTrigger } from "@/components/bookings/incident-form";
 import { MessagesBlock } from "@/components/bookings/messages-block";
+import { ArrivalReportCard } from "@/components/bookings/arrival-report-card";
+import { CaregiverArrivalResponseCard } from "@/components/bookings/caregiver-arrival-response-card";
+import { DisputeForm } from "@/components/bookings/dispute-form";
 import { PanicButton } from "@/components/bookings/panic-button";
 import { SafetyGate } from "@/components/bookings/safety-gate";
 import { useAuthStore } from "@/lib/auth";
@@ -44,6 +47,7 @@ import {
   checkOutBooking,
   confirmBooking,
   declineBooking,
+  DISPUTE_WINDOW_HOURS,
   flagReasonLabel,
   formatCents,
   formatHours,
@@ -83,6 +87,10 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
   const role = user?.role as "family" | "caregiver" | "admin" | undefined;
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<"notfound" | "generic" | null>(null);
+  // Lifted out of FloatingMessages so the inline "Messages" button in
+  // PartyBlock can open the same floating panel — single source of
+  // truth for whether the chat is open.
+  const [messagesOpen, setMessagesOpen] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -147,9 +155,9 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
             existed on the /bookings list page, so a caregiver who
             deep-linked into the detail (from email, notification, magic
             link) had to back out to take action. */}
-        {role === "caregiver" &&
-          booking.status === "pending_caregiver" &&
-          !booking.is_expired && <OfferRespondPanel booking={booking} onChanged={reload} />}
+        {role === "caregiver" && booking.status === "pending_caregiver" && !booking.is_expired && (
+          <OfferRespondPanel booking={booking} onChanged={reload} />
+        )}
 
         <ArrivalBanner booking={booking} role={role} />
 
@@ -163,7 +171,11 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
             </div>
             <FamilyConfirmBlock booking={booking} role={role} onChanged={reload} />
             <RatingPromptBlock booking={booking} />
-            <PartyBlock booking={booking} role={role} />
+            <PartyBlock
+              booking={booking}
+              role={role}
+              onOpenMessages={() => setMessagesOpen(true)}
+            />
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24">
@@ -172,7 +184,7 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
         </div>
       </div>
 
-      <FloatingMessages bookingId={booking.id} />
+      <FloatingMessages bookingId={booking.id} open={messagesOpen} setOpen={setMessagesOpen} />
     </>
   );
 }
@@ -183,9 +195,15 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
  * The inline Messages card stays exactly where it is.
  * ───────────────────────────────────────────────────────────── */
 
-function FloatingMessages({ bookingId }: { bookingId: number }) {
-  const [open, setOpen] = useState(false);
-
+function FloatingMessages({
+  bookingId,
+  open,
+  setOpen,
+}: {
+  bookingId: number;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   return (
     <>
       {open && (
@@ -196,7 +214,7 @@ function FloatingMessages({ bookingId }: { bookingId: number }) {
 
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-label={open ? "Close messages" : "Open messages"}
         aria-expanded={open}
         className="fixed right-4 bottom-6 z-50 grid size-12 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-100 sm:right-6"
@@ -245,7 +263,8 @@ function DetailHeader({
       </span>
 
       <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-        {start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ,
+        {start.toLocaleDateString("en-CA", {
+          timeZone: EASTERN_TZ,
           weekday: "long",
           month: "long",
           day: "numeric",
@@ -253,7 +272,11 @@ function DetailHeader({
       </h1>
 
       <span className="text-sm text-muted-foreground">
-        {start.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })}
+        {start.toLocaleTimeString("en-CA", {
+          timeZone: EASTERN_TZ,
+          hour: "numeric",
+          minute: "2-digit",
+        })}
         {" · "}
         {formatHours(booking.duration_minutes)}
         {role === "family" &&
@@ -287,13 +310,7 @@ function DetailHeader({
  * the action right there.
  * ───────────────────────────────────────────────────────────── */
 
-function OfferRespondPanel({
-  booking,
-  onChanged,
-}: {
-  booking: Booking;
-  onChanged: () => void;
-}) {
+function OfferRespondPanel({ booking, onChanged }: { booking: Booking; onChanged: () => void }) {
   const [busy, setBusy] = useState<"accept" | "decline" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -356,6 +373,9 @@ function OfferRespondPanel({
               You receive{" "}
               <span className="font-semibold text-foreground tabular-nums">{payout}</span>
             </span>
+          </p>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+            Paid for the time you actually work, up to the booked amount.
           </p>
           {error && (
             <p className="mt-3 flex items-start gap-2 rounded-lg bg-destructive/[0.06] px-3 py-2 text-xs text-destructive ring-1 ring-destructive/20">
@@ -426,7 +446,8 @@ function ArrivalBanner({ booking, role }: { booking: Booking; role: string }) {
           <p className="text-sm font-semibold tracking-tight text-foreground">
             {caregiverName} arrived at{" "}
             <span className="tabular-nums">
-              {checkIn.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ,
+              {checkIn.toLocaleTimeString("en-CA", {
+                timeZone: EASTERN_TZ,
                 hour: "numeric",
                 minute: "2-digit",
               })}
@@ -476,7 +497,8 @@ function ReceiptBlock({
           <DetailRow
             icon={Calendar}
             label="When"
-            value={new Date(booking.scheduled_start).toLocaleString("en-CA", { timeZone: EASTERN_TZ,
+            value={new Date(booking.scheduled_start).toLocaleString("en-CA", {
+              timeZone: EASTERN_TZ,
               weekday: "short",
               month: "short",
               day: "numeric",
@@ -571,7 +593,7 @@ function paymentStatusMessage(
       return isFamily
         ? `${total} charged to your card.`
         : isCaregiver
-          ? "Visit captured. Payout transfers after the 24-hour hold."
+          ? "Visit captured. Payout transfers after the 48-hour hold."
           : null;
 
     case "released":
@@ -673,11 +695,29 @@ function VisitBlock({
 }) {
   const { status } = booking;
   const isCaregiver = role === "caregiver";
+  const isFamily = role === "family";
+
+  // Family-side "Caregiver hasn't arrived" surfaces only after the
+  // scheduled start has passed AND the caregiver still hasn't checked
+  // in. Snapshot now at mount — React 19 rejects Date.now() in render
+  // bodies, and second-precision drift over a single visit doesn't
+  // matter for this soft UI gate.
+  const [nowMs] = useState(() => Date.now());
+  const scheduledStartMs = new Date(booking.scheduled_start).getTime();
+  const arrivalWindowOpen =
+    status === "confirmed" && !booking.visit.check_in_at && nowMs > scheduledStartMs;
 
   if (status === "confirmed" && isCaregiver) {
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.active_arrival_report && (
+          <CaregiverArrivalResponseCard
+            bookingId={booking.id}
+            report={booking.active_arrival_report}
+            onChanged={onChanged}
+          />
+        )}
         {booking.safety_acknowledged_at ? (
           <VisitStartPanel booking={booking} onChanged={onChanged} />
         ) : (
@@ -691,13 +731,34 @@ function VisitBlock({
     return (
       <>
         <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
+        {booking.active_arrival_report && (
+          <CaregiverArrivalResponseCard
+            bookingId={booking.id}
+            report={booking.active_arrival_report}
+            onChanged={onChanged}
+          />
+        )}
         <VisitLiveLog booking={booking} onChanged={onChanged} />
       </>
     );
   }
 
   if (status === "in_progress" && role === "family") {
-    return <VisitInProgressWatch booking={booking} />;
+    return (
+      <>
+        <VisitInProgressWatch booking={booking} />
+        {/* Family-side arrival report for the in-progress dispute case:
+            caregiver checked in (GPS recorded) but family says they're
+            not actually at the address. Admin gets paged with the GPS
+            evidence inline. */}
+        <ArrivalReportCard bookingId={booking.id} reason="not_at_site_despite_checkin" />
+      </>
+    );
+  }
+
+  // Confirmed + family + past start + no check-in → "caregiver hasn't arrived"
+  if (isFamily && arrivalWindowOpen) {
+    return <ArrivalReportCard bookingId={booking.id} reason="not_yet_arrived" />;
   }
 
   if (status === "completed") {
@@ -1081,58 +1142,66 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
   const defaultTasks = booking.gig?.service_category?.default_tasks ?? [];
 
   return (
-    <section
-      aria-label="Visit in progress"
-      className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="relative flex size-2.5 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
-            <span className="relative size-2.5 rounded-full bg-success" />
-          </span>
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
-            Visit — in progress
-          </p>
-        </div>
-      </div>
+    <>
+      {/* Both parties need the safety escalation during an active visit.
+          The caregiver-side branches above already render PanicButton;
+          the family had no equivalent — so a family seeing something
+          alarming had no in-app way to summon admin. */}
+      <PanicButton bookingId={booking.id} existingAlert={booking.active_panic_alert ?? null} />
 
-      <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
-        {booking.caregiver.name.split(" ")[0]} is with your loved one right now. We&rsquo;ll send a
-        summary the moment the visit wraps up.
-      </p>
-
-      {(tasks.length > 0 || defaultTasks.length > 0) && (
-        <div className="mt-6 rounded-2xl bg-background/60 p-4 ring-1 ring-border/40">
-          <p className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Progress so far
-          </p>
-          <ul className="space-y-1.5 text-sm">
-            {(defaultTasks.length > 0 ? defaultTasks : tasks).map((task) => {
-              const done = tasks.includes(task);
-              return (
-                <li key={task} className="flex items-center gap-2.5">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "grid size-4 place-items-center rounded-[4px] border",
-                      done
-                        ? "border-success bg-success text-success-foreground"
-                        : "border-border/70 bg-background",
-                    )}
-                  >
-                    {done && <Check className="size-2.5" strokeWidth={3} />}
-                  </span>
-                  <span className={cn(done ? "text-foreground" : "text-muted-foreground/70")}>
-                    {task}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+      <section
+        aria-label="Visit in progress"
+        className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="relative flex size-2.5 items-center justify-center">
+              <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
+              <span className="relative size-2.5 rounded-full bg-success" />
+            </span>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
+              Visit — in progress
+            </p>
+          </div>
         </div>
-      )}
-    </section>
+
+        <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+          {booking.caregiver.name.split(" ")[0]} is with your loved one right now. We&rsquo;ll send
+          a summary the moment the visit wraps up.
+        </p>
+
+        {(tasks.length > 0 || defaultTasks.length > 0) && (
+          <div className="mt-6 rounded-2xl bg-background/60 p-4 ring-1 ring-border/40">
+            <p className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+              Progress so far
+            </p>
+            <ul className="space-y-1.5 text-sm">
+              {(defaultTasks.length > 0 ? defaultTasks : tasks).map((task) => {
+                const done = tasks.includes(task);
+                return (
+                  <li key={task} className="flex items-center gap-2.5">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "grid size-4 place-items-center rounded-[4px] border",
+                        done
+                          ? "border-success bg-success text-success-foreground"
+                          : "border-border/70 bg-background",
+                      )}
+                    >
+                      {done && <Check className="size-2.5" strokeWidth={3} />}
+                    </span>
+                    <span className={cn(done ? "text-foreground" : "text-muted-foreground/70")}>
+                      {task}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -1185,7 +1254,11 @@ function VisitSummary({
           tone="text-success"
           value={
             checkIn
-              ? checkIn.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })
+              ? checkIn.toLocaleTimeString("en-CA", {
+                  timeZone: EASTERN_TZ,
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
               : "—"
           }
         />
@@ -1194,7 +1267,11 @@ function VisitSummary({
           tone="text-primary"
           value={
             checkOut
-              ? checkOut.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })
+              ? checkOut.toLocaleTimeString("en-CA", {
+                  timeZone: EASTERN_TZ,
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
               : "—"
           }
         />
@@ -1313,7 +1390,15 @@ function FlagPill({ reasons }: { reasons: VisitFlagReason[] }) {
  * Party block (caregiver card / family card)
  * ───────────────────────────────────────────────────────────── */
 
-function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
+function PartyBlock({
+  booking,
+  role,
+  onOpenMessages,
+}: {
+  booking: Booking;
+  role: string;
+  onOpenMessages: () => void;
+}) {
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* Card header */}
@@ -1383,15 +1468,11 @@ function PartyBlock({ booking, role }: { booking: Booking; role: string }) {
       <div className="border-t border-border bg-muted/30 px-6 py-4 sm:px-8">
         <button
           type="button"
-          disabled
-          title="Messaging arrives in Phase 10"
-          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground"
+          onClick={onOpenMessages}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.04] hover:text-primary"
         >
           <MessageCircle className="size-4" />
           Messages
-          <span className="ml-1 text-[9px] font-semibold tracking-wide uppercase opacity-70">
-            soon
-          </span>
         </button>
       </div>
     </section>
@@ -1516,7 +1597,8 @@ type TimelineEvent = {
 
 function buildTimeline(booking: Booking): TimelineEvent[] {
   const fmtMeta = (d: Date) =>
-    d.toLocaleString("en-CA", { timeZone: EASTERN_TZ,
+    d.toLocaleString("en-CA", {
+      timeZone: EASTERN_TZ,
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -1654,6 +1736,7 @@ function FamilyConfirmBlock({
 }) {
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   if (role !== "family") return null;
   if (booking.status !== "completed") return null;
@@ -1677,6 +1760,21 @@ function FamilyConfirmBlock({
     } finally {
       setBusy(false);
     }
+  }
+
+  // When the family taps "Report a problem" we swap this block for the
+  // dispute form — same column slot, no modal, scrolls into view.
+  if (reporting && !isConfirmed) {
+    return (
+      <DisputeForm
+        bookingId={booking.id}
+        onCancel={() => setReporting(false)}
+        onFiled={() => {
+          setReporting(false);
+          onChanged();
+        }}
+      />
+    );
   }
 
   return (
@@ -1716,10 +1814,22 @@ function FamilyConfirmBlock({
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                 Confirming releases the {payout} payout to your caregiver right away instead of
-                waiting on the 24-hour hold. You still have 48 hours to open a dispute either way.
+                waiting on the 48-hour hold. You can still open a dispute within the 48-hour window
+                either way.
               </p>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  onClick={() => setReporting(true)}
+                  disabled={busy}
+                  variant="ghost"
+                  size="sm"
+                  className="cursor-pointer text-muted-foreground hover:bg-accent/[0.06] hover:text-accent"
+                >
+                  <AlertCircle className="size-3.5" strokeWidth={2.25} />
+                  Report a problem
+                </Button>
                 <Button
                   type="button"
                   onClick={handleConfirm}
@@ -1728,12 +1838,11 @@ function FamilyConfirmBlock({
                   className="cursor-pointer bg-success text-success-foreground hover:bg-success/90"
                 >
                   <CheckCircle2 className="size-3.5" strokeWidth={2.25} />
-                  {busy ? "Confirming…" : "Yes, this visit happened as described"}
+                  {busy ? "Confirming…" : "Confirm visit"}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Optional · skip and the payout still releases at the 24 h mark
-                </p>
               </div>
+
+              <DisputeWindowCountdown checkOutAt={booking.visit.check_out_at} className="mt-3" />
 
               {errorMsg !== null && (
                 <p
@@ -1751,8 +1860,44 @@ function FamilyConfirmBlock({
   );
 }
 
+function DisputeWindowCountdown({
+  checkOutAt,
+  className,
+}: {
+  checkOutAt: string | null;
+  className?: string;
+}) {
+  // Snapshot now once — the 48h window is precise to the minute, not the
+  // millisecond, and a live tick would need useSyncExternalStore per
+  // CLAUDE.md. The page already reloads on common state changes.
+  const [nowMs] = useState(() => Date.now());
+
+  if (!checkOutAt) return null;
+  const deadline = new Date(checkOutAt).getTime() + DISPUTE_WINDOW_HOURS * 60 * 60 * 1000;
+  const remainingMs = deadline - nowMs;
+  if (remainingMs <= 0) return null;
+
+  const remainingMinutes = Math.floor(remainingMs / 60_000);
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  const label = hours >= 1 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+  return (
+    <p
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60",
+        className,
+      )}
+    >
+      <Clock className="size-3" strokeWidth={2} />
+      {label} left to confirm or report
+    </p>
+  );
+}
+
 function formatLongTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-CA", { timeZone: EASTERN_TZ,
+  return new Date(iso).toLocaleString("en-CA", {
+    timeZone: EASTERN_TZ,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -1851,63 +1996,78 @@ function RatingPromptInner({ booking }: { booking: Booking }) {
   return (
     <section
       aria-label="Rate this visit"
-      className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6"
+      className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.05] via-card to-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
     >
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-          <Star className="size-5" strokeWidth={2} />
+      {/* Soft corner glow for depth — matches the elevated visit panels */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-20 -right-16 -z-10 size-56 rounded-full bg-[radial-gradient(circle,theme(colors.primary/0.14),transparent_70%)]"
+      />
+
+      {/* Header strip */}
+      <div className="flex items-center gap-2 border-b border-dashed border-primary/30 px-6 py-3.5 sm:px-8">
+        <span className="h-px w-6 bg-primary/40" />
+        <span className="text-[11px] font-semibold tracking-[0.22em] text-primary uppercase">
+          Your turn
         </span>
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
-            Your turn
-          </p>
-          <h3 className="text-base font-semibold tracking-tight text-foreground">
-            A word on how it went?
-          </h3>
+      </div>
+
+      {/* Body */}
+      <div className="px-6 py-6 sm:px-8 sm:py-7">
+        <div className="flex items-start gap-4 sm:gap-5">
+          <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+            <Star className="size-7" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              A word on how it went?
+            </h3>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+              Your rating lands on the other party&rsquo;s profile once both of you have weighed in,
+              or automatically after seven days — whichever comes first. Honest is what helps.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-        Your rating lands on the other party&rsquo;s profile once both of you have weighed in, or
-        automatically after seven days — whichever comes first. Honest is what helps.
-      </p>
+        {/* Star picker — set into a subtle inset, like the receipt panels */}
+        <div className="mt-6 rounded-2xl bg-background/60 p-5 ring-1 ring-border/50 sm:p-6">
+          <StarPicker value={stars} onChange={setStars} disabled={submitting} />
+        </div>
 
-      <div className="mt-5">
-        <StarPicker value={stars} onChange={setStars} disabled={submitting} />
-      </div>
-
-      <div className="mt-7">
-        <label
-          htmlFor="review-body"
-          className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
-        >
-          A note (optional)
-        </label>
-        <textarea
-          id="review-body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={4}
-          maxLength={2000}
-          placeholder="What stood out? Anything the next person should know?"
-          disabled={submitting}
-          className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/50 disabled:opacity-60"
-        />
-        <p className="mt-1 text-right text-xs text-muted-foreground tabular-nums">
-          {body.length} / 2000
-        </p>
-      </div>
-
-      {errorMsg && (
-        <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-          <p className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            {errorMsg}
+        <div className="mt-5">
+          <label
+            htmlFor="review-body"
+            className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+          >
+            A note (optional)
+          </label>
+          <textarea
+            id="review-body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            maxLength={2000}
+            placeholder="What stood out? Anything the next person should know?"
+            disabled={submitting}
+            className="mt-3 w-full resize-none rounded-xl border border-border/60 bg-background px-3.5 py-3 text-sm leading-relaxed outline-none ring-primary/30 transition-shadow focus:ring-2 disabled:opacity-60"
+          />
+          <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">
+            {body.length} / 2000
           </p>
         </div>
-      )}
 
-      <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {errorMsg && (
+          <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+            <p className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              {errorMsg}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer actions */}
+      <div className="flex flex-col-reverse gap-3 border-t border-border/60 bg-muted/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <Button
           onClick={() => setPhase("skipped")}
           disabled={submitting}
@@ -2005,8 +2165,8 @@ function StarPicker({
               <Star
                 className={cn(
                   "size-9 transition-all",
-                  filled ? "fill-accent stroke-accent" : "fill-transparent stroke-border",
-                  filled && hover === n && "drop-shadow-[0_0_8px_theme(colors.accent/0.4)]",
+                  filled ? "fill-[#079400] stroke-[#079400]" : "fill-transparent stroke-border",
+                  filled && hover === n && "drop-shadow-[0_0_8px_#07940066]",
                 )}
                 strokeWidth={1.5}
               />

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\ArrivalReport;
 use App\Models\Booking;
 use App\Models\Gig;
 use App\Models\PanicAlert;
@@ -57,6 +58,7 @@ class BookingResource extends JsonResource
             'visit' => $this->visitBlock($isCaregiver),
             'safety_acknowledged_at' => $this->safety_acknowledged_at?->toIso8601String(),
             'active_panic_alert' => $this->activePanicAlert(),
+            'active_arrival_report' => $this->activeArrivalReport(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
@@ -118,6 +120,41 @@ class BookingResource extends JsonResource
             'silent' => (bool) $alert->silent,
             'status' => $alert->status,
             'acknowledged_at' => $alert->acknowledged_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Compact snapshot of the booking's open arrival report, if any.
+     * Mirrors activePanicAlert's pattern — relation must be eager-loaded
+     * by the caller (BookingController::show + family/caregiver list
+     * endpoints) for this to return anything.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function activeArrivalReport(): ?array
+    {
+        if (! $this->relationLoaded('arrivalReports')) {
+            return null;
+        }
+
+        /** @var ArrivalReport|null $report */
+        $report = $this->arrivalReports
+            ->whereIn('status', ArrivalReport::OPEN_STATUSES)
+            ->sortByDesc('created_at')
+            ->first();
+
+        if ($report === null) {
+            return null;
+        }
+
+        return [
+            'id' => $report->id,
+            'reason_code' => $report->reason_code,
+            'status' => $report->status,
+            'created_at' => $report->created_at?->toIso8601String(),
+            'acknowledged_at' => $report->acknowledged_at?->toIso8601String(),
+            'eta_at' => $report->eta_at?->toIso8601String(),
+            'description' => $report->description,
         ];
     }
 

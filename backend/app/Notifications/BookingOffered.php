@@ -28,7 +28,10 @@ class BookingOffered extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $b = $this->booking;
-        $start = $b->scheduled_start->format('l F j, Y @ g:i A');
+        $start = $b->scheduled_start
+            ->copy()
+            ->setTimezone(config('app.display_timezone'))
+            ->format('l F j, Y @ g:i A');
         $total = number_format($b->subtotal_cents / 100, 2);
         $payout = number_format($b->caregiver_payout_cents / 100, 2);
         $deadline = $b->response_deadline_at->diffForHumans();
@@ -41,6 +44,7 @@ class BookingOffered extends Notification
             ->line('Duration: '.($b->duration_minutes / 60).' hours')
             ->line("Family pays: \${$total} (includes the 7.5% platform fee)")
             ->line("Your earnings: \${$payout}")
+            ->line("You're paid for the time you actually work, up to the booked amount.")
             ->line("Please respond before: {$deadline}.")
             ->action('Review the booking', config('app.frontend_url')."/bookings/{$b->id}");
     }

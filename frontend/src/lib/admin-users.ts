@@ -107,6 +107,14 @@ export async function reactivateUser(id: number): Promise<AdminUserCard> {
   return res.data.data;
 }
 
+export async function markEmailVerified(id: number, reason: string): Promise<AdminUserCard> {
+  const res = await api.patch<{ data: AdminUserCard }>(
+    `/api/admin/users/${id}/verify-email`,
+    { reason },
+  );
+  return res.data.data;
+}
+
 export async function deleteUser(id: number, reason: string): Promise<void> {
   await api.delete(`/api/admin/users/${id}`, { data: { reason } });
 }

@@ -9,13 +9,14 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Runs every 5 minutes. Finds captured bookings whose 24-hour hold has
+ * Runs every 5 minutes. Finds captured bookings whose 48-hour hold has
  * elapsed and no dispute is open, then creates a Stripe Transfer to the
  * caregiver's Connect account for their payout portion.
  *
- * The mvp-requirements §4.9 promise: "After 24 hours (if no dispute):
- * 7.5% retained by KindredCare. Remainder paid out to caregiver's Stripe
- * Connect account." This command is that.
+ * Hold is matched to DISPUTE_WINDOW_HOURS so a late dispute can't fire
+ * after Stripe has already moved money out of the platform balance —
+ * the original mvp-requirements §4.9 said "24 hours" but that left a
+ * 24-hour clawback exposure window.
  *
  * On the stub channel (Stripe not configured OR caregiver hasn't finished
  * Connect onboarding) the command just times the transfer locally so the
@@ -25,7 +26,7 @@ class ReleasePayouts extends Command
 {
     protected $signature = 'bookings:release-payouts';
 
-    protected $description = 'Transfer captured booking payouts to caregivers after the 24-hour hold.';
+    protected $description = 'Transfer captured booking payouts to caregivers after the 48-hour hold.';
 
     public function handle(StripePaymentService $stripe): int
     {

@@ -107,6 +107,7 @@ class BookingController extends Controller
             'caregiver.caregiverProfile',
             'familyProfile.user',
             'panicAlerts',
+            'arrivalReports',
         ]);
 
         return new BookingResource($booking);

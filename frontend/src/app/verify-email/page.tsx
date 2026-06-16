@@ -2,11 +2,10 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
-  ArrowRight,
   CheckCircle2,
   Loader2,
   type LucideIcon,
@@ -35,9 +34,7 @@ function StatusBadge({
     accent: "bg-accent/12 text-accent ring-accent/20",
   };
   return (
-    <div
-      className={cn("flex size-12 items-center justify-center rounded-xl ring-1", tones[tone])}
-    >
+    <div className={cn("flex size-12 items-center justify-center rounded-xl ring-1", tones[tone])}>
       <Icon className={cn("size-6", spin && "animate-spin")} strokeWidth={2} />
     </div>
   );
@@ -59,7 +56,9 @@ function PremiumLink({
 }) {
   const iconCls = cn(
     "size-4 transition-transform duration-200 ease-out",
-    iconSide === "start" ? "mr-2 group-hover/pl:-translate-x-0.5" : "ml-1 group-hover/pl:translate-x-0.5",
+    iconSide === "start"
+      ? "mr-2 group-hover/pl:-translate-x-0.5"
+      : "ml-1 group-hover/pl:translate-x-0.5",
   );
   const iconEl = Icon ? <Icon className={iconCls} /> : null;
 
@@ -151,6 +150,14 @@ function VerificationProcessor({
   signature: string;
 }) {
   const [state, setState] = useState<VerifyState>({ kind: "loading" });
+  const router = useRouter();
+
+  // Once verified, send the user straight into onboarding (no manual buttons).
+  useEffect(() => {
+    if (state.kind !== "success") return;
+    const t = setTimeout(() => router.replace("/onboarding"), 1200);
+    return () => clearTimeout(t);
+  }, [state.kind, router]);
 
   useEffect(() => {
     let alive = true;
@@ -203,13 +210,13 @@ function VerificationProcessor({
         title={state.alreadyVerified ? "Already verified" : "You're all set"}
         subtitle={
           state.alreadyVerified
-            ? "This email has been confirmed before — you can log in now."
-            : "Your email is confirmed. Welcome to KindredCare."
+            ? "This email was confirmed before — taking you to onboarding…"
+            : "Your email is confirmed. Taking you to onboarding…"
         }
       >
-        <div className="flex flex-col gap-2.5">
-          <PremiumLink href="/dashboard" label="Go to dashboard" icon={ArrowRight} iconSide="end" />
-          <PremiumLink href="/login" label="Back to login" icon={ArrowLeft} variant="outline" />
+        <div className="flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" strokeWidth={2} />
+          Redirecting…
         </div>
       </AuthLayout>
     );
@@ -278,8 +285,8 @@ function PostSignupPrompt() {
       subtitle="We sent a verification link to your email address."
     >
       <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-        Click the link in the email to verify your account. If you don&apos;t see it, check your spam
-        folder.
+        Click the link in the email to verify your account. If you don&apos;t see it, check your
+        spam folder.
       </p>
 
       <div className="space-y-3">

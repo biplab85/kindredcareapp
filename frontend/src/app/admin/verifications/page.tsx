@@ -275,73 +275,95 @@ const AVATAR_TONES: Record<StatusTone, string> = {
   neutral: "bg-primary/10 text-primary",
 };
 
+// Gradient for the card header band, keyed off status tone.
+const HEADER_TONES: Record<StatusTone, string> = {
+  good: "from-success/15 via-success/5",
+  alarm: "from-accent/15 via-accent/5",
+  warn: "from-foreground/10 via-foreground/5",
+  neutral: "from-primary/15 via-primary/5",
+};
+
 function List({ items }: { items: VerificationListItem[] }) {
   return (
-    <ul className="space-y-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((it) => (
-        <li key={it.id}>
-          <Row item={it} />
-        </li>
+        <VerificationCard key={it.id} item={it} />
       ))}
-    </ul>
+    </div>
   );
 }
 
-function Row({ item }: { item: VerificationListItem }) {
+function VerificationCard({ item }: { item: VerificationListItem }) {
   const tone = statusTone(item.status);
   const updated = new Date(item.updated_at);
 
   return (
     <div
       className={cn(
-        "group flex items-center gap-4 rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(10,14,40,0.22)]",
+        "group relative flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-18px_rgba(10,14,40,0.28)]",
         tone === "alarm"
-          ? "border-accent/40 bg-accent/[0.03] hover:border-accent/60"
+          ? "border-accent/40 hover:border-accent/60"
           : tone === "good"
-            ? "border-success/30 bg-success/[0.02] hover:border-success/50"
+            ? "border-success/30 hover:border-success/50"
             : "border-border hover:border-primary/30",
       )}
     >
-      <Link
-        href={`/admin/verifications/${item.id}`}
-        className="flex min-w-0 flex-1 items-center gap-4"
+      {/* Header band — gradient keyed off status tone */}
+      <div
+        className={cn(
+          "relative h-20 w-full overflow-hidden bg-gradient-to-br to-transparent",
+          HEADER_TONES[tone],
+        )}
       >
-        <span
-          className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold",
-            AVATAR_TONES[tone],
-          )}
-        >
-          {initialsOf(item.user.name)}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <h3 className="text-base font-semibold tracking-tight text-foreground group-hover:text-primary">
-              {item.user.name}
-            </h3>
-            <CheckTypePill type={item.check_type} />
-            <StatusPill status={item.status} tone={tone} />
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-            <span className="font-medium tabular-nums text-muted-foreground/70">
-              #{String(item.id).padStart(5, "0")}
-            </span>
-            <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
-              {item.user.email}
-            </span>
-            <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-            <span className="tabular-nums">
-              Updated {updated.toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
-            </span>
-          </div>
+        <div className="absolute top-2.5 right-2.5">
+          <VerificationActionsMenu id={item.id} />
         </div>
-      </Link>
+      </div>
 
-      <VerificationActionsMenu id={item.id} />
+      {/* Avatar overlapping the band */}
+      <div className="px-4">
+        <Link href={`/admin/verifications/${item.id}`} aria-label={`View ${item.user.name}`}>
+          <span
+            className={cn(
+              "-mt-9 grid size-16 place-items-center rounded-2xl text-lg font-bold ring-4 ring-card transition-transform group-hover:scale-[1.03]",
+              AVATAR_TONES[tone],
+            )}
+          >
+            {initialsOf(item.user.name)}
+          </span>
+        </Link>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 flex-col px-4 pt-3 pb-4">
+        <Link
+          href={`/admin/verifications/${item.id}`}
+          className="text-base font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+        >
+          {item.user.name}
+        </Link>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <CheckTypePill type={item.check_type} />
+          <StatusPill status={item.status} tone={tone} />
+        </div>
+
+        <div className="mt-3 space-y-1.5 text-[13px] text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <Mail className="size-3.5 shrink-0 text-muted-foreground/70" strokeWidth={2} />
+            <span className="truncate">{item.user.email}</span>
+          </p>
+        </div>
+
+        <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3">
+          <span className="text-xs font-medium tabular-nums text-muted-foreground/70">
+            #{String(item.id).padStart(5, "0")}
+          </span>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            Updated {updated.toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -488,17 +510,21 @@ function LoadingView({ view }: { view: ViewMode }) {
     );
   }
   return (
-    <ul className="space-y-3" aria-busy="true">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="h-20 w-full animate-pulse bg-muted" />
+          <div className="px-4">
+            <div className="-mt-9 size-16 animate-pulse rounded-2xl bg-muted ring-4 ring-card" />
           </div>
-        </li>
+          <div className="space-y-2 px-4 pt-3 pb-4">
+            <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

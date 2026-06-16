@@ -27,9 +27,9 @@ function ProfileEditView() {
   return (
     <DashboardShell pageTitle="Edit profile">
       {role === "caregiver" ? (
-        <OnboardingForm />
+        <OnboardingForm embedded />
       ) : role === "family" ? (
-        <FamilyOnboardingForm />
+        <FamilyOnboardingForm embedded />
       ) : (
         <div className="flex min-h-[60vh] items-center justify-center">
           <Loader2 className="size-8 animate-spin text-primary" />

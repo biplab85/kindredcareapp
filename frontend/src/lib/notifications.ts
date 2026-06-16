@@ -21,7 +21,12 @@ export type NotificationType =
   | "certification_rejected"
   // Admin-facing review queues.
   | "certification_document_submitted"
-  | "verification_documents_submitted";
+  | "verification_documents_submitted"
+  // Family-side arrival reports — admin sees ArrivalReportFiled, caregiver
+  // sees CaregiverArrivalPing, family + admin sees the ack.
+  | "arrival_report_filed"
+  | "caregiver_arrival_ping"
+  | "caregiver_arrival_acknowledged";
 
 export interface NotificationItem {
   id: string;
@@ -183,6 +188,44 @@ export function renderNotification(n: NotificationItem): NotificationDisplay {
           : `${checkLabel} documents submitted`,
         body: "Awaiting admin review.",
         href: verificationId !== null ? `/admin/verifications/${verificationId}` : "/admin/verifications",
+      };
+    }
+    case "arrival_report_filed": {
+      const isFakeCheckIn = d.reason_code === "not_at_site_despite_checkin";
+      return {
+        title: isFakeCheckIn
+          ? "Family disputes caregiver presence"
+          : "Family says caregiver hasn't arrived",
+        body: isFakeCheckIn
+          ? "Caregiver checked in but the family says they're not actually at the address. Pull GPS + contact both sides."
+          : "Caregiver hasn't checked in. Nudge them and confirm with the family.",
+        href: bookingHref ? `/admin/bookings/${bookingId}` : "/admin/bookings",
+      };
+    }
+    case "caregiver_arrival_acknowledged": {
+      const etaIso = typeof d.eta_at === "string" ? d.eta_at : null;
+      const etaLabel = etaIso ? new Date(etaIso).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }) : null;
+      return {
+        title: "Caregiver responded",
+        body: etaLabel
+          ? `They're on their way — ETA ${etaLabel}.`
+          : "They're heading to check in now.",
+        href: bookingHref,
+      };
+    }
+    case "caregiver_arrival_ping": {
+      const isFakeCheckIn = d.reason_code === "not_at_site_despite_checkin";
+      return {
+        title: isFakeCheckIn
+          ? "Family says you're not at the address"
+          : "Family is asking about your arrival",
+        body: isFakeCheckIn
+          ? "If this is a mistake, message them — otherwise admin will reach out shortly."
+          : "If you're on your way, message them. Otherwise check in once you're at the door.",
+        href: bookingHref,
       };
     }
     default:

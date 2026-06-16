@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
+use App\Models\ArrivalReport;
 use App\Models\Booking;
 use App\Models\BookingDispute;
 use App\Models\Message;
@@ -136,6 +137,11 @@ class BookingController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        $arrivalReports = ArrivalReport::query()
+            ->where('booking_id', $booking->id)
+            ->orderByDesc('created_at')
+            ->get();
+
         return response()->json([
             'data' => [
                 ...$this->card($booking),
@@ -194,6 +200,15 @@ class BookingController extends Controller
                     'ratee_user_id' => $r->ratee_user_id,
                     'stars' => $r->stars,
                     'body' => $r->body,
+                ]),
+                'arrival_reports' => $arrivalReports->map(fn (ArrivalReport $r) => [
+                    'id' => $r->id,
+                    'reason_code' => $r->reason_code,
+                    'description' => $r->description,
+                    'status' => $r->status,
+                    'admin_notes' => $r->admin_notes,
+                    'created_at' => $this->isoTimestamp($r->created_at),
+                    'resolved_at' => $this->isoTimestamp($r->resolved_at),
                 ]),
                 'disputes' => $disputes->map(fn (BookingDispute $d) => [
                     'id' => $d->id,
@@ -311,6 +326,67 @@ class BookingController extends Controller
             Booking::PAYMENT_RELEASED_STUB,
             Booking::PAYMENT_HELD_PENDING_DISPUTE,
         ], true);
+    }
+
+    /**
+     * Admin resets the check-in entirely. Used when an arrival report
+     * establishes the recorded check_in_at lies — caregiver tapped check-in
+     * 20 min before they actually arrived. Clears the GPS slot, returns the
+     * booking to `confirmed`, and the caregiver's UI shows the Start visit
+     * button again so they have to re-check-in for real.
+     *
+     * Only works on in_progress visits that haven't checked out yet. The
+     * original check_in_at + lat/lng land in the audit log for a fully
+     * reversible / inspectable trail.
+     */
+    public function resetCheckIn(Request $request, Booking $booking): JsonResponse
+    {
+        if ($booking->check_in_at === null) {
+            return response()->json(['message' => 'This booking has no check-in to reset.'], 422);
+        }
+
+        if ($booking->status !== Booking::STATUS_IN_PROGRESS) {
+            return response()->json(['message' => 'Only in-progress visits can be reset to awaiting check-in.'], 422);
+        }
+
+        if ($booking->check_out_at !== null) {
+            return response()->json(['message' => 'This visit has already checked out — reset is not allowed after check-out.'], 422);
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        /** @var User $admin */
+        $admin = $request->user();
+        $oldCheckIn = $booking->check_in_at->toIso8601String();
+        $oldLat = $booking->check_in_lat;
+        $oldLng = $booking->check_in_lng;
+
+        $booking->update([
+            'status' => Booking::STATUS_CONFIRMED,
+            'check_in_at' => null,
+            'check_in_lat' => null,
+            'check_in_lng' => null,
+            'check_in_distance_m' => null,
+        ]);
+
+        $this->auditLogger->record(
+            admin: $admin,
+            action: 'booking.check_in_reset',
+            targetType: AdminAuditLog::TARGET_BOOKING,
+            targetId: $booking->id,
+            metadata: [
+                'old_check_in_at' => $oldCheckIn,
+                'old_check_in_lat' => $oldLat,
+                'old_check_in_lng' => $oldLng,
+            ],
+            reason: $data['reason'],
+        );
+
+        return response()->json([
+            'data' => $this->card($booking->fresh()),
+        ]);
     }
 
     /**

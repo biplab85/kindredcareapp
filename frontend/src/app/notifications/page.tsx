@@ -10,7 +10,9 @@ import {
   CalendarClock,
   CheckCheck,
   CheckCircle2,
+  Clock,
   FileText,
+  MapPinOff,
   MessageSquare,
   RefreshCw,
   ShieldCheck,
@@ -136,7 +138,7 @@ function NotificationsView() {
   const items = resp?.data ?? [];
 
   return (
-    <div className="max-w-3xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+    <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
       {/* Page header */}
       <div>
         <h1 className="text-lg font-semibold leading-[1.15] tracking-tight">Notifications</h1>
@@ -327,6 +329,9 @@ function TypeIcon({ type }: { type: NotificationType | string }) {
   if (type === "certification_rejected") return <XCircle {...props} />;
   if (type === "certification_document_submitted") return <FileText {...props} />;
   if (type === "verification_documents_submitted") return <ShieldCheck {...props} />;
+  if (type === "arrival_report_filed") return <MapPinOff {...props} />;
+  if (type === "caregiver_arrival_ping") return <Clock {...props} />;
+  if (type === "caregiver_arrival_acknowledged") return <CheckCircle2 {...props} />;
   return <Bell {...props} />;
 }
 
@@ -335,6 +340,8 @@ function toneFor(type: NotificationType | string): "alarm" | "good" | "neutral" 
   if (type === "booking_confirmed" || type === "visit_completed") return "good";
   if (type === "certification_verified") return "good";
   if (type === "certification_rejected") return "alarm";
+  if (type === "arrival_report_filed" || type === "caregiver_arrival_ping") return "alarm";
+  if (type === "caregiver_arrival_acknowledged") return "good";
   return "neutral";
 }
 

@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ServiceCategorySeeder::class,
             TestUsersSeeder::class,
+            EmilyExtraGigsSeeder::class,
             CertificationSeeder::class,
             SafetySeeder::class,
             AuditLogSeeder::class,

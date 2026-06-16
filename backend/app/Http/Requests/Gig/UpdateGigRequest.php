@@ -33,6 +33,7 @@ class UpdateGigRequest extends FormRequest
             'tasks_included' => ['sometimes', 'nullable', 'array', 'max:10'],
             'tasks_included.*' => ['string', 'max:120'],
             'photo' => ['sometimes', 'nullable', 'image', 'max:5120'],
+            'remove_photo' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'in:draft,published,paused'],
         ];
     }
