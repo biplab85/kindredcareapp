@@ -1,0 +1,334 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e14]:
+    - complementary "Primary navigation" [ref=e17]:
+      - generic [ref=e18]:
+        - link "KindredCare home" [ref=e19] [cursor=pointer]:
+          - /url: /dashboard
+          - img "KindredCare Global" [ref=e20]
+        - button "Collapse sidebar" [ref=e21]:
+          - img [ref=e22]
+      - navigation "Main navigation" [ref=e25]:
+        - list [ref=e26]:
+          - listitem [ref=e27]:
+            - paragraph [ref=e28]: Work
+            - list [ref=e29]:
+              - listitem [ref=e30]:
+                - link "Dashboard" [ref=e31] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e34]
+                  - generic [ref=e39]: Dashboard
+              - listitem [ref=e40]:
+                - link "My gigs" [ref=e41] [cursor=pointer]:
+                  - /url: /me/gigs
+                  - img [ref=e43]
+                  - generic [ref=e45]: My gigs
+              - listitem [ref=e46]:
+                - link "Bookings" [ref=e47] [cursor=pointer]:
+                  - /url: /bookings
+                  - img [ref=e49]
+                  - generic [ref=e51]: Bookings
+              - listitem [ref=e52]:
+                - link "Schedule" [ref=e53] [cursor=pointer]:
+                  - /url: /caregiver/schedule
+                  - img [ref=e55]
+                  - generic [ref=e57]: Schedule
+          - listitem [ref=e58]:
+            - paragraph [ref=e59]: Account
+            - list [ref=e60]:
+              - listitem [ref=e61]:
+                - link "Profile" [ref=e62] [cursor=pointer]:
+                  - /url: /profile
+                  - img [ref=e64]
+                  - generic [ref=e68]: Profile
+              - listitem [ref=e69]:
+                - link "Verification 1 pending" [ref=e70] [cursor=pointer]:
+                  - /url: /verification
+                  - img [ref=e72]
+                  - generic [ref=e75]: Verification
+                  - generic "1 pending" [ref=e76]
+      - button "Account menu" [ref=e78] [cursor=pointer]:
+        - img "Sarah Mitchell" [ref=e80]
+        - generic [ref=e81]:
+          - generic [ref=e82]: Sarah
+          - generic [ref=e83]: caregiver
+        - img [ref=e84]
+    - generic [ref=e87]:
+      - banner [ref=e88]:
+        - generic [ref=e89]: Dashboard
+        - generic [ref=e90]:
+          - link "Notifications" [ref=e91] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e92]
+          - button "Account menu" [ref=e95]:
+            - img "Sarah Mitchell" [ref=e97]
+            - generic [ref=e98]: Sarah
+      - main [ref=e99]:
+        - generic [ref=e100]:
+          - generic [ref=e101]:
+            - heading "Welcome back, Sarah." [level=1] [ref=e102]
+            - paragraph [ref=e103]: Profile 69% complete · need 70% to match
+          - complementary [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e109]:
+              - paragraph [ref=e110]: Verification still in progress.
+              - paragraph [ref=e111]: Upload ID + selfie so the admin team can clear your account. You won’t appear in family shortlists until every check is cleared.
+            - link "Finish verification" [ref=e112] [cursor=pointer]:
+              - /url: /verification
+              - button "Finish verification" [ref=e113]:
+                - text: Finish verification
+                - img
+          - generic [ref=e114]:
+            - generic [ref=e118]:
+              - generic [ref=e119]:
+                - img [ref=e121]
+                - paragraph [ref=e124]: "0"
+              - paragraph [ref=e125]: Pending offers
+              - paragraph [ref=e126]: Nothing waiting on you.
+            - link "4 Confirmed visits On the schedule." [ref=e127] [cursor=pointer]:
+              - /url: /caregiver/schedule
+              - generic [ref=e131]:
+                - generic [ref=e132]:
+                  - img [ref=e134]
+                  - paragraph [ref=e138]: "4"
+                  - img [ref=e139]
+                - paragraph [ref=e142]: Confirmed visits
+                - paragraph [ref=e143]: On the schedule.
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - img [ref=e150]
+                - paragraph [ref=e152]: $92.50
+              - paragraph [ref=e153]: Earned this month
+              - paragraph [ref=e154]: After the 7.5% platform fee.
+          - generic [ref=e155]:
+            - generic [ref=e156]:
+              - generic [ref=e157]:
+                - heading "Up next" [level=3] [ref=e158]
+                - generic [ref=e159]:
+                  - generic [ref=e160]: Confirmed
+                  - button "Up next options" [ref=e161] [cursor=pointer]:
+                    - img [ref=e162]
+              - generic [ref=e166]:
+                - generic [ref=e167]:
+                  - generic [ref=e168]:
+                    - generic [ref=e169]: "11"
+                    - generic [ref=e170]: JUN
+                  - generic [ref=e171]:
+                    - paragraph [ref=e172]: Companionship
+                    - paragraph [ref=e173]:
+                      - text: Thu, Jun 11 · 4:00 p.m.
+                      - generic [ref=e174]: · in 2 days
+                - generic [ref=e175]:
+                  - generic [ref=e176]:
+                    - paragraph [ref=e177]: 2 hrs
+                    - paragraph [ref=e178]: Length
+                  - generic [ref=e179]:
+                    - paragraph [ref=e180]: Oshawa
+                    - paragraph [ref=e181]: Area
+                  - generic [ref=e182]:
+                    - paragraph [ref=e183]: $46.25
+                    - paragraph [ref=e184]: Payout
+                - list [ref=e186]:
+                  - listitem [ref=e187]:
+                    - generic [ref=e190]: Offered
+                  - listitem [ref=e192]:
+                    - generic [ref=e195]: Confirmed
+                  - listitem [ref=e197]:
+                    - generic [ref=e200]: Check-in
+                  - listitem [ref=e202]:
+                    - generic [ref=e205]: Done
+                - generic [ref=e206]:
+                  - button "Open details" [ref=e207] [cursor=pointer]:
+                    - text: Open details
+                    - img
+                  - button "See schedule" [ref=e208] [cursor=pointer]
+            - generic [ref=e209]:
+              - generic [ref=e210]:
+                - heading "69% complete" [level=3] [ref=e211]
+                - generic [ref=e212]:
+                  - generic [ref=e213]: Need 70% to match
+                  - button "Profile options" [ref=e214] [cursor=pointer]:
+                    - img [ref=e215]
+              - generic [ref=e219]:
+                - generic [ref=e221]:
+                  - generic [ref=e222]: Profile strength
+                  - generic [ref=e223]: 69%
+                - table [ref=e227]:
+                  - rowgroup [ref=e228]:
+                    - row "Profile item Boost" [ref=e229]:
+                      - columnheader "Profile item" [ref=e230]
+                      - columnheader "Boost" [ref=e231]
+                      - columnheader [ref=e232]
+                  - rowgroup [ref=e233]:
+                    - 'row "1 Add your date of birth +5% Complete: Add your date of birth" [ref=e234]':
+                      - cell "1 Add your date of birth" [ref=e235]:
+                        - link "1 Add your date of birth" [ref=e236] [cursor=pointer]:
+                          - /url: /onboarding?step=1
+                          - generic [ref=e237]: "1"
+                          - generic [ref=e238]: Add your date of birth
+                      - cell "+5%" [ref=e239]:
+                        - generic [ref=e240]: +5%
+                      - 'cell "Complete: Add your date of birth" [ref=e241]':
+                        - 'link "Complete: Add your date of birth" [ref=e242] [cursor=pointer]':
+                          - /url: /onboarding?step=1
+                          - img [ref=e243]
+                    - 'row "2 Select your gender +3% Complete: Select your gender" [ref=e246]':
+                      - cell "2 Select your gender" [ref=e247]:
+                        - link "2 Select your gender" [ref=e248] [cursor=pointer]:
+                          - /url: /onboarding?step=1
+                          - generic [ref=e249]: "2"
+                          - generic [ref=e250]: Select your gender
+                      - cell "+3%" [ref=e251]:
+                        - generic [ref=e252]: +3%
+                      - 'cell "Complete: Select your gender" [ref=e253]':
+                        - 'link "Complete: Select your gender" [ref=e254] [cursor=pointer]':
+                          - /url: /onboarding?step=1
+                          - img [ref=e255]
+                    - 'row "3 Add at least one certification +8% Complete: Add at least one certification" [ref=e258]':
+                      - cell "3 Add at least one certification" [ref=e259]:
+                        - link "3 Add at least one certification" [ref=e260] [cursor=pointer]:
+                          - /url: /onboarding?step=3
+                          - generic [ref=e261]: "3"
+                          - generic [ref=e262]: Add at least one certification
+                      - cell "+8%" [ref=e263]:
+                        - generic [ref=e264]: +8%
+                      - 'cell "Complete: Add at least one certification" [ref=e265]':
+                        - 'link "Complete: Add at least one certification" [ref=e266] [cursor=pointer]':
+                          - /url: /onboarding?step=3
+                          - img [ref=e267]
+                    - 'row "4 Add an emergency contact +5% Complete: Add an emergency contact" [ref=e270]':
+                      - cell "4 Add an emergency contact" [ref=e271]:
+                        - link "4 Add an emergency contact" [ref=e272] [cursor=pointer]:
+                          - /url: /onboarding?step=5
+                          - generic [ref=e273]: "4"
+                          - generic [ref=e274]: Add an emergency contact
+                      - cell "+5%" [ref=e275]:
+                        - generic [ref=e276]: +5%
+                      - 'cell "Complete: Add an emergency contact" [ref=e277]':
+                        - 'link "Complete: Add an emergency contact" [ref=e278] [cursor=pointer]':
+                          - /url: /onboarding?step=5
+                          - img [ref=e279]
+              - generic [ref=e282]:
+                - button "Previous page" [disabled]:
+                  - img
+                - button "Page 1" [ref=e283] [cursor=pointer]: "1"
+                - button "Page 2" [ref=e284] [cursor=pointer]: "2"
+                - button "Next page" [ref=e285] [cursor=pointer]:
+                  - img [ref=e286]
+          - generic [ref=e289]:
+            - generic [ref=e290]:
+              - heading "Recent activity" [level=3] [ref=e291]
+              - link "All bookings" [ref=e292] [cursor=pointer]:
+                - /url: /bookings
+                - text: All bookings
+                - img [ref=e293]
+            - table [ref=e296]:
+              - rowgroup [ref=e297]:
+                - row "Visit Status When Area Amount" [ref=e298]:
+                  - columnheader "Visit" [ref=e299]
+                  - columnheader "Status" [ref=e300]
+                  - columnheader "When" [ref=e301]
+                  - columnheader "Area" [ref=e302]
+                  - columnheader "Amount" [ref=e303]
+                  - columnheader [ref=e304]
+              - rowgroup [ref=e305]:
+                - row "Companionship Confirmed Jun 12, 9:30 p.m. Oshawa $46.25 Activity actions" [ref=e306]:
+                  - cell "Companionship" [ref=e307]:
+                    - generic [ref=e308]:
+                      - generic [ref=e309]: C
+                      - link "Companionship" [ref=e311] [cursor=pointer]:
+                        - /url: /bookings/7
+                  - cell "Confirmed" [ref=e312]:
+                    - generic [ref=e313]: Confirmed
+                  - cell "Jun 12, 9:30 p.m." [ref=e314]
+                  - cell "Oshawa" [ref=e315]
+                  - cell "$46.25" [ref=e316]
+                  - cell "Activity actions" [ref=e317]:
+                    - button "Activity actions" [ref=e319] [cursor=pointer]:
+                      - img [ref=e320]
+                - row "Companionship Confirmed Jun 15, 5:00 p.m. Oshawa $46.25 Activity actions" [ref=e324]:
+                  - cell "Companionship" [ref=e325]:
+                    - generic [ref=e326]:
+                      - generic [ref=e327]: C
+                      - link "Companionship" [ref=e329] [cursor=pointer]:
+                        - /url: /bookings/8
+                  - cell "Confirmed" [ref=e330]:
+                    - generic [ref=e331]: Confirmed
+                  - cell "Jun 15, 5:00 p.m." [ref=e332]
+                  - cell "Oshawa" [ref=e333]
+                  - cell "$46.25" [ref=e334]
+                  - cell "Activity actions" [ref=e335]:
+                    - button "Activity actions" [ref=e337] [cursor=pointer]:
+                      - img [ref=e338]
+                - row "Companionship Awaiting caregiver Jun 10, 3:00 p.m. Oshawa $46.25 Activity actions" [ref=e342]:
+                  - cell "Companionship" [ref=e343]:
+                    - generic [ref=e344]:
+                      - generic [ref=e345]: P
+                      - link "Companionship" [ref=e347] [cursor=pointer]:
+                        - /url: /bookings/6
+                  - cell "Awaiting caregiver" [ref=e348]:
+                    - generic [ref=e349]: Awaiting caregiver
+                  - cell "Jun 10, 3:00 p.m." [ref=e350]
+                  - cell "Oshawa" [ref=e351]
+                  - cell "$46.25" [ref=e352]
+                  - cell "Activity actions" [ref=e353]:
+                    - button "Activity actions" [ref=e355] [cursor=pointer]:
+                      - img [ref=e356]
+                - row "Companionship Completed Jun 2, 4:00 p.m. Oshawa $46.25 Activity actions" [ref=e360]:
+                  - cell "Companionship" [ref=e361]:
+                    - generic [ref=e362]:
+                      - generic [ref=e363]: ✓
+                      - link "Companionship" [ref=e365] [cursor=pointer]:
+                        - /url: /bookings/10
+                  - cell "Completed" [ref=e366]:
+                    - generic [ref=e367]: Completed
+                  - cell "Jun 2, 4:00 p.m." [ref=e368]
+                  - cell "Oshawa" [ref=e369]
+                  - cell "$46.25" [ref=e370]
+                  - cell "Activity actions" [ref=e371]:
+                    - button "Activity actions" [ref=e373] [cursor=pointer]:
+                      - img [ref=e374]
+                - row "Companionship Declined May 31, 7:00 p.m. Oshawa $46.25 Activity actions" [ref=e378]:
+                  - cell "Companionship" [ref=e379]:
+                    - generic [ref=e380]:
+                      - generic [ref=e381]: ×
+                      - link "Companionship" [ref=e383] [cursor=pointer]:
+                        - /url: /bookings/11
+                  - cell "Declined" [ref=e384]:
+                    - generic [ref=e385]: Declined
+                  - cell "May 31, 7:00 p.m." [ref=e386]
+                  - cell "Oshawa" [ref=e387]
+                  - cell "$46.25" [ref=e388]
+                  - cell "Activity actions" [ref=e389]:
+                    - button "Activity actions" [ref=e391] [cursor=pointer]:
+                      - img [ref=e392]
+          - generic [ref=e396]:
+            - heading "Quick routes" [level=2] [ref=e397]
+            - generic [ref=e398]:
+              - link "My gigs Service listings families can find in the marketplace." [ref=e399] [cursor=pointer]:
+                - /url: /me/gigs
+                - generic [ref=e402]:
+                  - generic [ref=e403]:
+                    - img [ref=e405]
+                    - paragraph [ref=e409]: My gigs
+                    - img [ref=e410]
+                  - paragraph [ref=e413]: Service listings families can find in the marketplace.
+              - link "All bookings Upcoming, active, and past — with accept / decline controls." [ref=e414] [cursor=pointer]:
+                - /url: /bookings
+                - generic [ref=e417]:
+                  - generic [ref=e418]:
+                    - img [ref=e420]
+                    - paragraph [ref=e424]: All bookings
+                    - img [ref=e425]
+                  - paragraph [ref=e428]: Upcoming, active, and past — with accept / decline controls.
+              - link "Your week See visits inked vs. pencilled across the days ahead." [ref=e429] [cursor=pointer]:
+                - /url: /caregiver/schedule
+                - generic [ref=e432]:
+                  - generic [ref=e433]:
+                    - img [ref=e435]
+                    - paragraph [ref=e437]: Your week
+                    - img [ref=e438]
+                  - paragraph [ref=e441]: See visits inked vs. pencilled across the days ahead.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e10] [cursor=pointer]:
+    - img [ref=e11]
+  - alert [ref=e442]
