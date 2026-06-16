@@ -358,10 +358,12 @@ export function DashboardSidebar({
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/profile" />} onClick={onDrawerClose}>
-              <UserCircle className="size-4" strokeWidth={1.75} />
-              Profile
-            </DropdownMenuItem>
+            {user?.role !== "admin" && (
+              <DropdownMenuItem render={<Link href="/profile" />} onClick={onDrawerClose}>
+                <UserCircle className="size-4" strokeWidth={1.75} />
+                Profile
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem render={<Link href="/settings" />} onClick={onDrawerClose}>
               <Settings className="size-4" strokeWidth={1.75} />
               Settings

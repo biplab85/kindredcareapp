@@ -165,9 +165,12 @@ function MyGigsView() {
                   setTablePage(0);
                 }}
               />
-              <Link href="/me/gigs/new">
-                <Button className="cursor-pointer">
-                  <Plus className="size-4" />
+              <Link href="/me/gigs/new" className="group/post">
+                <Button className="cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-8px_oklch(0.56_0.13_240/0.55)] active:translate-y-0 active:scale-[0.98]">
+                  <Plus
+                    className="size-4 transition-transform duration-300 ease-out group-hover/post:scale-125 group-hover/post:rotate-90"
+                    strokeWidth={2.5}
+                  />
                   Post a new gig
                 </Button>
               </Link>

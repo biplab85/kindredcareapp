@@ -130,7 +130,7 @@ function ProfileView() {
 
   return (
     <DashboardShell pageTitle="Profile">
-      <div className="max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+      <div className="max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
         <LinkedInProfile
           user={user}
           isCaregiver={isCaregiver}
@@ -782,11 +782,27 @@ function LinkedInProfile({
                 ? "Families can find you in the marketplace and send booking offers."
                 : "Complete your profile to appear in family shortlists."}
             </p>
-            <Link href={matchable ? "/me/gigs" : "/profile/edit"} className="mt-3 block">
-              <Button variant="outline" size="sm" className="w-full gap-1.5">
-                {matchable ? "Manage gigs" : "Finish setup"}
-                <ArrowRight className="size-4" strokeWidth={2.25} />
-              </Button>
+            <Link
+              href={matchable ? "/me/gigs" : "/profile/edit"}
+              className={cn(
+                "group/cta relative mt-4 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border px-4 py-2.5 text-sm font-semibold outline-none transition-all duration-300 ease-out",
+                "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+                "active:translate-y-0 active:scale-[0.99]",
+                matchable
+                  ? "border-success/40 bg-card text-success hover:-translate-y-0.5 hover:border-transparent hover:bg-success hover:text-success-foreground hover:shadow-[0_10px_24px_-8px_oklch(0.58_0.14_155/0.55)] focus-visible:ring-success/50"
+                  : "border-accent/40 bg-card text-accent hover:-translate-y-0.5 hover:border-transparent hover:bg-accent hover:text-accent-foreground hover:shadow-[0_10px_24px_-8px_oklch(0.60_0.20_25/0.5)] focus-visible:ring-accent/50",
+              )}
+            >
+              {/* Sheen sweep — glides across once on hover */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-full"
+              />
+              <span className="relative">{matchable ? "Manage gigs" : "Finish setup"}</span>
+              <ArrowRight
+                className="relative size-4 transition-transform duration-300 ease-out group-hover/cta:translate-x-1"
+                strokeWidth={2.25}
+              />
             </Link>
           </section>
         )}

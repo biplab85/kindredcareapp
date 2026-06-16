@@ -187,13 +187,11 @@ function AdminCertificationsView() {
           ) : view === "table" ? (
             <CertTable rows={rows} onOpen={setSelectedId} />
           ) : (
-            <ul className="space-y-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rows.map((row) => (
-                <li key={row.id}>
-                  <CertRow cert={row} onOpen={() => setSelectedId(row.id)} />
-                </li>
+                <CertCard key={row.id} cert={row} onOpen={() => setSelectedId(row.id)} />
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </div>
@@ -272,52 +270,81 @@ function CertActionsMenu({ onOpen }: { onOpen: () => void }) {
  * Grid rows
  * ───────────────────────────────────────────────────────────── */
 
-function CertRow({ cert, onOpen }: { cert: AdminCertification; onOpen: () => void }) {
+// Gradient for the card header band, keyed off status tone.
+const HEADER_TONES: Record<CertTone, string> = {
+  muted: "from-foreground/10 via-foreground/5",
+  primary: "from-primary/15 via-primary/5",
+  success: "from-success/15 via-success/5",
+  destructive: "from-destructive/15 via-destructive/5",
+  warning: "from-accent/15 via-accent/5",
+};
+
+function CertCard({ cert, onOpen }: { cert: AdminCertification; onOpen: () => void }) {
   const caregiver = cert.caregiver_profile?.user;
   const tone = statusTone(cert.status);
 
   return (
-    <div className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_30px_-16px_rgba(10,14,40,0.22)]">
-      <button
-        onClick={onOpen}
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 text-left"
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_14px_34px_-18px_rgba(10,14,40,0.28)]">
+      {/* Header band — gradient keyed off status tone */}
+      <div
+        className={cn(
+          "relative h-20 w-full overflow-hidden bg-gradient-to-br to-transparent",
+          HEADER_TONES[tone],
+        )}
       >
-        <span
-          className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold",
-            AVATAR_TONES[tone],
-          )}
-        >
-          {initialsOf(caregiver?.name ?? cert.name)}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <h3 className="text-base font-semibold tracking-tight text-foreground group-hover:text-primary">
-              {cert.name}
-            </h3>
-            <StatusPill status={cert.status} />
-            <DocChip hasDoc={cert.has_document} />
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-            <span>
-              {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "Issuer not on file"}
-            </span>
-            {caregiver && (
-              <>
-                <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-                <span>
-                  <span className="font-medium text-foreground/80">{caregiver.name}</span> ·{" "}
-                  {caregiver.email}
-                </span>
-              </>
-            )}
-          </div>
+        <div className="absolute top-2.5 right-2.5">
+          <CertActionsMenu onOpen={onOpen} />
         </div>
-      </button>
+      </div>
 
-      <CertActionsMenu onOpen={onOpen} />
+      {/* Avatar overlapping the band */}
+      <div className="px-4">
+        <button onClick={onOpen} aria-label={`Review ${cert.name}`} className="cursor-pointer">
+          <span
+            className={cn(
+              "-mt-9 grid size-16 place-items-center rounded-2xl text-lg font-bold ring-4 ring-card transition-transform group-hover:scale-[1.03]",
+              AVATAR_TONES[tone],
+            )}
+          >
+            {initialsOf(caregiver?.name ?? cert.name)}
+          </span>
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 flex-col px-4 pt-3 pb-4">
+        <button
+          onClick={onOpen}
+          className="cursor-pointer truncate text-left text-base font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+        >
+          {cert.name}
+        </button>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <StatusPill status={cert.status} />
+          <DocChip hasDoc={cert.has_document} />
+        </div>
+
+        <div className="mt-3 space-y-1.5 text-[13px] text-muted-foreground">
+          {caregiver ? (
+            <p className="truncate">
+              <span className="font-medium text-foreground/80">{caregiver.name}</span> ·{" "}
+              {caregiver.email}
+            </p>
+          ) : (
+            <p className="text-muted-foreground/70">Caregiver not on file</p>
+          )}
+        </div>
+
+        <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3">
+          <span className="text-xs font-medium tabular-nums text-muted-foreground/70">
+            #{String(cert.id).padStart(5, "0")}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {[cert.issuer, cert.year].filter(Boolean).join(" · ") || "—"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -481,17 +508,21 @@ function LoadingView({ view }: { view: ViewMode }) {
     );
   }
   return (
-    <ul className="space-y-3" aria-busy="true">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="h-20 w-full animate-pulse bg-muted" />
+          <div className="px-4">
+            <div className="-mt-9 size-16 animate-pulse rounded-2xl bg-muted ring-4 ring-card" />
           </div>
-        </li>
+          <div className="space-y-2 px-4 pt-3 pb-4">
+            <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

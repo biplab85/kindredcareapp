@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   BadgeCheck,
   CalendarRange,
@@ -527,8 +528,8 @@ function ActionPanel({ user, onMutated }: { user: AdminUserDetail; onMutated: ()
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                 Skips the self-service email-link flow. Use when the user verified identity another
-                way (phone, in-person, separate ID check) and you&rsquo;re unblocking them. Logged on
-                the audit trail.
+                way (phone, in-person, separate ID check) and you&rsquo;re unblocking them. Logged
+                on the audit trail.
               </p>
 
               {!showEmailVerifyForm ? (
@@ -596,58 +597,85 @@ function ActionPanel({ user, onMutated }: { user: AdminUserDetail; onMutated: ()
         </section>
       )}
 
-      <section className="rounded-xl border border-accent/40 bg-accent/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)]">
-        <div className="flex items-start gap-3.5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
-            <ShieldX className="size-5" strokeWidth={2} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold tracking-[0.12em] text-accent uppercase">
-              Kill-switch
-            </p>
-            <h3 className="mt-0.5 text-base font-semibold tracking-tight text-foreground">
-              Pull them from the marketplace.
-            </h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              Caregivers drop out of matching immediately. Families lose booking access. The reason
-              below is logged on the audit trail — be specific enough that the next admin reading
-              it knows why.
-            </p>
+      <section className="relative overflow-hidden rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/[0.06] via-card to-card shadow-[0_1px_2px_rgba(10,14,40,0.04)] lg:col-span-2">
+        {/* Soft corner glow for depth */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-20 -right-16 -z-10 size-56 rounded-full bg-[radial-gradient(circle,theme(colors.accent/0.16),transparent_70%)]"
+        />
 
-            <div className="mt-4">
-              <label
-                htmlFor="suspend-reason"
-                className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
-              >
-                Reason (5–500 chars)
-              </label>
-              <textarea
-                id="suspend-reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                maxLength={500}
-                placeholder="Inconsistent behaviour reports. Pending investigation by safety team."
-                className={TEXTAREA_CLASS}
-              />
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground tabular-nums">{reason.length}/500</p>
-                <Button
-                  onClick={onSuspend}
-                  disabled={busy || reason.trim().length < 5}
-                  variant="destructive"
-                  size="sm"
-                  className="cursor-pointer"
-                >
-                  {busy ? (
-                    <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
-                  ) : (
-                    <ShieldOff className="size-3.5" strokeWidth={2} />
-                  )}
-                  Suspend account
-                </Button>
-              </div>
+        {/* Header strip */}
+        <div className="flex items-center gap-2 border-b border-dashed border-accent/30 px-5 py-3.5 sm:px-6">
+          <span className="h-px w-6 bg-accent/40" />
+          <span className="text-[11px] font-semibold tracking-[0.22em] text-accent uppercase">
+            Kill-switch
+          </span>
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-accent uppercase ring-1 ring-accent/20">
+            <AlertTriangle className="size-3" strokeWidth={2.25} />
+            Danger zone
+          </span>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex items-start gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/20">
+              <ShieldX className="size-6" strokeWidth={2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                Pull them from the marketplace.
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Caregivers drop out of matching immediately. Families lose booking access. The
+                reason below is logged on the audit trail — be specific enough that the next admin
+                reading it knows why.
+              </p>
             </div>
           </div>
+
+          {/* Reason field — set into a subtle inset */}
+          <div className="mt-5 rounded-xl border border-accent/20 bg-background/60 p-4">
+            <label
+              htmlFor="suspend-reason"
+              className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+            >
+              Reason{" "}
+              <span className="font-normal normal-case text-muted-foreground/60">
+                (5–500 chars)
+              </span>
+            </label>
+            <textarea
+              id="suspend-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              placeholder="Inconsistent behaviour reports. Pending investigation by safety team."
+              className="mt-2 min-h-[80px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none ring-accent/30 transition-shadow placeholder:text-muted-foreground/50 focus:ring-2"
+            />
+            <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">
+              {reason.length}/500
+            </p>
+          </div>
+        </div>
+
+        {/* Footer action bar */}
+        <div className="flex flex-col-reverse gap-3 border-t border-accent/20 bg-accent/[0.03] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-xs text-muted-foreground">Takes effect immediately.</p>
+          <Button
+            onClick={onSuspend}
+            disabled={busy || reason.trim().length < 5}
+            variant="destructive"
+            size="lg"
+            className="cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-8px_oklch(0.6_0.2_25/0.45)] active:translate-y-0 active:scale-[0.98]"
+          >
+            {busy ? (
+              <Loader2 className="size-4 animate-spin" strokeWidth={2} />
+            ) : (
+              <ShieldOff className="size-4" strokeWidth={2} />
+            )}
+            Suspend account
+          </Button>
         </div>
       </section>
     </div>

@@ -114,10 +114,12 @@ export function DashboardTopbar({
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/profile" />}>
-              <UserCircle className="size-4" strokeWidth={1.75} />
-              Profile
-            </DropdownMenuItem>
+            {user?.role !== "admin" && (
+              <DropdownMenuItem render={<Link href="/profile" />}>
+                <UserCircle className="size-4" strokeWidth={1.75} />
+                Profile
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem render={<Link href="/settings" />}>
               <Settings className="size-4" strokeWidth={1.75} />
               Settings

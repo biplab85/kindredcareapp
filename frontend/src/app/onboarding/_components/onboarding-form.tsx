@@ -631,7 +631,7 @@ export function OnboardingForm({ embedded = false }: { embedded?: boolean }) {
   return (
     <div
       className={cn(
-        "w-full max-w-5xl px-4 pt-6 pb-16 sm:px-6 lg:px-8",
+        "w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8",
         // Centered for the focused standalone onboarding flow; left-aligned
         // inside the dashboard shell (profile editor).
         !embedded && "mx-auto",

@@ -381,13 +381,11 @@ function ResultMeta({
 
 function UserList({ rows }: { rows: AdminUserCard[] }) {
   return (
-    <ul className="space-y-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((u) => (
-        <li key={u.id}>
-          <UserRow user={u} />
-        </li>
+        <UserCard key={u.id} user={u} />
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -483,71 +481,136 @@ const AVATAR_TONES: Record<AdminUserRole, string> = {
   admin: "bg-foreground/10 text-foreground/80",
 };
 
-function UserRow({ user }: { user: AdminUserCard }) {
+// Role-tinted gradient for the card header band, so each role reads at a
+// glance the way the gig cards key off their photo.
+const HEADER_TONES: Record<AdminUserRole, string> = {
+  family: "from-primary/15 via-primary/5",
+  caregiver: "from-success/15 via-success/5",
+  admin: "from-foreground/10 via-foreground/5",
+};
+
+// Presence dot shown on the avatar corner, keyed off account status.
+const STATUS_DOT: Record<AdminUserStatus, string> = {
+  active: "bg-success",
+  suspended: "bg-accent",
+  deleted: "bg-muted-foreground",
+};
+
+const STATUS_LABEL: Record<AdminUserStatus, string> = {
+  active: "Active",
+  suspended: "Suspended",
+  deleted: "Deleted",
+};
+
+function UserCard({ user }: { user: AdminUserCard }) {
   const isSuspended = user.status === "suspended";
   const isCaregiver = user.role === "caregiver";
   const isDeleted = user.status === "deleted";
+  const fullyVerified = user.cleared_checks >= user.total_checks && user.total_checks > 0;
 
   return (
     <div
       className={cn(
-        "group flex items-center gap-4 rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(10,14,40,0.22)]",
+        "group relative flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-18px_rgba(10,14,40,0.28)]",
         isSuspended
-          ? "border-accent/40 bg-accent/[0.03] hover:border-accent/60"
+          ? "border-accent/40 hover:border-accent/60"
           : "border-border hover:border-primary/30",
       )}
     >
-      {/* Identity (links to the detail record) */}
-      <Link href={`/admin/users/${user.id}`} className="flex min-w-0 flex-1 items-center gap-4">
-        <span
-          className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold",
-            isDeleted ? "bg-muted text-muted-foreground" : AVATAR_TONES[user.role],
-          )}
-        >
-          {initialsOf(user.name)}
-        </span>
+      {/* Header band — role-tinted gradient */}
+      <div
+        className={cn(
+          "relative h-20 w-full overflow-hidden bg-gradient-to-br to-transparent",
+          HEADER_TONES[user.role],
+        )}
+      >
+        <div className="absolute top-2.5 right-2.5">
+          <UserActionsMenu userId={user.id} />
+        </div>
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <h3
+      {/* Avatar overlapping the band — presence dot keyed off status */}
+      <div className="px-4">
+        <Link href={`/admin/users/${user.id}`} aria-label={`View ${user.name}`}>
+          <span
+            className={cn(
+              "relative -mt-9 grid size-16 place-items-center rounded-2xl text-lg font-bold ring-4 ring-card transition-transform group-hover:scale-[1.03]",
+              isDeleted ? "bg-muted text-muted-foreground" : AVATAR_TONES[user.role],
+            )}
+          >
+            {initialsOf(user.name)}
+            <span
+              title={STATUS_LABEL[user.status]}
               className={cn(
-                "text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary",
-                isDeleted && "text-muted-foreground line-through",
+                "absolute right-0.5 bottom-0.5 size-2.5 rounded-full ring-2 ring-card",
+                STATUS_DOT[user.status],
               )}
             >
-              {user.name}
-            </h3>
-            <RolePill role={user.role} />
-            <StatusPill status={user.status} />
-          </div>
+              <span className="sr-only">{STATUS_LABEL[user.status]}</span>
+            </span>
+          </span>
+        </Link>
+      </div>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-            <span className="font-medium tabular-nums text-muted-foreground/70">
-              #{String(user.id).padStart(5, "0")}
-            </span>
-            <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
-              {user.email}
-            </span>
-            {user.phone && (
-              <>
-                <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-                <span className="inline-flex items-center gap-1.5 tabular-nums">
-                  <Phone className="size-3.5 text-muted-foreground/70" strokeWidth={2} />
-                  {user.phone}
-                </span>
-              </>
+      {/* Body */}
+      <div className="flex flex-1 flex-col px-4 pt-3 pb-4">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <Link
+            href={`/admin/users/${user.id}`}
+            className={cn(
+              "text-base font-semibold tracking-tight text-foreground transition-colors hover:text-primary",
+              isDeleted && "text-muted-foreground line-through",
             )}
-          </div>
+          >
+            {user.name}
+          </Link>
+          <RolePill role={user.role} />
         </div>
-      </Link>
 
-      {/* Right rail: verification counter + actions */}
-      <div className="flex shrink-0 items-center gap-3">
-        {isCaregiver && <VerificationCounter user={user} />}
-        <UserActionsMenu userId={user.id} />
+        <div className="mt-3 space-y-1.5 text-[13px] text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <Mail className="size-3.5 shrink-0 text-muted-foreground/70" strokeWidth={2} />
+            <span className="truncate">{user.email}</span>
+          </p>
+          {user.phone && (
+            <p className="flex items-center gap-2 tabular-nums">
+              <Phone className="size-3.5 shrink-0 text-muted-foreground/70" strokeWidth={2} />
+              {user.phone}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3">
+          <span className="text-xs font-medium tabular-nums text-muted-foreground/70">
+            #{String(user.id).padStart(5, "0")}
+          </span>
+          {isCaregiver ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-semibold tabular-nums",
+                fullyVerified
+                  ? "border-success/40 bg-success/[0.07] text-success"
+                  : "border-border bg-muted/40 text-muted-foreground",
+              )}
+              title={
+                fullyVerified
+                  ? "Fully verified"
+                  : `Cleared ${user.cleared_checks} of ${user.total_checks} checks`
+              }
+            >
+              <BadgeCheck
+                className={cn(
+                  "size-3.5",
+                  fullyVerified ? "text-success" : "text-muted-foreground/60",
+                )}
+                strokeWidth={2}
+              />
+              {user.cleared_checks}/{user.total_checks}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground/50">—</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -593,35 +656,6 @@ function StatusPill({ status }: { status: AdminUserStatus }) {
       <UserMinus className="size-3" strokeWidth={2.25} />
       Deleted
     </span>
-  );
-}
-
-function VerificationCounter({ user }: { user: AdminUserCard }) {
-  const cleared = user.cleared_checks;
-  const total = user.total_checks;
-  const fully = cleared >= total && total > 0;
-
-  return (
-    <div
-      className={cn(
-        "hidden items-center gap-1.5 rounded-lg border px-2.5 py-1.5 sm:inline-flex",
-        fully ? "border-success/40 bg-success/[0.07]" : "border-border bg-muted/40",
-      )}
-      title={fully ? "Fully verified" : `Cleared ${cleared} of ${total} checks`}
-    >
-      <BadgeCheck
-        className={cn("size-4", fully ? "text-success" : "text-muted-foreground/60")}
-        strokeWidth={2}
-      />
-      <span
-        className={cn(
-          "text-xs font-semibold tabular-nums",
-          fully ? "text-success" : "text-muted-foreground",
-        )}
-      >
-        {cleared}/{total}
-      </span>
-    </div>
   );
 }
 
@@ -719,17 +753,21 @@ function LoadingView({ view }: { view: ViewMode }) {
     );
   }
   return (
-    <ul className="space-y-3" aria-busy="true">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="h-20 w-full animate-pulse bg-muted" />
+          <div className="px-4">
+            <div className="-mt-9 size-16 animate-pulse rounded-2xl bg-muted ring-4 ring-card" />
           </div>
-        </li>
+          <div className="space-y-2 px-4 pt-3 pb-4">
+            <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

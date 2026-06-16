@@ -366,13 +366,11 @@ function ResultMeta({
 
 function Feed({ alerts }: { alerts: Alert[] }) {
   return (
-    <ul className="space-y-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {alerts.map((a) => (
-        <li key={a.id}>
-          <AlertCard alert={a} />
-        </li>
+        <AlertCard key={a.id} alert={a} />
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -380,6 +378,13 @@ const ICON_TILE_TONES: Record<AlertTone, string> = {
   alarm: "bg-accent/10 text-accent",
   warn: "bg-foreground/10 text-foreground/70",
   neutral: "bg-muted text-muted-foreground",
+};
+
+// Gradient for the card header band, keyed off severity tone.
+const HEADER_TONES: Record<AlertTone, string> = {
+  alarm: "from-accent/15 via-accent/5",
+  warn: "from-foreground/10 via-foreground/5",
+  neutral: "from-primary/12 via-primary/5",
 };
 
 function AlertCard({ alert }: { alert: Alert }) {
@@ -390,62 +395,77 @@ function AlertCard({ alert }: { alert: Alert }) {
   return (
     <div
       className={cn(
-        "group flex items-center gap-4 rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(10,14,40,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(10,14,40,0.22)]",
+        "group relative flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-18px_rgba(10,14,40,0.28)]",
         tone === "alarm"
-          ? "border-accent/40 bg-accent/[0.03] hover:border-accent/60"
+          ? "border-accent/40 hover:border-accent/60"
           : "border-border hover:border-primary/30",
       )}
     >
-      <Link href={alert.target_url} className="flex min-w-0 flex-1 items-center gap-4">
-        <span
-          className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full",
-            ICON_TILE_TONES[tone],
-          )}
-        >
-          <Icon className="size-5" strokeWidth={2} />
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <h3 className="text-base font-semibold tracking-tight text-foreground group-hover:text-primary">
-              {alert.title}
-            </h3>
-            <SeverityPill severity={alert.severity} tone={tone} />
-            <KindPill kind={alert.kind} />
-          </div>
-
-          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
-            {alert.summary}
-          </p>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-            {occurred && (
-              <span className="tabular-nums text-muted-foreground/70">
-                {occurred.toLocaleString("en-CA", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-            {alert.actor && (
-              <>
-                {occurred && (
-                  <span aria-hidden className="size-1 rounded-full bg-muted-foreground/40" />
-                )}
-                <span>
-                  <span className="capitalize text-muted-foreground/70">{alert.actor.role}</span>{" "}
-                  <span className="font-medium text-foreground/80">{alert.actor.name}</span>
-                </span>
-              </>
-            )}
-          </div>
+      {/* Header band — gradient keyed off severity tone */}
+      <div
+        className={cn(
+          "relative h-20 w-full overflow-hidden bg-gradient-to-br to-transparent",
+          HEADER_TONES[tone],
+        )}
+      >
+        <div className="absolute top-2.5 right-2.5">
+          <AlertActionsMenu targetUrl={alert.target_url} />
         </div>
-      </Link>
+      </div>
 
-      <AlertActionsMenu targetUrl={alert.target_url} />
+      {/* Icon tile overlapping the band */}
+      <div className="px-4">
+        <Link href={alert.target_url} aria-label={alert.title}>
+          <span
+            className={cn(
+              "-mt-9 grid size-16 place-items-center rounded-2xl ring-4 ring-card transition-transform group-hover:scale-[1.03]",
+              ICON_TILE_TONES[tone],
+            )}
+          >
+            <Icon className="size-7" strokeWidth={2} />
+          </span>
+        </Link>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 flex-col px-4 pt-3 pb-4">
+        <Link
+          href={alert.target_url}
+          className="line-clamp-1 text-base font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+        >
+          {alert.title}
+        </Link>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <SeverityPill severity={alert.severity} tone={tone} />
+          <KindPill kind={alert.kind} />
+        </div>
+
+        <p className="mt-3 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+          {alert.summary}
+        </p>
+
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+          {occurred ? (
+            <span className="tabular-nums text-muted-foreground/70">
+              {occurred.toLocaleString("en-CA", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          ) : (
+            <span />
+          )}
+          {alert.actor && (
+            <span className="truncate text-right">
+              <span className="capitalize text-muted-foreground/70">{alert.actor.role}</span>{" "}
+              <span className="font-medium text-foreground/80">{alert.actor.name}</span>
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -590,17 +610,21 @@ function LoadingView({ view }: { view: ViewMode }) {
     );
   }
   return (
-    <ul className="space-y-3" aria-busy="true">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <li key={i} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="size-11 shrink-0 animate-pulse rounded-full bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-muted/70" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="h-20 w-full animate-pulse bg-muted" />
+          <div className="px-4">
+            <div className="-mt-9 size-16 animate-pulse rounded-2xl bg-muted ring-4 ring-card" />
           </div>
-        </li>
+          <div className="space-y-2 px-4 pt-3 pb-4">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-muted/70" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted/70" />
+          </div>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

@@ -155,9 +155,9 @@ function BookingDetailView({ bookingId }: { bookingId: number }) {
             existed on the /bookings list page, so a caregiver who
             deep-linked into the detail (from email, notification, magic
             link) had to back out to take action. */}
-        {role === "caregiver" &&
-          booking.status === "pending_caregiver" &&
-          !booking.is_expired && <OfferRespondPanel booking={booking} onChanged={reload} />}
+        {role === "caregiver" && booking.status === "pending_caregiver" && !booking.is_expired && (
+          <OfferRespondPanel booking={booking} onChanged={reload} />
+        )}
 
         <ArrivalBanner booking={booking} role={role} />
 
@@ -263,7 +263,8 @@ function DetailHeader({
       </span>
 
       <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-        {start.toLocaleDateString("en-CA", { timeZone: EASTERN_TZ,
+        {start.toLocaleDateString("en-CA", {
+          timeZone: EASTERN_TZ,
           weekday: "long",
           month: "long",
           day: "numeric",
@@ -271,7 +272,11 @@ function DetailHeader({
       </h1>
 
       <span className="text-sm text-muted-foreground">
-        {start.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })}
+        {start.toLocaleTimeString("en-CA", {
+          timeZone: EASTERN_TZ,
+          hour: "numeric",
+          minute: "2-digit",
+        })}
         {" · "}
         {formatHours(booking.duration_minutes)}
         {role === "family" &&
@@ -305,13 +310,7 @@ function DetailHeader({
  * the action right there.
  * ───────────────────────────────────────────────────────────── */
 
-function OfferRespondPanel({
-  booking,
-  onChanged,
-}: {
-  booking: Booking;
-  onChanged: () => void;
-}) {
+function OfferRespondPanel({ booking, onChanged }: { booking: Booking; onChanged: () => void }) {
   const [busy, setBusy] = useState<"accept" | "decline" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -447,7 +446,8 @@ function ArrivalBanner({ booking, role }: { booking: Booking; role: string }) {
           <p className="text-sm font-semibold tracking-tight text-foreground">
             {caregiverName} arrived at{" "}
             <span className="tabular-nums">
-              {checkIn.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ,
+              {checkIn.toLocaleTimeString("en-CA", {
+                timeZone: EASTERN_TZ,
                 hour: "numeric",
                 minute: "2-digit",
               })}
@@ -497,7 +497,8 @@ function ReceiptBlock({
           <DetailRow
             icon={Calendar}
             label="When"
-            value={new Date(booking.scheduled_start).toLocaleString("en-CA", { timeZone: EASTERN_TZ,
+            value={new Date(booking.scheduled_start).toLocaleString("en-CA", {
+              timeZone: EASTERN_TZ,
               weekday: "short",
               month: "short",
               day: "numeric",
@@ -1152,53 +1153,53 @@ function VisitInProgressWatch({ booking }: { booking: Booking }) {
         aria-label="Visit in progress"
         className="rounded-xl border border-success/30 bg-gradient-to-br from-success/[0.04] via-card to-card p-6 sm:p-8"
       >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="relative flex size-2.5 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
-            <span className="relative size-2.5 rounded-full bg-success" />
-          </span>
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
-            Visit — in progress
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="relative flex size-2.5 items-center justify-center">
+              <span className="absolute inset-0 animate-ping rounded-full bg-success/60" />
+              <span className="relative size-2.5 rounded-full bg-success" />
+            </span>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-success uppercase">
+              Visit — in progress
+            </p>
+          </div>
         </div>
-      </div>
 
-      <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
-        {booking.caregiver.name.split(" ")[0]} is with your loved one right now. We&rsquo;ll send a
-        summary the moment the visit wraps up.
-      </p>
+        <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+          {booking.caregiver.name.split(" ")[0]} is with your loved one right now. We&rsquo;ll send
+          a summary the moment the visit wraps up.
+        </p>
 
-      {(tasks.length > 0 || defaultTasks.length > 0) && (
-        <div className="mt-6 rounded-2xl bg-background/60 p-4 ring-1 ring-border/40">
-          <p className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Progress so far
-          </p>
-          <ul className="space-y-1.5 text-sm">
-            {(defaultTasks.length > 0 ? defaultTasks : tasks).map((task) => {
-              const done = tasks.includes(task);
-              return (
-                <li key={task} className="flex items-center gap-2.5">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "grid size-4 place-items-center rounded-[4px] border",
-                      done
-                        ? "border-success bg-success text-success-foreground"
-                        : "border-border/70 bg-background",
-                    )}
-                  >
-                    {done && <Check className="size-2.5" strokeWidth={3} />}
-                  </span>
-                  <span className={cn(done ? "text-foreground" : "text-muted-foreground/70")}>
-                    {task}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+        {(tasks.length > 0 || defaultTasks.length > 0) && (
+          <div className="mt-6 rounded-2xl bg-background/60 p-4 ring-1 ring-border/40">
+            <p className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+              Progress so far
+            </p>
+            <ul className="space-y-1.5 text-sm">
+              {(defaultTasks.length > 0 ? defaultTasks : tasks).map((task) => {
+                const done = tasks.includes(task);
+                return (
+                  <li key={task} className="flex items-center gap-2.5">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "grid size-4 place-items-center rounded-[4px] border",
+                        done
+                          ? "border-success bg-success text-success-foreground"
+                          : "border-border/70 bg-background",
+                      )}
+                    >
+                      {done && <Check className="size-2.5" strokeWidth={3} />}
+                    </span>
+                    <span className={cn(done ? "text-foreground" : "text-muted-foreground/70")}>
+                      {task}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </section>
     </>
   );
@@ -1253,7 +1254,11 @@ function VisitSummary({
           tone="text-success"
           value={
             checkIn
-              ? checkIn.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })
+              ? checkIn.toLocaleTimeString("en-CA", {
+                  timeZone: EASTERN_TZ,
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
               : "—"
           }
         />
@@ -1262,7 +1267,11 @@ function VisitSummary({
           tone="text-primary"
           value={
             checkOut
-              ? checkOut.toLocaleTimeString("en-CA", { timeZone: EASTERN_TZ, hour: "numeric", minute: "2-digit" })
+              ? checkOut.toLocaleTimeString("en-CA", {
+                  timeZone: EASTERN_TZ,
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
               : "—"
           }
         />
@@ -1588,7 +1597,8 @@ type TimelineEvent = {
 
 function buildTimeline(booking: Booking): TimelineEvent[] {
   const fmtMeta = (d: Date) =>
-    d.toLocaleString("en-CA", { timeZone: EASTERN_TZ,
+    d.toLocaleString("en-CA", {
+      timeZone: EASTERN_TZ,
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -1832,10 +1842,7 @@ function FamilyConfirmBlock({
                 </Button>
               </div>
 
-              <DisputeWindowCountdown
-                checkOutAt={booking.visit.check_out_at}
-                className="mt-3"
-              />
+              <DisputeWindowCountdown checkOutAt={booking.visit.check_out_at} className="mt-3" />
 
               {errorMsg !== null && (
                 <p
@@ -1889,7 +1896,8 @@ function DisputeWindowCountdown({
 }
 
 function formatLongTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-CA", { timeZone: EASTERN_TZ,
+  return new Date(iso).toLocaleString("en-CA", {
+    timeZone: EASTERN_TZ,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -1988,63 +1996,78 @@ function RatingPromptInner({ booking }: { booking: Booking }) {
   return (
     <section
       aria-label="Rate this visit"
-      className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5 shadow-[0_1px_2px_rgba(10,14,40,0.04)] sm:p-6"
+      className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.05] via-card to-card shadow-[0_1px_2px_rgba(10,14,40,0.04)]"
     >
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-          <Star className="size-5" strokeWidth={2} />
+      {/* Soft corner glow for depth — matches the elevated visit panels */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-20 -right-16 -z-10 size-56 rounded-full bg-[radial-gradient(circle,theme(colors.primary/0.14),transparent_70%)]"
+      />
+
+      {/* Header strip */}
+      <div className="flex items-center gap-2 border-b border-dashed border-primary/30 px-6 py-3.5 sm:px-8">
+        <span className="h-px w-6 bg-primary/40" />
+        <span className="text-[11px] font-semibold tracking-[0.22em] text-primary uppercase">
+          Your turn
         </span>
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-primary uppercase">
-            Your turn
-          </p>
-          <h3 className="text-base font-semibold tracking-tight text-foreground">
-            A word on how it went?
-          </h3>
+      </div>
+
+      {/* Body */}
+      <div className="px-6 py-6 sm:px-8 sm:py-7">
+        <div className="flex items-start gap-4 sm:gap-5">
+          <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+            <Star className="size-7" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              A word on how it went?
+            </h3>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+              Your rating lands on the other party&rsquo;s profile once both of you have weighed in,
+              or automatically after seven days — whichever comes first. Honest is what helps.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-        Your rating lands on the other party&rsquo;s profile once both of you have weighed in, or
-        automatically after seven days — whichever comes first. Honest is what helps.
-      </p>
+        {/* Star picker — set into a subtle inset, like the receipt panels */}
+        <div className="mt-6 rounded-2xl bg-background/60 p-5 ring-1 ring-border/50 sm:p-6">
+          <StarPicker value={stars} onChange={setStars} disabled={submitting} />
+        </div>
 
-      <div className="mt-5">
-        <StarPicker value={stars} onChange={setStars} disabled={submitting} />
-      </div>
-
-      <div className="mt-7">
-        <label
-          htmlFor="review-body"
-          className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
-        >
-          A note (optional)
-        </label>
-        <textarea
-          id="review-body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={4}
-          maxLength={2000}
-          placeholder="What stood out? Anything the next person should know?"
-          disabled={submitting}
-          className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/50 disabled:opacity-60"
-        />
-        <p className="mt-1 text-right text-xs text-muted-foreground tabular-nums">
-          {body.length} / 2000
-        </p>
-      </div>
-
-      {errorMsg && (
-        <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
-          <p className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            {errorMsg}
+        <div className="mt-5">
+          <label
+            htmlFor="review-body"
+            className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+          >
+            A note (optional)
+          </label>
+          <textarea
+            id="review-body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            maxLength={2000}
+            placeholder="What stood out? Anything the next person should know?"
+            disabled={submitting}
+            className="mt-3 w-full resize-none rounded-xl border border-border/60 bg-background px-3.5 py-3 text-sm leading-relaxed outline-none ring-primary/30 transition-shadow focus:ring-2 disabled:opacity-60"
+          />
+          <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">
+            {body.length} / 2000
           </p>
         </div>
-      )}
 
-      <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {errorMsg && (
+          <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-sm text-accent">
+            <p className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              {errorMsg}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer actions */}
+      <div className="flex flex-col-reverse gap-3 border-t border-border/60 bg-muted/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <Button
           onClick={() => setPhase("skipped")}
           disabled={submitting}
@@ -2142,8 +2165,8 @@ function StarPicker({
               <Star
                 className={cn(
                   "size-9 transition-all",
-                  filled ? "fill-accent stroke-accent" : "fill-transparent stroke-border",
-                  filled && hover === n && "drop-shadow-[0_0_8px_theme(colors.accent/0.4)]",
+                  filled ? "fill-[#079400] stroke-[#079400]" : "fill-transparent stroke-border",
+                  filled && hover === n && "drop-shadow-[0_0_8px_#07940066]",
                 )}
                 strokeWidth={1.5}
               />
